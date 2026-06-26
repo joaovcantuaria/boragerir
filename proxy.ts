@@ -10,6 +10,7 @@ export async function proxy(request: NextRequest) {
   if (
     pathname.startsWith("/demo") ||
     pathname.startsWith("/auth/") ||
+    pathname.startsWith("/api/") ||   // APIs nunca redirecionam
     pathname === "/login" ||
     pathname === "/cadastro" ||
     pathname === "/"
