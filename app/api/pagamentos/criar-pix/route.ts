@@ -18,16 +18,28 @@ export async function POST(req: NextRequest) {
 
     const { valorTotal, descricao } = calcularValor(plano, periodicidade)
 
-    const mp = new MercadoPagoConfig({
-      accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN!,
-    })
+    const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN
+    if (!accessToken) {
+      console.error("MERCADOPAGO_ACCESS_TOKEN não configurado")
+      return NextResponse.json({ erro: "Gateway de pagamento não configurado" }, { status: 500 })
+    }
 
+    const mp = new MercadoPagoConfig({ accessToken })
     const payment = new Payment(mp)
 
-    // Montar nome e sobrenome da empresa
+    // Nome do pagador
     const partes = empresa.nome.trim().split(" ")
-    const firstName = partes[0] ?? empresa.nome
+    const firstName = partes[0] ?? "Cliente"
     const lastName = partes.slice(1).join(" ") || firstName
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.boragerir.com"
+
+    console.log("Criando Pix:", {
+      valor: valorTotal,
+      email: empresa.email,
+      plano,
+      periodicidade,
+    })
 
     const resultado = await payment.create({
       body: {
@@ -38,40 +50,50 @@ export async function POST(req: NextRequest) {
           email: empresa.email,
           first_name: firstName,
           last_name: lastName,
-          // CPF/CNPJ do pagador (obrigatório em produção)
-          identification: empresa.documento
-            ? {
-                type: empresa.tipo_documento === "cnpj" ? "CNPJ" : "CPF",
-                number: empresa.documento.replace(/\D/g, ""),
-              }
-            : undefined,
+          ...(empresa.documento && {
+            identification: {
+              type: empresa.tipo_documento === "cnpj" ? "CNPJ" : "CPF",
+              number: empresa.documento.replace(/\D/g, ""),
+            },
+          }),
         },
         metadata: {
           empresa_id: empresa.id,
           plano,
           periodicidade,
         },
-        notification_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/mercadopago`,
+        notification_url: `${appUrl}/api/webhooks/mercadopago`,
       },
     })
 
+    console.log("Resultado MP:", {
+      id: resultado.id,
+      status: resultado.status,
+      hasQr: !!resultado.point_of_interaction?.transaction_data?.qr_code,
+    })
+
     if (!resultado.id) {
-      return NextResponse.json({ erro: "Erro ao criar pagamento no Mercado Pago" }, { status: 500 })
+      return NextResponse.json({ erro: "Mercado Pago não retornou ID do pagamento" }, { status: 500 })
     }
 
-    // Salvar assinatura pendente
-    await supabase.from("assinaturas").insert({
-      empresa_id: empresa.id,
-      plano,
-      periodicidade,
-      status: "pendente",
-      forma_pagamento: "pix",
-      valor_mensal: plano === "basico" ? 49 : 99,
-      valor_total: valorTotal,
-      mp_pix_payment_id: resultado.id.toString(),
-      mp_pix_qr_code: resultado.point_of_interaction?.transaction_data?.qr_code_base64 ?? null,
-      mp_pix_qr_code_text: resultado.point_of_interaction?.transaction_data?.qr_code ?? null,
-    })
+    // Tentar salvar no banco (sem bloquear se tabela não existir)
+    try {
+      await supabase.from("assinaturas").insert({
+        empresa_id: empresa.id,
+        plano,
+        periodicidade,
+        status: "pendente",
+        forma_pagamento: "pix",
+        valor_mensal: plano === "basico" ? 49 : 99,
+        valor_total: valorTotal,
+        mp_pix_payment_id: resultado.id.toString(),
+        mp_pix_qr_code: resultado.point_of_interaction?.transaction_data?.qr_code_base64 ?? null,
+        mp_pix_qr_code_text: resultado.point_of_interaction?.transaction_data?.qr_code ?? null,
+      })
+    } catch (dbErr) {
+      console.warn("Aviso: não foi possível salvar assinatura no banco:", dbErr)
+      // Continua mesmo sem salvar — o Pix ainda funciona
+    }
 
     return NextResponse.json({
       sucesso: true,
@@ -82,8 +104,12 @@ export async function POST(req: NextRequest) {
     })
 
   } catch (error: unknown) {
-    console.error("Erro ao criar Pix:", JSON.stringify(error, null, 2))
-    const msg = error instanceof Error ? error.message : "Erro ao criar pagamento Pix"
-    return NextResponse.json({ erro: msg }, { status: 500 })
+    const mensagem = error instanceof Error ? error.message : "Erro desconhecido"
+    const detalhes = JSON.stringify(error, Object.getOwnPropertyNames(error))
+    console.error("Erro ao criar Pix:", detalhes)
+    return NextResponse.json({
+      erro: mensagem,
+      detalhes: process.env.NODE_ENV === "development" ? detalhes : undefined,
+    }, { status: 500 })
   }
 }
