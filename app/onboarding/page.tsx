@@ -127,7 +127,6 @@ export default function OnboardingPage() {
       pontos_por_real: 1,
       pontos_para_desconto: 100,
     })
-
     if (error) {
       // Se der erro de duplicata (unique constraint), empresa já existe
       if (error.code === "23505") {
