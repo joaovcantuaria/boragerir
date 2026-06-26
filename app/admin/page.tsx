@@ -7,16 +7,8 @@ export const metadata = { title: "Admin — Bora Gerir" }
 export default async function AdminPage() {
   const supabase = createAdminClient()
 
-  const [
-    { count: totalEmpresas },
-    { count: totalAtivas },
-    { data: empresasRecentes },
-    { data: assinaturas },
-    { data: tickets },
-    { data: assinaturasPorPlano },
-  ] = await Promise.all([
-    supabase.from("empresas").select("*", { count: "exact", head: true }),
-    supabase.from("assinaturas").select("*", { count: "exact", head: true }).eq("status", "ativa"),
+  // Buscar dados — fallback para [] se tabela não existir ainda
+  const [empresasResult, assinaturasResult, ticketsResult] = await Promise.allSettled([
     supabase.from("empresas")
       .select("id, nome, area_atuacao, plano, created_at, logo_url")
       .order("created_at", { ascending: false })
@@ -30,24 +22,32 @@ export default async function AdminPage() {
       .eq("status", "aberto")
       .order("created_at", { ascending: false })
       .limit(5),
-    supabase.from("empresas")
-      .select("plano"),
   ])
 
-  // Receita mensal estimada
+  const empresasRecentes = empresasResult.status === "fulfilled" ? (empresasResult.value.data ?? []) : []
+  const assinaturas = assinaturasResult.status === "fulfilled" ? (assinaturasResult.value.data ?? []) : []
+  const tickets = ticketsResult.status === "fulfilled" ? (ticketsResult.value.data ?? []) : []
+
+  // Total de empresas
+  const { count: totalEmpresas } = await supabase
+    .from("empresas").select("*", { count: "exact", head: true })
+
+  // Assinaturas ativas
   const { data: assinaturasAtivas } = await supabase
     .from("assinaturas")
     .select("valor_total, periodicidade")
     .eq("status", "ativa")
+    .catch(() => ({ data: [] }))
 
+  const totalAtivas = assinaturasAtivas?.length ?? 0
   const receitaMensal = (assinaturasAtivas ?? []).reduce((sum, a) => {
     return sum + (a.periodicidade === "anual" ? a.valor_total / 12 : a.valor_total)
   }, 0)
-
   const receitaTotal = (assinaturasAtivas ?? []).reduce((sum, a) => sum + a.valor_total, 0)
 
   // Contagem por plano
-  const contagemPlanos = (assinaturasPorPlano ?? []).reduce((acc: Record<string, number>, e) => {
+  const { data: todoPlanos } = await supabase.from("empresas").select("plano")
+  const contagemPlanos = (todoPlanos ?? []).reduce((acc: Record<string, number>, e) => {
     acc[e.plano] = (acc[e.plano] ?? 0) + 1
     return acc
   }, {})
@@ -55,12 +55,12 @@ export default async function AdminPage() {
   return (
     <AdminDashboard
       totalEmpresas={totalEmpresas ?? 0}
-      totalAssinaturasAtivas={totalAtivas ?? 0}
+      totalAssinaturasAtivas={totalAtivas}
       receitaMensal={receitaMensal}
       receitaTotal={receitaTotal}
-      empresasRecentes={empresasRecentes ?? []}
-      assinaturas={assinaturas ?? []}
-      ticketsAbertos={tickets ?? []}
+      empresasRecentes={empresasRecentes}
+      assinaturas={assinaturas}
+      ticketsAbertos={tickets}
       contagemPlanos={contagemPlanos}
     />
   )
