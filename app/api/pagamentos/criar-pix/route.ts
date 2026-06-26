@@ -15,34 +15,29 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json()
     const { plano, periodicidade } = body as { plano: PlanoMP; periodicidade: Periodicidade }
-
     const { valorTotal, descricao } = calcularValor(plano, periodicidade)
 
     const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN
-    if (!accessToken) {
-      console.error("MERCADOPAGO_ACCESS_TOKEN não configurado")
-      return NextResponse.json({ erro: "Gateway de pagamento não configurado" }, { status: 500 })
-    }
+    if (!accessToken) return NextResponse.json({ erro: "Gateway não configurado" }, { status: 500 })
 
     const mp = new MercadoPagoConfig({ accessToken })
     const payment = new Payment(mp)
 
-    // Nome do pagador
     const partes = empresa.nome.trim().split(" ")
     const firstName = partes[0] ?? "Cliente"
     const lastName = partes.slice(1).join(" ") || firstName
-
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.boragerir.com"
 
-    console.log("Criando Pix:", {
-      valor: valorTotal,
-      email: empresa.email,
-      plano,
-      periodicidade,
-    })
+    // Documento limpo e válido
+    const docLimpo = (empresa.documento ?? "").replace(/\D/g, "")
+    const temDocValido = empresa.tipo_documento === "cnpj"
+      ? docLimpo.length === 14
+      : docLimpo.length === 11
 
-    const resultado = await payment.create({
-      body: {
+    // Tentar COM documento primeiro, depois SEM se falhar
+    const tentativas = [
+      // Tentativa 1: com identificação
+      {
         transaction_amount: valorTotal,
         description: descricao,
         payment_method_id: "pix",
@@ -50,33 +45,46 @@ export async function POST(req: NextRequest) {
           email: empresa.email,
           first_name: firstName,
           last_name: lastName,
-          ...(empresa.documento && {
+          ...(temDocValido && {
             identification: {
               type: empresa.tipo_documento === "cnpj" ? "CNPJ" : "CPF",
-              number: empresa.documento.replace(/\D/g, ""),
+              number: docLimpo,
             },
           }),
         },
-        metadata: {
-          empresa_id: empresa.id,
-          plano,
-          periodicidade,
-        },
+        metadata: { empresa_id: empresa.id, plano, periodicidade },
         notification_url: `${appUrl}/api/webhooks/mercadopago`,
       },
-    })
+      // Tentativa 2: sem identificação (mais permissivo)
+      {
+        transaction_amount: valorTotal,
+        description: descricao,
+        payment_method_id: "pix",
+        payer: { email: empresa.email, first_name: firstName, last_name: lastName },
+        metadata: { empresa_id: empresa.id, plano, periodicidade },
+        notification_url: `${appUrl}/api/webhooks/mercadopago`,
+      },
+    ]
 
-    console.log("Resultado MP:", {
-      id: resultado.id,
-      status: resultado.status,
-      hasQr: !!resultado.point_of_interaction?.transaction_data?.qr_code,
-    })
+    let resultado = null
+    let ultimoErro = ""
 
-    if (!resultado.id) {
-      return NextResponse.json({ erro: "Mercado Pago não retornou ID do pagamento" }, { status: 500 })
+    for (const body of tentativas) {
+      try {
+        resultado = await payment.create({ body })
+        if (resultado?.id) break
+      } catch (err: unknown) {
+        ultimoErro = err instanceof Error ? err.message : String(err)
+        console.warn("Tentativa falhou:", ultimoErro)
+      }
     }
 
-    // Tentar salvar no banco (sem bloquear se tabela não existir)
+    if (!resultado?.id) {
+      console.error("Todas as tentativas falharam:", ultimoErro)
+      return NextResponse.json({ erro: `Erro no Mercado Pago: ${ultimoErro}` }, { status: 500 })
+    }
+
+    // Salvar assinatura pendente
     try {
       await supabase.from("assinaturas").insert({
         empresa_id: empresa.id,
@@ -91,8 +99,7 @@ export async function POST(req: NextRequest) {
         mp_pix_qr_code_text: resultado.point_of_interaction?.transaction_data?.qr_code ?? null,
       })
     } catch (dbErr) {
-      console.warn("Aviso: não foi possível salvar assinatura no banco:", dbErr)
-      // Continua mesmo sem salvar — o Pix ainda funciona
+      console.warn("Assinatura não salva no banco:", dbErr)
     }
 
     return NextResponse.json({
@@ -104,12 +111,8 @@ export async function POST(req: NextRequest) {
     })
 
   } catch (error: unknown) {
-    const mensagem = error instanceof Error ? error.message : "Erro desconhecido"
-    const detalhes = JSON.stringify(error, Object.getOwnPropertyNames(error))
-    console.error("Erro ao criar Pix:", detalhes)
-    return NextResponse.json({
-      erro: mensagem,
-      detalhes: process.env.NODE_ENV === "development" ? detalhes : undefined,
-    }, { status: 500 })
+    const msg = error instanceof Error ? error.message : String(error)
+    console.error("Erro fatal Pix:", msg)
+    return NextResponse.json({ erro: msg }, { status: 500 })
   }
 }
