@@ -343,9 +343,12 @@ export function ConfiguracoesClient({
                           R$ {planosInfo[p].preco}
                           <span className="text-sm font-normal text-muted-foreground">/mês</span>
                         </p>
-                        {/* TODO: Integrar Stripe ou Mercado Pago */}
-                        <Button variant="outline" className="w-full mt-2 font-bold border-primary text-primary hover:bg-primary hover:text-white"
-                          onClick={() => toast.info("Integração de pagamento em breve!")}>
+                        {/* Redireciona para a página de planos com checkout real */}
+                        <Button
+                          variant="outline"
+                          className="w-full mt-2 font-bold border-primary text-primary hover:bg-primary hover:text-white"
+                          onClick={() => window.location.href = "/planos"}
+                        >
                           Assinar {planosInfo[p].nome}
                         </Button>
                       </div>

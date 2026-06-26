@@ -320,7 +320,7 @@ export default function OnboardingPage() {
 
               {planoSelecionado !== "gratuito" && (
                 <p className="text-center text-xs text-muted-foreground mb-4">
-                  💳 Integração de pagamento em breve. Todos os planos disponíveis para teste.
+                  💳 Você poderá configurar o pagamento após o cadastro na aba <strong>Planos</strong>.
                 </p>
               )}
 
