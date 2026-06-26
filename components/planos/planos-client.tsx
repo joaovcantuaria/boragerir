@@ -1,16 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { Check, CreditCard, QrCode, Loader2, Copy, CheckCircle, Star, Zap, Crown } from "lucide-react"
+import { Check, CreditCard, QrCode, Loader2, Copy, CheckCircle, Zap, Crown, Star } from "lucide-react"
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { formatarMoeda } from "@/lib/utils"
+import { formatarMoeda, cn } from "@/lib/utils"
 import type { Empresa } from "@/types"
 
 type PlanoId = "basico" | "profissional"
@@ -22,13 +16,10 @@ const planos = [
     id: "basico" as PlanoId,
     nome: "Básico",
     icon: Zap,
-    cor: "text-blue-500",
-    bg: "bg-blue-500/10",
-    border: "border-blue-500/30",
     mensal: 49,
     anual: 490,
     economia: 98,
-    descricao: "Ideal para quem está começando",
+    popular: false,
     recursos: [
       "Até 200 clientes",
       "Produtos e serviços ilimitados",
@@ -43,13 +34,9 @@ const planos = [
     id: "profissional" as PlanoId,
     nome: "Profissional",
     icon: Crown,
-    cor: "text-primary",
-    bg: "bg-primary/10",
-    border: "border-primary/30",
     mensal: 99,
     anual: 990,
     economia: 198,
-    descricao: "Para negócios em crescimento",
     popular: true,
     recursos: [
       "Clientes ilimitados",
@@ -67,10 +54,7 @@ const planos = [
 
 interface Props {
   empresa: Empresa
-  assinaturaAtiva: {
-    plano: string; periodicidade: string; status: string
-    data_fim: string | null; valor_total: number
-  } | null
+  assinaturaAtiva: { plano: string; periodicidade: string; status: string; valor_total: number } | null
 }
 
 export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
@@ -81,7 +65,6 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
   const [loading, setLoading] = useState(false)
   const [pixData, setPixData] = useState<{ qr_code: string; qr_code_text: string; payment_id: string; valor: number } | null>(null)
   const [copiado, setCopiado] = useState(false)
-  // Cartão
   const [nomeCartao, setNomeCartao] = useState("")
   const [numeroCartao, setNumeroCartao] = useState("")
   const [validade, setValidade] = useState("")
@@ -93,10 +76,7 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
     : 0
 
   function selecionarPlano(id: PlanoId) {
-    if (empresa.plano === id && assinaturaAtiva?.status === "ativa") {
-      toast.info("Você já tem este plano ativo.")
-      return
-    }
+    if (empresa.plano === id && assinaturaAtiva?.status === "ativa") { toast.info("Você já tem este plano ativo."); return }
     setPlanoSel(id)
     setEtapa("pagamento")
   }
@@ -112,304 +92,196 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.erro)
-      setPixData({
-        qr_code: data.qr_code,
-        qr_code_text: data.qr_code_text,
-        payment_id: data.payment_id,
-        valor: data.valor,
-      })
+      setPixData({ qr_code: data.qr_code, qr_code_text: data.qr_code_text, payment_id: data.payment_id, valor: data.valor })
       setEtapa("pix-aguardando")
-      // Verificar pagamento a cada 5 segundos
-      verificarPagamentoPix(data.payment_id)
+      verificarPix(data.payment_id)
     } catch (err) {
-      toast.error("Erro ao gerar Pix. Tente novamente.")
+      toast.error(err instanceof Error ? err.message : "Erro ao gerar Pix.")
     }
     setLoading(false)
   }
 
-  async function verificarPagamentoPix(paymentId: string) {
-    const intervalo = setInterval(async () => {
+  function verificarPix(id: string) {
+    const iv = setInterval(async () => {
       try {
-        const res = await fetch(`/api/pagamentos/status?payment_id=${paymentId}`)
-        const data = await res.json()
-        if (data.status === "approved") {
-          clearInterval(intervalo)
-          setEtapa("sucesso")
-          toast.success("Pagamento confirmado! Seu plano está ativo.")
-        }
+        const r = await fetch(`/api/pagamentos/status?payment_id=${id}`)
+        const d = await r.json()
+        if (d.status === "approved") { clearInterval(iv); setEtapa("sucesso"); toast.success("Pagamento confirmado!") }
       } catch {}
     }, 5000)
-    // Para de verificar após 10 minutos
-    setTimeout(() => clearInterval(intervalo), 10 * 60 * 1000)
-  }
-
-  async function pagarCartao() {
-    if (!planoSel) return
-    if (!nomeCartao || !numeroCartao || !validade || !cvv) {
-      toast.error("Preencha todos os dados do cartão.")
-      return
-    }
-    setLoading(true)
-    try {
-      // Tokenizar cartão via Mercado Pago SDK
-      // @ts-ignore — MP SDK carregado via script
-      const mp = new window.MercadoPago(process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY)
-      const [mes, ano] = validade.split("/")
-      const tokenResult = await mp.createCardToken({
-        cardNumber: numeroCartao.replace(/\s/g, ""),
-        cardholderName: nomeCartao,
-        cardExpirationMonth: mes,
-        cardExpirationYear: `20${ano}`,
-        securityCode: cvv,
-      })
-
-      if (!tokenResult?.id) {
-        throw new Error("Não foi possível tokenizar o cartão.")
-      }
-
-      const res = await fetch("/api/pagamentos/criar-assinatura", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          plano: planoSel,
-          periodicidade,
-          card_token: tokenResult.id,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.erro)
-      setEtapa("sucesso")
-      toast.success("Assinatura criada! Bem-vindo ao plano " + planoEscolhido?.nome)
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Erro ao processar cartão."
-      toast.error(msg)
-    }
-    setLoading(false)
+    setTimeout(() => clearInterval(iv), 10 * 60 * 1000)
   }
 
   function copiarPix() {
     if (!pixData?.qr_code_text) return
     navigator.clipboard.writeText(pixData.qr_code_text)
-    setCopiado(true)
-    toast.success("Código Pix copiado!")
+    setCopiado(true); toast.success("Código copiado!")
     setTimeout(() => setCopiado(false), 3000)
   }
 
-  // ── Tela de sucesso ───────────────────────────────────────
-  if (etapa === "sucesso") {
-    return (
-      <div className="max-w-md mx-auto text-center py-16 space-y-6">
-        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring" }}>
-          <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-            <CheckCircle className="w-12 h-12 text-primary" />
-          </div>
-        </motion.div>
-        <div>
-          <h2 className="text-2xl font-black">Plano ativo! 🎉</h2>
-          <p className="text-muted-foreground mt-2">
-            Seu plano <strong>{planoEscolhido?.nome}</strong> está ativo.<br />
-            Aproveite todos os recursos!
-          </p>
+  // ── Sucesso ───────────────────────────────────────────────
+  if (etapa === "sucesso") return (
+    <div className="max-w-md mx-auto text-center py-20 space-y-6">
+      <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring" }}>
+        <div className="w-20 h-20 rounded-full bg-[#F26E1D]/10 flex items-center justify-center mx-auto">
+          <CheckCircle className="w-10 h-10 text-[#F26E1D]" />
         </div>
-        <Button className="w-full font-bold" onClick={() => window.location.href = "/dashboard"}>
-          Ir para o Dashboard →
-        </Button>
+      </motion.div>
+      <div>
+        <h2 className="text-2xl font-black">Plano ativo! 🎉</h2>
+        <p className="text-muted-foreground mt-2">Plano <strong>{planoEscolhido?.nome}</strong> ativado com sucesso.</p>
       </div>
-    )
-  }
+      <button onClick={() => window.location.href = "/dashboard"}
+        className="w-full py-3 rounded-xl bg-[#F26E1D] text-white font-bold hover:bg-[#e05e10] transition-colors">
+        Ir para o Dashboard →
+      </button>
+    </div>
+  )
 
   // ── Aguardando Pix ────────────────────────────────────────
-  if (etapa === "pix-aguardando" && pixData) {
-    return (
-      <div className="max-w-md mx-auto space-y-6">
-        <div className="text-center">
-          <h2 className="text-2xl font-black">Pague com Pix</h2>
-          <p className="text-muted-foreground text-sm mt-1">
-            {formatarMoeda(pixData.valor)} — Aguardando pagamento
-          </p>
-        </div>
-
-        {/* QR Code */}
-        <Card className="border-2 border-primary/20">
-          <CardContent className="p-6 flex flex-col items-center gap-4">
-            {pixData.qr_code ? (
-              <img
-                src={`data:image/png;base64,${pixData.qr_code}`}
-                alt="QR Code Pix"
-                className="w-52 h-52 rounded-xl border border-border"
-              />
-            ) : (
-              <div className="w-52 h-52 bg-muted rounded-xl flex items-center justify-center">
-                <QrCode className="w-16 h-16 text-muted-foreground" />
-              </div>
-            )}
-            <p className="text-sm text-muted-foreground text-center">
-              Escaneie o QR code ou copie o código abaixo
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Copia e cola */}
-        <div className="space-y-2">
-          <Label>Pix Copia e Cola</Label>
-          <div className="flex gap-2">
-            <Input
-              value={pixData.qr_code_text}
-              readOnly
-              className="text-xs font-mono"
-            />
-            <Button variant="outline" size="icon" onClick={copiarPix}>
-              {copiado ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-sm text-yellow-700 dark:text-yellow-400">
-          <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-          Aguardando confirmação do pagamento...
-        </div>
-
-        <Button variant="outline" className="w-full" onClick={() => setEtapa("pagamento")}>
-          ← Voltar
-        </Button>
+  if (etapa === "pix-aguardando" && pixData) return (
+    <div className="max-w-md mx-auto space-y-5">
+      <div className="text-center">
+        <h2 className="text-2xl font-black">Pague com Pix</h2>
+        <p className="text-muted-foreground text-sm mt-1">{formatarMoeda(pixData.valor)} — aguardando confirmação</p>
       </div>
-    )
-  }
-
-  // ── Tela de pagamento ────────────────────────────────────
-  if (etapa === "pagamento" && planoEscolhido) {
-    return (
-      <div className="max-w-lg mx-auto space-y-6">
-        <div className="flex items-center gap-3">
-          <button onClick={() => setEtapa("planos")} className="text-muted-foreground hover:text-foreground text-sm">
-            ← Voltar
+      <div className={cn(
+        "rounded-2xl p-6 flex flex-col items-center gap-4 border",
+        "bg-white border-gray-200 dark:bg-white/[0.03] dark:border-white/10"
+      )}>
+        {pixData.qr_code
+          ? <img src={`data:image/png;base64,${pixData.qr_code}`} alt="QR Code Pix" className="w-52 h-52 rounded-xl" />
+          : <QrCode className="w-24 h-24 text-muted-foreground" />
+        }
+        <p className="text-sm text-muted-foreground">Escaneie o QR code com seu banco</p>
+      </div>
+      <div>
+        <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Pix Copia e Cola</label>
+        <div className="flex gap-2">
+          <input value={pixData.qr_code_text} readOnly
+            className={cn(
+              "flex-1 rounded-xl border px-3 py-2 text-xs font-mono",
+              "bg-white border-gray-200 text-gray-600",
+              "dark:bg-white/[0.03] dark:border-white/10 dark:text-gray-400"
+            )} />
+          <button onClick={copiarPix}
+            className={cn(
+              "px-3 rounded-xl border font-semibold text-sm transition-colors",
+              copiado
+                ? "bg-emerald-500 text-white border-emerald-500"
+                : "bg-white border-gray-200 text-gray-700 hover:border-[#F26E1D] hover:text-[#F26E1D] dark:bg-white/[0.03] dark:border-white/10 dark:text-gray-300"
+            )}>
+            {copiado ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
           </button>
-          <div>
-            <h2 className="text-xl font-black">Finalizar assinatura</h2>
-            <p className="text-muted-foreground text-sm">
-              Plano {planoEscolhido.nome} — {periodicidade === "anual" ? "Anual" : "Mensal"}
-            </p>
-          </div>
         </div>
+      </div>
+      <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/20 text-sm text-amber-700 dark:text-amber-400">
+        <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+        Verificando pagamento automaticamente...
+      </div>
+      <button onClick={() => setEtapa("pagamento")}
+        className="w-full py-2.5 rounded-xl border border-gray-200 dark:border-white/10 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors">
+        ← Voltar
+      </button>
+    </div>
+  )
 
-        {/* Resumo */}
-        <Card className={`border-2 ${planoEscolhido.border}`}>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-black text-lg">{planoEscolhido.nome}</p>
-                <p className="text-sm text-muted-foreground capitalize">{periodicidade}</p>
+  // ── Pagamento ─────────────────────────────────────────────
+  if (etapa === "pagamento" && planoEscolhido) return (
+    <div className="max-w-md mx-auto space-y-5">
+      <div className="flex items-center gap-2">
+        <button onClick={() => setEtapa("planos")} className="text-muted-foreground hover:text-foreground text-sm">← Voltar</button>
+        <h2 className="text-xl font-black">Finalizar assinatura</h2>
+      </div>
+
+      {/* Resumo */}
+      <div className={cn(
+        "rounded-2xl p-4 border flex items-center justify-between",
+        "bg-[#F26E1D]/5 border-[#F26E1D]/20"
+      )}>
+        <div>
+          <p className="font-black text-base">{planoEscolhido.nome}</p>
+          <p className="text-sm text-muted-foreground capitalize">{periodicidade}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-2xl font-black text-[#F26E1D]">{formatarMoeda(valorEscolhido)}</p>
+          {periodicidade === "anual" && (
+            <p className="text-xs text-emerald-600 font-semibold">
+              Economia de {formatarMoeda(planoEscolhido.economia)}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Forma de pagamento */}
+      <div className="space-y-2">
+        <label className="text-sm font-semibold">Forma de pagamento</label>
+        <div className="grid grid-cols-2 gap-3">
+          {(["pix", "cartao"] as const).map((fp) => (
+            <button key={fp} onClick={() => setFormaPag(fp)}
+              className={cn(
+                "py-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all text-sm font-semibold",
+                formaPag === fp
+                  ? "border-[#F26E1D] bg-[#F26E1D]/5 text-[#F26E1D]"
+                  : "border-gray-200 dark:border-white/10 text-muted-foreground hover:border-gray-300 dark:hover:border-white/20"
+              )}>
+              {fp === "pix" ? <QrCode className="w-6 h-6" /> : <CreditCard className="w-6 h-6" />}
+              {fp === "pix" ? "Pix" : "Cartão"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Formulário cartão */}
+      <AnimatePresence>
+        {formaPag === "cartao" && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
+            className="space-y-3 overflow-hidden">
+            {[
+              { label: "Nome no cartão", placeholder: "NOME SOBRENOME", value: nomeCartao, onChange: (v: string) => setNomeCartao(v.toUpperCase()) },
+            ].map((f) => (
+              <div key={f.label} className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground">{f.label}</label>
+                <input value={f.value} onChange={(e) => f.onChange(e.target.value)} placeholder={f.placeholder}
+                  className="w-full h-10 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.03] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#F26E1D]/30 focus:border-[#F26E1D]" />
               </div>
-              <div className="text-right">
-                <p className="text-2xl font-black text-primary">{formatarMoeda(valorEscolhido)}</p>
-                {periodicidade === "anual" && (
-                  <p className="text-xs text-emerald-500 font-semibold">
-                    Economize {formatarMoeda(planoEscolhido.economia)}
-                  </p>
-                )}
+            ))}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Número do cartão</label>
+              <input value={numeroCartao} placeholder="0000 0000 0000 0000" maxLength={19}
+                onChange={(e) => setNumeroCartao(e.target.value.replace(/\D/g, "").replace(/(\d{4})/g, "$1 ").trim())}
+                className="w-full h-10 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.03] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#F26E1D]/30 focus:border-[#F26E1D]" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground">Validade</label>
+                <input value={validade} placeholder="MM/AA" maxLength={5}
+                  onChange={(e) => setValidade(e.target.value.replace(/\D/g, "").replace(/(\d{2})(\d)/, "$1/$2"))}
+                  className="w-full h-10 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.03] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#F26E1D]/30 focus:border-[#F26E1D]" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground">CVV</label>
+                <input value={cvv} placeholder="123" maxLength={4}
+                  onChange={(e) => setCvv(e.target.value.replace(/\D/g, ""))}
+                  className="w-full h-10 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.03] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#F26E1D]/30 focus:border-[#F26E1D]" />
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-        {/* Forma de pagamento */}
-        <div className="space-y-3">
-          <Label className="font-bold">Forma de pagamento</Label>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => setFormaPag("pix")}
-              className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${
-                formaPag === "pix" ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"
-              }`}
-            >
-              <QrCode className={`w-6 h-6 ${formaPag === "pix" ? "text-primary" : "text-muted-foreground"}`} />
-              <span className="text-sm font-bold">Pix</span>
-              <span className="text-xs text-muted-foreground">Aprovação imediata</span>
-            </button>
-            <button
-              onClick={() => setFormaPag("cartao")}
-              className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${
-                formaPag === "cartao" ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"
-              }`}
-            >
-              <CreditCard className={`w-6 h-6 ${formaPag === "cartao" ? "text-primary" : "text-muted-foreground"}`} />
-              <span className="text-sm font-bold">Cartão</span>
-              <span className="text-xs text-muted-foreground">Débito automático</span>
-            </button>
-          </div>
-        </div>
+      <button
+        onClick={formaPag === "pix" ? gerarPix : undefined}
+        disabled={loading || (formaPag === "cartao" && (!nomeCartao || !numeroCartao || !validade || !cvv))}
+        className="w-full py-3.5 rounded-xl bg-[#F26E1D] text-white font-black text-base hover:bg-[#e05e10] transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+        {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : formaPag === "pix" ? <QrCode className="w-5 h-5" /> : <CreditCard className="w-5 h-5" />}
+        {loading ? "Processando..." : formaPag === "pix" ? `Gerar Pix — ${formatarMoeda(valorEscolhido)}` : `Assinar — ${formatarMoeda(valorEscolhido)}`}
+      </button>
+      <p className="text-center text-xs text-muted-foreground">🔒 Pagamento seguro via Mercado Pago. Cancele quando quiser.</p>
+    </div>
+  )
 
-        {/* Formulário cartão */}
-        <AnimatePresence>
-          {formaPag === "cartao" && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="space-y-4 overflow-hidden"
-            >
-              <div className="space-y-1.5">
-                <Label>Nome no cartão</Label>
-                <Input placeholder="JOÃO DA SILVA" value={nomeCartao}
-                  onChange={(e) => setNomeCartao(e.target.value.toUpperCase())} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Número do cartão</Label>
-                <Input
-                  placeholder="0000 0000 0000 0000"
-                  maxLength={19}
-                  value={numeroCartao}
-                  onChange={(e) => {
-                    const v = e.target.value.replace(/\D/g, "").replace(/(\d{4})/g, "$1 ").trim()
-                    setNumeroCartao(v)
-                  }}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label>Validade</Label>
-                  <Input
-                    placeholder="MM/AA"
-                    maxLength={5}
-                    value={validade}
-                    onChange={(e) => {
-                      const v = e.target.value.replace(/\D/g, "").replace(/(\d{2})(\d)/, "$1/$2")
-                      setValidade(v)
-                    }}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>CVV</Label>
-                  <Input placeholder="123" maxLength={4} value={cvv}
-                    onChange={(e) => setCvv(e.target.value.replace(/\D/g, ""))} />
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <Button
-          className="w-full font-black text-base py-6"
-          disabled={loading || (formaPag === "cartao" && (!nomeCartao || !numeroCartao || !validade || !cvv))}
-          onClick={formaPag === "pix" ? gerarPix : pagarCartao}
-        >
-          {loading ? (
-            <><Loader2 className="w-5 h-5 animate-spin mr-2" />Processando...</>
-          ) : formaPag === "pix" ? (
-            <><QrCode className="w-5 h-5 mr-2" />Gerar QR Code Pix — {formatarMoeda(valorEscolhido)}</>
-          ) : (
-            <><CreditCard className="w-5 h-5 mr-2" />Assinar — {formatarMoeda(valorEscolhido)}</>
-          )}
-        </Button>
-
-        <p className="text-xs text-muted-foreground text-center">
-          🔒 Pagamento seguro processado pelo Mercado Pago. Cancele quando quiser.
-        </p>
-      </div>
-    )
-  }
-
-  // ── Tela de planos ────────────────────────────────────────
+  // ── Lista de planos ───────────────────────────────────────
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
       <div className="text-center space-y-2">
@@ -418,118 +290,159 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
       </div>
 
       {/* Toggle mensal/anual */}
-      <div className="flex items-center justify-center gap-3">
-        <button
-          onClick={() => setPeriodicidade("mensal")}
-          className={`px-5 py-2 rounded-xl font-bold text-sm transition-all ${
-            periodicidade === "mensal" ? "bg-primary text-white shadow-orange" : "bg-muted text-muted-foreground"
-          }`}
-        >
-          Mensal
-        </button>
-        <button
-          onClick={() => setPeriodicidade("anual")}
-          className={`px-5 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
-            periodicidade === "anual" ? "bg-primary text-white shadow-orange" : "bg-muted text-muted-foreground"
-          }`}
-        >
-          Anual
-          <span className={`text-xs px-2 py-0.5 rounded-full font-black ${
-            periodicidade === "anual" ? "bg-white text-primary" : "bg-primary/20 text-primary"
-          }`}>
-            2 meses grátis
-          </span>
-        </button>
+      <div className="flex items-center justify-center">
+        <div className={cn(
+          "flex rounded-xl p-1 border",
+          "bg-gray-100 border-gray-200",
+          "dark:bg-white/[0.05] dark:border-white/10"
+        )}>
+          {(["mensal", "anual"] as const).map((p) => (
+            <button key={p} onClick={() => setPeriodicidade(p)}
+              className={cn(
+                "px-5 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2",
+                periodicidade === p
+                  ? "bg-[#F26E1D] text-white shadow-sm"
+                  : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+              )}>
+              {p === "mensal" ? "Mensal" : "Anual"}
+              {p === "anual" && (
+                <span className={cn(
+                  "text-[10px] font-black px-1.5 py-0.5 rounded-md",
+                  periodicidade === "anual"
+                    ? "bg-white/20 text-white"
+                    : "bg-[#F26E1D]/10 text-[#F26E1D]"
+                )}>
+                  -17%
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Cards de planos */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Plano Gratuito */}
-        <Card className={`border-2 ${empresa.plano === "gratuito" ? "border-border" : "border-border"}`}>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-muted">
-                <Star className="w-5 h-5 text-muted-foreground" />
-              </div>
-              <div>
-                <CardTitle className="text-base">Gratuito</CardTitle>
-                {empresa.plano === "gratuito" && <Badge variant="secondary" className="text-xs mt-0.5">Plano atual</Badge>}
-              </div>
+      {/* Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        {/* Gratuito */}
+        <div className={cn(
+          "rounded-2xl p-6 border flex flex-col",
+          "bg-white border-gray-200",
+          "dark:bg-white/[0.02] dark:border-white/10"
+        )}>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-white/[0.06] flex items-center justify-center">
+              <Star className="w-4 h-4 text-gray-400" />
             </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
             <div>
-              <span className="text-3xl font-black">R$ 0</span>
-              <span className="text-muted-foreground text-sm">/mês</span>
+              <p className="font-bold text-sm">Gratuito</p>
+              {empresa.plano === "gratuito" && (
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/[0.06] text-gray-500">
+                  Plano atual
+                </span>
+              )}
             </div>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              {["Até 30 clientes", "Até 3 produtos/serviços", "1 usuário", "PDFs com marca d'água", "Relatórios básicos"].map((r) => (
-                <li key={r} className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-muted-foreground shrink-0" />{r}
-                </li>
-              ))}
-            </ul>
-            <Button variant="outline" className="w-full" disabled>
-              {empresa.plano === "gratuito" ? "Plano atual" : "Gratuito"}
-            </Button>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="mb-5">
+            <span className="text-3xl font-black">R$ 0</span>
+            <span className="text-muted-foreground text-sm">/mês</span>
+          </div>
+          <ul className="space-y-2 flex-1 mb-5">
+            {["Até 30 clientes", "Até 3 produtos/serviços", "1 usuário", "PDFs com marca d'água", "Relatórios básicos"].map((r) => (
+              <li key={r} className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Check className="w-3.5 h-3.5 shrink-0 text-gray-300 dark:text-gray-600" />{r}
+              </li>
+            ))}
+          </ul>
+          <button disabled className="w-full py-2.5 rounded-xl border border-gray-200 dark:border-white/10 text-sm font-semibold text-muted-foreground cursor-default">
+            {empresa.plano === "gratuito" ? "Plano atual" : "Gratuito"}
+          </button>
+        </div>
 
         {/* Planos pagos */}
         {planos.map((p) => {
           const ativo = empresa.plano === p.id && assinaturaAtiva?.status === "ativa"
-          const Icon = p.icon
           const valor = periodicidade === "anual" ? p.anual : p.mensal
+          const Icon = p.icon
           return (
-            <Card key={p.id} className={`border-2 relative overflow-hidden ${ativo ? "border-primary" : p.popular ? "border-primary/40" : "border-border"} ${p.popular ? "shadow-orange" : ""}`}>
+            <div key={p.id} className={cn(
+              "rounded-2xl p-6 border flex flex-col relative",
+              p.popular
+                ? "bg-[#F26E1D] border-[#F26E1D] text-white"
+                : "bg-white border-gray-200 dark:bg-white/[0.02] dark:border-white/10"
+            )}>
               {p.popular && (
-                <div className="absolute top-0 right-0 bg-primary text-white text-xs font-black px-3 py-1 rounded-bl-xl">
-                  POPULAR
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <span className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[10px] font-black px-3 py-1 rounded-full">
+                    MAIS POPULAR
+                  </span>
                 </div>
               )}
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <div className={`p-2 rounded-lg ${p.bg}`}>
-                    <Icon className={`w-5 h-5 ${p.cor}`} />
-                  </div>
-                  <div>
-                    <CardTitle className="text-base">{p.nome}</CardTitle>
-                    {ativo && <Badge className="text-xs mt-0.5 bg-primary/10 text-primary border-primary/20">Ativo</Badge>}
-                  </div>
+              <div className="flex items-center gap-2 mb-4">
+                <div className={cn(
+                  "w-8 h-8 rounded-lg flex items-center justify-center",
+                  p.popular ? "bg-white/20" : "bg-[#F26E1D]/10"
+                )}>
+                  <Icon className={cn("w-4 h-4", p.popular ? "text-white" : "text-[#F26E1D]")} />
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
                 <div>
-                  <span className="text-3xl font-black">{formatarMoeda(valor)}</span>
-                  <span className="text-muted-foreground text-sm">/{periodicidade === "anual" ? "ano" : "mês"}</span>
-                  {periodicidade === "anual" && (
-                    <p className="text-xs text-emerald-500 font-semibold mt-0.5">
-                      Economize {formatarMoeda(p.economia)} por ano
-                    </p>
-                  )}
-                  {periodicidade === "mensal" && (
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      ou {formatarMoeda(p.anual)}/ano (2 meses grátis)
-                    </p>
+                  <p className="font-bold text-sm">{p.nome}</p>
+                  {ativo && (
+                    <span className={cn(
+                      "text-[10px] font-bold px-1.5 py-0.5 rounded",
+                      p.popular ? "bg-white/20 text-white" : "bg-[#F26E1D]/10 text-[#F26E1D]"
+                    )}>
+                      ✓ Ativo
+                    </span>
                   )}
                 </div>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  {p.recursos.map((r) => (
-                    <li key={r} className="flex items-center gap-2">
-                      <Check className={`w-3.5 h-3.5 ${p.cor} shrink-0`} />{r}
-                    </li>
-                  ))}
-                </ul>
-                <Button
-                  className={`w-full font-bold ${p.popular ? "" : "variant-outline"}`}
-                  variant={p.popular ? "default" : "outline"}
-                  onClick={() => selecionarPlano(p.id)}
-                  disabled={ativo}
-                >
-                  {ativo ? "Plano ativo ✓" : `Assinar ${p.nome}`}
-                </Button>
-              </CardContent>
-            </Card>
+              </div>
+
+              <div className="mb-1">
+                <span className="text-3xl font-black">{formatarMoeda(valor)}</span>
+                <span className={cn("text-sm", p.popular ? "text-white/70" : "text-muted-foreground")}>
+                  /{periodicidade === "anual" ? "ano" : "mês"}
+                </span>
+              </div>
+              {periodicidade === "anual" && (
+                <p className={cn("text-xs font-semibold mb-4", p.popular ? "text-white/80" : "text-emerald-600")}>
+                  Economize {formatarMoeda(p.economia)} — 2 meses grátis
+                </p>
+              )}
+              {periodicidade === "mensal" && (
+                <p className={cn("text-xs mb-4", p.popular ? "text-white/60" : "text-muted-foreground")}>
+                  ou {formatarMoeda(p.anual)}/ano
+                </p>
+              )}
+
+              <ul className="space-y-2 flex-1 mb-5">
+                {p.recursos.map((r) => (
+                  <li key={r} className={cn(
+                    "flex items-center gap-2 text-sm",
+                    p.popular ? "text-white/90" : "text-muted-foreground"
+                  )}>
+                    <Check className={cn(
+                      "w-3.5 h-3.5 shrink-0",
+                      p.popular ? "text-white" : "text-[#F26E1D]"
+                    )} />{r}
+                  </li>
+                ))}
+              </ul>
+
+              <button
+                onClick={() => selecionarPlano(p.id)}
+                disabled={ativo}
+                className={cn(
+                  "w-full py-2.5 rounded-xl font-bold text-sm transition-all",
+                  ativo
+                    ? p.popular
+                      ? "bg-white/20 text-white cursor-default"
+                      : "bg-muted text-muted-foreground cursor-default"
+                    : p.popular
+                      ? "bg-white text-[#F26E1D] hover:bg-gray-50"
+                      : "bg-[#F26E1D] text-white hover:bg-[#e05e10]"
+                )}>
+                {ativo ? "Plano ativo ✓" : `Assinar ${p.nome}`}
+              </button>
+            </div>
           )
         })}
       </div>

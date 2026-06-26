@@ -1,159 +1,127 @@
 @import "tailwindcss";
 
 /* ============================================================
-   Bora Gerir — Design System
-   Paleta: Laranja #F26E1D · Preto #1A1A1A · Branco #FFFFFF
+   Bora Gerir — Design System v2
+   Clean · Moderno · Profissional
    ============================================================ */
 
 @layer base {
+  /* ── TEMA CLARO ── */
   :root {
-    --background: 40 30% 97%;
-    --foreground: 0 0% 10%;
+    --background: 0 0% 98%;
+    --foreground: 220 20% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 10%;
+    --card-foreground: 220 20% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 10%;
+    --popover-foreground: 220 20% 12%;
 
-    --primary: 26 89% 52%;
+    --primary: 26 90% 52%;       /* Laranja #F26E1D */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 40 20% 94%;
-    --secondary-foreground: 0 0% 20%;
+    --secondary: 220 14% 95%;
+    --secondary-foreground: 220 20% 30%;
 
-    --muted: 40 15% 93%;
-    --muted-foreground: 0 0% 45%;
+    --muted: 220 14% 94%;
+    --muted-foreground: 220 10% 50%;
 
-    --accent: 26 89% 52%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 220 14% 94%;
+    --accent-foreground: 220 20% 12%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 84% 58%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 40 15% 88%;
-    --input: 40 15% 88%;
-    --ring: 26 89% 52%;
-    --radius: 0.625rem;
-
-    --chart-1: 26 89% 52%;
-    --chart-2: 142 71% 45%;
-    --chart-3: 0 84% 60%;
-    --chart-4: 217 91% 60%;
-    --chart-5: 270 70% 60%;
+    --border: 220 13% 90%;
+    --input: 220 13% 90%;
+    --ring: 26 90% 52%;
+    --radius: 0.75rem;
   }
 
+  /* ── TEMA ESCURO ── */
   .dark {
-    --background: 0 0% 8%;
-    --foreground: 0 0% 95%;
+    --background: 220 20% 8%;
+    --foreground: 220 10% 93%;
 
-    --card: 0 0% 12%;
-    --card-foreground: 0 0% 95%;
+    --card: 220 17% 11%;
+    --card-foreground: 220 10% 93%;
 
-    /* CRÍTICO: popover precisa de fundo sólido escuro no dark mode */
-    --popover: 0 0% 14%;
-    --popover-foreground: 0 0% 95%;
+    --popover: 220 17% 13%;
+    --popover-foreground: 220 10% 93%;
 
-    --primary: 26 89% 52%;
+    --primary: 26 90% 52%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 18%;
-    --secondary-foreground: 0 0% 90%;
+    --secondary: 220 17% 17%;
+    --secondary-foreground: 220 10% 80%;
 
-    --muted: 0 0% 16%;
-    --muted-foreground: 0 0% 55%;
+    --muted: 220 17% 16%;
+    --muted-foreground: 220 10% 52%;
 
-    --accent: 26 89% 52%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 220 17% 17%;
+    --accent-foreground: 220 10% 93%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 20%;
-    --input: 0 0% 20%;
-    --ring: 26 89% 52%;
-
-    --chart-1: 26 89% 52%;
-    --chart-2: 142 71% 45%;
-    --chart-3: 0 84% 60%;
-    --chart-4: 217 91% 60%;
-    --chart-5: 270 70% 60%;
+    --border: 220 17% 20%;
+    --input: 220 17% 20%;
+    --ring: 26 90% 52%;
   }
 }
 
 @layer base {
-  * {
-    border-color: hsl(var(--border));
-    box-sizing: border-box;
-  }
+  * { border-color: hsl(var(--border)); box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
 
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-    font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+    font-family: var(--font-inter), system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.5;
   }
 
-  h1, h2, h3, h4, h5, h6 {
-    font-weight: 700;
-    color: hsl(var(--foreground));
-  }
+  h1, h2, h3, h4, h5, h6 { font-weight: 700; line-height: 1.25; }
 
-  ::-webkit-scrollbar { width: 5px; height: 5px; }
-  ::-webkit-scrollbar-track { background: hsl(var(--muted)); }
-  ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.5); }
 }
 
-/* ── Sombra laranja ─────────────────────────────────────── */
-.shadow-orange {
-  box-shadow: 0 4px 24px 0 hsl(26 89% 52% / 0.2);
+/* ── Utilitários ── */
+.shadow-orange { box-shadow: 0 4px 20px hsl(26 90% 52% / 0.25); }
+.shadow-card   { box-shadow: 0 1px 3px hsl(220 20% 12% / 0.06), 0 4px 12px hsl(220 20% 12% / 0.04); }
+
+/* ── CORREÇÃO DEFINITIVA de contraste em componentes flutuantes ── */
+
+/* Todos os popups/dropdowns/selects: fundo sólido sempre */
+[data-radix-popper-content-wrapper] > * {
+  background: white !important;
+  color: hsl(220 20% 12%) !important;
+}
+.dark [data-radix-popper-content-wrapper] > * {
+  background: hsl(220 17% 13%) !important;
+  color: hsl(220 10% 93%) !important;
 }
 
-/* ── CORREÇÃO DEFINITIVA: todos os popups/flutuantes ─────
-   Força fundo e cor de texto explícitos em TODOS os
-   elementos flutuantes do Radix UI, independente do tema  */
-
-/* Dropdown Menu */
-[data-radix-popper-content-wrapper] [role="menu"],
-[data-radix-dropdown-menu-content],
-[data-radix-select-content],
-[data-radix-popover-content] {
-  background-color: hsl(var(--popover)) !important;
-  color: hsl(var(--popover-foreground)) !important;
-  border: 1px solid hsl(var(--border)) !important;
+/* Itens de menu/select: estado normal e hover */
+[role="option"],
+[role="menuitem"] {
+  color: hsl(220 20% 20%) !important;
+}
+.dark [role="option"],
+.dark [role="menuitem"] {
+  color: hsl(220 10% 85%) !important;
 }
 
-/* Select viewport */
-[data-radix-select-viewport] {
-  background-color: hsl(var(--popover)) !important;
-}
-
-/* Dialog */
-[role="dialog"] {
-  background-color: hsl(var(--card)) !important;
-  color: hsl(var(--card-foreground)) !important;
-}
-
-/* Garantir que itens de menu tenham texto legível */
-[role="menuitem"],
-[role="option"] {
-  color: hsl(var(--foreground)) !important;
-}
-
-[role="menuitem"]:hover,
-[role="menuitem"]:focus,
-[role="option"]:hover,
+/* Estado highlighted/focus: laranja com branco */
+[data-highlighted],
 [role="option"]:focus,
-[data-highlighted] {
-  background-color: hsl(var(--primary)) !important;
-  color: white !important;
-}
-
-/* Item destrutivo (Sair) */
-[role="menuitem"].text-destructive:hover,
-[role="menuitem"].text-destructive:focus {
-  background-color: hsl(var(--destructive)) !important;
+[role="menuitem"]:focus {
+  background: hsl(26 90% 52%) !important;
   color: white !important;
 }

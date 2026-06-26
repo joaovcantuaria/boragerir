@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation"
 import { Moon, Sun, LogOut, Settings, Bell } from "lucide-react"
 import { useTheme } from "next-themes"
-import { Button } from "@/components/ui/button"
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -11,7 +10,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
-import { gerarIniciais } from "@/lib/utils"
+import { gerarIniciais, cn } from "@/lib/utils"
 
 interface HeaderProps {
   empresaNome?: string
@@ -24,62 +23,81 @@ export function Header({ empresaNome = "Bora Gerir", empresaLogoUrl }: HeaderPro
   const supabase = createClient()
 
   async function handleLogout() {
-    const { error } = await supabase.auth.signOut()
-    if (error) { toast.error("Erro ao sair."); return }
+    await supabase.auth.signOut()
     router.push("/login")
   }
 
+  const btnClass = cn(
+    "w-9 h-9 flex items-center justify-center rounded-xl transition-colors",
+    "text-gray-400 hover:text-gray-700 hover:bg-gray-100",
+    "dark:text-gray-500 dark:hover:text-gray-200 dark:hover:bg-white/[0.06]"
+  )
+
   return (
-    <header className="h-16 border-b border-border bg-card flex items-center justify-between px-4 lg:px-6 sticky top-0 z-20">
-      <div className="flex items-center gap-3">
-        {/* Logo da empresa no header */}
-        {empresaLogoUrl ? (
-          <img src={empresaLogoUrl} alt={empresaNome} className="w-8 h-8 rounded-lg object-cover border border-border" />
-        ) : (
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <span className="text-xs font-black text-primary">{gerarIniciais(empresaNome).slice(0, 2)}</span>
-          </div>
+    <header className={cn(
+      "h-16 flex items-center justify-between px-5 sticky top-0 z-20",
+      "bg-white/90 backdrop-blur-sm border-b border-gray-100",
+      "dark:bg-[#0d0d0d]/90 dark:border-white/[0.06]"
+    )}>
+      {/* Nome da empresa */}
+      <div className="flex items-center gap-2.5 min-w-0">
+        {empresaLogoUrl && (
+          <img src={empresaLogoUrl} alt={empresaNome}
+            className="w-7 h-7 rounded-lg object-cover shrink-0" />
         )}
-        <span className="font-bold text-foreground truncate max-w-[180px] hidden sm:block">{empresaNome}</span>
+        <span className={cn(
+          "font-semibold text-sm truncate max-w-[200px]",
+          "text-gray-800 dark:text-gray-200"
+        )}>
+          {empresaNome}
+        </span>
       </div>
 
+      {/* Ações */}
       <div className="flex items-center gap-1">
         {/* Notificações */}
-        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-          <Bell className="w-5 h-5" />
-        </Button>
+        <button className={btnClass}>
+          <Bell className="w-[18px] h-[18px]" />
+        </button>
 
         {/* Tema */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-muted-foreground hover:text-foreground"
+        <button
+          className={btnClass}
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          title={theme === "dark" ? "Mudar para modo claro" : "Mudar para modo escuro"}
+          title="Alternar tema"
         >
-          {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-        </Button>
+          {theme === "dark"
+            ? <Sun className="w-[18px] h-[18px]" />
+            : <Moon className="w-[18px] h-[18px]" />
+          }
+        </button>
 
-        {/* Menu perfil */}
+        {/* Avatar / menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="rounded-full ml-1">
-              <Avatar className="w-8 h-8">
+            <button className="ml-1 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary">
+              <Avatar className="w-8 h-8 ring-2 ring-transparent hover:ring-primary/30 transition-all">
                 {empresaLogoUrl && <AvatarImage src={empresaLogoUrl} alt={empresaNome} />}
-                <AvatarFallback className="bg-primary text-white text-xs font-black">
+                <AvatarFallback className="text-xs font-black bg-[#F26E1D] text-white">
                   {gerarIniciais(empresaNome)}
                 </AvatarFallback>
               </Avatar>
-            </Button>
+            </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuLabel className="font-semibold">{empresaNome}</DropdownMenuLabel>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuLabel className="font-semibold truncate">{empresaNome}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => router.push("/configuracoes")}>
               <Settings className="mr-2 h-4 w-4" />Configurações
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push("/planos")}>
+              <span className="mr-2 text-sm">💎</span>Meu plano
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:bg-destructive focus:text-white">
+            <DropdownMenuItem
+              onClick={handleLogout}
+              className="text-red-600 dark:text-red-400 focus:bg-red-50 dark:focus:bg-red-500/10 focus:text-red-700 dark:focus:text-red-300"
+            >
               <LogOut className="mr-2 h-4 w-4" />Sair
             </DropdownMenuItem>
           </DropdownMenuContent>
