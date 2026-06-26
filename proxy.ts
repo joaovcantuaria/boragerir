@@ -10,7 +10,9 @@ export async function proxy(request: NextRequest) {
   if (
     pathname.startsWith("/demo") ||
     pathname.startsWith("/auth/") ||
-    pathname.startsWith("/api/") ||   // APIs nunca redirecionam
+    pathname.startsWith("/api/") ||
+    pathname.startsWith("/agendar/") ||  // página pública de agendamento
+    pathname === "/agendar" ||
     pathname === "/login" ||
     pathname === "/cadastro" ||
     pathname === "/"

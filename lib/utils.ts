@@ -11,7 +11,7 @@ export function cn(...inputs: ClassValue[]) {
 export const APP_CONFIG = {
   nome: "Bora Gerir",
   slogan: "Gestão simples. Resultado de verdade.",
-  site: "https://boragerir.com.br",
+  site: "https://app.boragerir.com",
   corPrimaria: "#F26E1D",
   corDestructive: "#EF4444",
   corSucesso: "#22C55E",

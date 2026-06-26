@@ -14,8 +14,9 @@ interface LinkAgendamentoProps {
 export function LinkAgendamento({ empresaSlug, empresaId, plano }: LinkAgendamentoProps) {
   const [copiado, setCopiado] = useState(false)
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.boragerir.com"
   const link = empresaSlug
-    ? `${APP_CONFIG.site}/agendar/${empresaSlug}`
+    ? `${appUrl}/agendar/${empresaSlug}`
     : null
 
   function copiar() {
