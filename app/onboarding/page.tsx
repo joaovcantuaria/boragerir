@@ -77,6 +77,20 @@ export default function OnboardingPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push("/login"); return }
 
+    // VERIFICAR SE JÁ TEM EMPRESA — evitar duplicatas no loop
+    const { data: empresaExistente } = await supabase
+      .from("empresas")
+      .select("id")
+      .eq("user_id", user.id)
+      .single()
+
+    if (empresaExistente) {
+      // Empresa já criada — ir direto para o dashboard
+      toast.success("Bem-vindo ao Bora Gerir! 🚀")
+      window.location.href = "/dashboard"
+      return
+    }
+
     const dados = watch()
     let logoUrl: string | null = null
 
@@ -114,12 +128,21 @@ export default function OnboardingPage() {
       pontos_para_desconto: 100,
     })
 
-    if (error) { toast.error("Erro ao salvar dados."); setLoading(false); return }
+    if (error) {
+      // Se der erro de duplicata (unique constraint), empresa já existe
+      if (error.code === "23505") {
+        toast.success("Cadastro já concluído! Redirecionando...")
+        window.location.href = "/dashboard"
+        return
+      }
+      toast.error("Erro ao salvar dados. Tente novamente.")
+      setLoading(false)
+      return
+    }
 
     toast.success("Tudo pronto! Bem-vindo ao Bora Gerir 🚀")
-    router.push("/dashboard")
-    router.refresh()
-    setLoading(false)
+    // Usar window.location para garantir redirect completo sem loops
+    window.location.href = "/dashboard"
   }
 
   const passos = [{ n: 1, label: "Seu negócio" }, { n: 2, label: "Plano" }]

@@ -60,10 +60,11 @@ export function MobileNav({ prefix = "" }: { prefix?: string }) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
               transition={{ duration: 0.15 }}
-              className="md:hidden fixed bottom-[65px] left-3 right-3 z-50 rounded-2xl overflow-hidden"
-              style={{ background: "hsl(0 0% 100%)" }}
+              className="md:hidden fixed bottom-[65px] left-3 right-3 z-50 rounded-2xl overflow-hidden shadow-xl"
+              style={{ backgroundColor: "#ffffff", border: "1px solid #e5e7eb" }}
             >
-              <div className="dark:hidden grid grid-cols-3 gap-px bg-gray-100 p-1">
+              <div className="dark:hidden grid grid-cols-3 gap-px bg-gray-100 p-1"
+                style={{ backgroundColor: "#f9fafb" }}>
                 {navExtras.map((item) => {
                   const href = `${prefix}${item.href}`
                   const isActive = pathname === href || pathname.startsWith(href + "/")
@@ -74,7 +75,7 @@ export function MobileNav({ prefix = "" }: { prefix?: string }) {
                       className={cn(
                         "flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-xs font-semibold transition-colors",
                         isActive
-                          ? "bg-primary text-white"
+                          ? "bg-[#F26E1D] text-white"
                           : "bg-white text-gray-600 hover:bg-gray-50"
                       )}>
                       <Icon className="w-5 h-5" />
@@ -83,9 +84,8 @@ export function MobileNav({ prefix = "" }: { prefix?: string }) {
                   )
                 })}
               </div>
-              {/* Dark mode version */}
-              <div className="hidden dark:grid grid-cols-3 gap-px bg-white/10 p-1"
-                style={{ background: "#1a1a1a" }}>
+              <div className="hidden dark:grid grid-cols-3 gap-px p-1"
+                style={{ backgroundColor: "#1a1a2e", border: "none" }}>
                 {navExtras.map((item) => {
                   const href = `${prefix}${item.href}`
                   const isActive = pathname === href || pathname.startsWith(href + "/")
@@ -96,8 +96,8 @@ export function MobileNav({ prefix = "" }: { prefix?: string }) {
                       className={cn(
                         "flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-xs font-semibold transition-colors",
                         isActive
-                          ? "bg-primary text-white"
-                          : "text-gray-300 hover:bg-white/5"
+                          ? "bg-[#F26E1D] text-white"
+                          : "text-gray-300 hover:bg-white/10"
                       )}>
                       <Icon className="w-5 h-5" />
                       <span className="text-center leading-tight">{item.label}</span>
@@ -112,8 +112,9 @@ export function MobileNav({ prefix = "" }: { prefix?: string }) {
 
       {/* Barra de navegação inferior */}
       <nav className={cn(
-        "md:hidden fixed bottom-0 left-0 right-0 z-30",
-        "border-t border-border bg-card"
+        "md:hidden fixed bottom-0 left-0 right-0 z-30 mobile-nav-bar",
+        "bg-white border-t border-gray-200",
+        "dark:bg-[#0f111a] dark:border-white/[0.08]"
       )}>
         {/* Safe area para iPhone */}
         <div className="flex items-center h-16 pb-safe">

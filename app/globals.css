@@ -1,69 +1,50 @@
 @import "tailwindcss";
 
 /* ============================================================
-   Bora Gerir — Design System v3
-   Clean no light · Elegante no dark
+   Bora Gerir — Design System
    ============================================================ */
 
 @layer base {
-  /* ── TEMA CLARO ── */
   :root {
     --background: 0 0% 97%;
     --foreground: 220 25% 10%;
-
     --card: 0 0% 100%;
     --card-foreground: 220 25% 10%;
-
     --popover: 0 0% 100%;
     --popover-foreground: 220 25% 10%;
-
     --primary: 26 90% 52%;
     --primary-foreground: 0 0% 100%;
-
     --secondary: 220 14% 95%;
     --secondary-foreground: 220 20% 30%;
-
     --muted: 220 14% 93%;
     --muted-foreground: 220 10% 48%;
-
     --accent: 220 14% 93%;
     --accent-foreground: 220 25% 10%;
-
     --destructive: 0 84% 58%;
     --destructive-foreground: 0 0% 100%;
-
     --border: 220 13% 90%;
     --input: 220 13% 90%;
     --ring: 26 90% 52%;
     --radius: 0.75rem;
   }
 
-  /* ── TEMA ESCURO ── */
   .dark {
     --background: 220 18% 9%;
     --foreground: 220 10% 92%;
-
     --card: 220 16% 13%;
     --card-foreground: 220 10% 92%;
-
     --popover: 220 16% 15%;
     --popover-foreground: 220 10% 92%;
-
     --primary: 26 90% 52%;
     --primary-foreground: 0 0% 100%;
-
     --secondary: 220 16% 18%;
     --secondary-foreground: 220 10% 78%;
-
     --muted: 220 16% 17%;
     --muted-foreground: 220 10% 52%;
-
     --accent: 220 16% 18%;
     --accent-foreground: 220 10% 92%;
-
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-
     --border: 220 16% 22%;
     --input: 220 16% 22%;
     --ring: 26 90% 52%;
@@ -73,43 +54,95 @@
 @layer base {
   * { border-color: hsl(var(--border)); box-sizing: border-box; }
   html { scroll-behavior: smooth; }
-
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
     font-family: var(--font-inter), system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
-
   h1, h2, h3, h4, h5, h6 { font-weight: 700; line-height: 1.25; }
-
   ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 4px; }
-  ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.4); }
 }
 
-/* ── Utilitários ── */
 .shadow-orange { box-shadow: 0 4px 20px hsl(26 90% 52% / 0.25); }
 
-/* ── Correção de contraste em componentes flutuantes ─────────
-   Garante fundo sólido no dark mode para todos os popups     */
-.dark [data-radix-popper-content-wrapper] > div,
-.dark [data-radix-select-content],
-.dark [data-radix-dropdown-menu-content],
-.dark [data-radix-popover-content] {
-  background-color: hsl(220 16% 15%) !important;
-  color: hsl(220 10% 92%) !important;
-  border-color: hsl(220 16% 22%) !important;
+/* ================================================================
+   CORREÇÃO GLOBAL DE TRANSPARÊNCIA — TODOS OS COMPONENTES FLUTUANTES
+   Aplica fundo sólido em TODOS os popups, dropdowns, selects e dialogs
+   ================================================================ */
+
+/* LIGHT MODE — fundo branco sólido */
+[data-radix-popper-content-wrapper],
+[data-radix-select-content],
+[data-radix-dropdown-menu-content],
+[data-radix-popover-content],
+[data-radix-tooltip-content],
+[role="listbox"],
+[role="menu"],
+[role="dialog"] {
+  background-color: #ffffff !important;
+  color: #1a1a1a !important;
+  border-color: #e5e7eb !important;
 }
 
-/* Items de menu no dark mode */
-.dark [data-radix-select-item],
-.dark [data-radix-dropdown-menu-item] {
-  color: hsl(220 10% 85%) !important;
+/* DARK MODE — fundo escuro sólido */
+.dark [data-radix-popper-content-wrapper],
+.dark [data-radix-select-content],
+.dark [data-radix-dropdown-menu-content],
+.dark [data-radix-popover-content],
+.dark [data-radix-tooltip-content],
+.dark [role="listbox"],
+.dark [role="menu"],
+.dark [role="dialog"] {
+  background-color: #1e2030 !important;
+  color: #e8eaf0 !important;
+  border-color: #2d3148 !important;
 }
-.dark [data-radix-select-item][data-highlighted],
-.dark [data-radix-dropdown-menu-item]:focus {
-  background-color: hsl(26 90% 52%) !important;
-  color: white !important;
+
+/* Viewport interno dos selects */
+[data-radix-select-viewport] {
+  background-color: inherit !important;
+}
+
+/* Itens normais */
+[data-radix-select-item],
+[role="option"],
+[role="menuitem"] {
+  color: #374151 !important;
+}
+.dark [data-radix-select-item],
+.dark [role="option"],
+.dark [role="menuitem"] {
+  color: #d1d5db !important;
+}
+
+/* Itens em hover/focus — laranja com branco */
+[data-radix-select-item][data-highlighted],
+[role="option"]:focus,
+[role="menuitem"]:focus,
+[data-highlighted] {
+  background-color: #F26E1D !important;
+  color: #ffffff !important;
+}
+
+/* Dialog/Modal — fundo sólido garantido */
+[role="dialog"] {
+  background-color: #ffffff !important;
+  color: #1a1a1a !important;
+}
+.dark [role="dialog"] {
+  background-color: #16192a !important;
+  color: #e8eaf0 !important;
+}
+
+/* Mobile nav — nunca transparente */
+nav.mobile-nav-bar {
+  background-color: #ffffff !important;
+  border-top: 1px solid #e5e7eb !important;
+}
+.dark nav.mobile-nav-bar {
+  background-color: #0f111a !important;
+  border-top: 1px solid rgba(255,255,255,0.08) !important;
 }
