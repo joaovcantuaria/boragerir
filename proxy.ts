@@ -1,12 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { updateSession } from "@/lib/supabase/middleware"
+import { createServerClient } from "@supabase/ssr"
 
 const ADMIN_EMAIL = "contato@boragerir.com"
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // ── Rotas públicas — sem verificação ─────────────────────
+  // ── Rotas públicas ────────────────────────────────────────
   if (
     pathname.startsWith("/demo") ||
     pathname.startsWith("/auth/") ||
@@ -17,65 +17,58 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next({ request })
   }
 
-  // ── Verificar se Supabase está configurado ────────────────
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  // ── Supabase não configurado → demo ───────────────────────
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
   if (!supabaseUrl || supabaseUrl.includes("placeholder") || !supabaseUrl.startsWith("http")) {
-    const url = request.nextUrl.clone()
-    url.pathname = "/demo"
-    return NextResponse.redirect(url)
+    return NextResponse.redirect(new URL("/demo", request.url))
   }
 
-  // ── Obter usuário logado ──────────────────────────────────
-  const { createServerClient } = await import("@supabase/ssr")
-  const { cookies } = await import("next/headers")
-  const cookieStore = await cookies()
+  // ── Criar cliente Supabase ────────────────────────────────
+  let response = NextResponse.next({ request })
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    supabaseUrl,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: () => {},
+        getAll: () => request.cookies.getAll(),
+        setAll: (cookiesToSet) => {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          response = NextResponse.next({ request })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          )
+        },
       },
     }
   )
 
   const { data: { user } } = await supabase.auth.getUser()
+  const isAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()
 
-  // ── Admin: acesso total ao /admin, sem onboarding ─────────
+  // ── Rota /admin ───────────────────────────────────────────
   if (pathname.startsWith("/admin")) {
-    if (!user) {
-      const url = request.nextUrl.clone()
-      url.pathname = "/login"
-      url.searchParams.set("redirect", "/admin")
-      return NextResponse.redirect(url)
-    }
-    if (user.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
-      // Não é admin → vai pro dashboard normal
-      const url = request.nextUrl.clone()
-      url.pathname = "/dashboard"
-      return NextResponse.redirect(url)
-    }
-    // É admin → passa direto, sem verificar empresa
-    return NextResponse.next({ request })
+    if (!user) return NextResponse.redirect(new URL("/login", request.url))
+    if (!isAdmin) return NextResponse.redirect(new URL("/dashboard", request.url))
+    return response
   }
 
-  // ── Admin logado tentando acessar rotas normais → admin ───
-  if (user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase() && !pathname.startsWith("/admin")) {
-    const url = request.nextUrl.clone()
-    url.pathname = "/admin"
-    return NextResponse.redirect(url)
+  // ── Admin acessando rota normal → vai pro admin ───────────
+  if (isAdmin) {
+    return NextResponse.redirect(new URL("/admin", request.url))
   }
 
-  // ── Rotas autenticadas normais ────────────────────────────
+  // ── Usuário não autenticado ───────────────────────────────
   if (!user) {
-    const url = request.nextUrl.clone()
-    url.pathname = "/login"
-    return NextResponse.redirect(url)
+    return NextResponse.redirect(new URL("/login", request.url))
   }
 
-  // Autenticado mas sem empresa → onboarding
+  // ── Redirecionar autenticado no login/cadastro ────────────
+  if (pathname === "/login" || pathname === "/cadastro") {
+    return NextResponse.redirect(new URL("/dashboard", request.url))
+  }
+
+  // ── Verificar onboarding ──────────────────────────────────
   if (pathname !== "/onboarding") {
     const { data: empresa } = await supabase
       .from("empresas")
@@ -84,20 +77,11 @@ export async function proxy(request: NextRequest) {
       .single()
 
     if (!empresa) {
-      const url = request.nextUrl.clone()
-      url.pathname = "/onboarding"
-      return NextResponse.redirect(url)
+      return NextResponse.redirect(new URL("/onboarding", request.url))
     }
   }
 
-  // Autenticado no login/cadastro → dashboard
-  if (pathname === "/login" || pathname === "/cadastro") {
-    const url = request.nextUrl.clone()
-    url.pathname = "/dashboard"
-    return NextResponse.redirect(url)
-  }
-
-  return await updateSession(request)
+  return response
 }
 
 export const config = {

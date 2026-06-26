@@ -1,14 +1,20 @@
 import { createClient } from "@supabase/supabase-js"
 
-// Cliente com service role — acesso total ao banco (sem RLS)
-// Usado apenas nas rotas /admin — NUNCA expor no frontend
 export function createAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  // Tenta service role primeiro, cai na anon se não tiver (acesso limitado)
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-    ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!url) throw new Error("NEXT_PUBLIC_SUPABASE_URL não configurada")
+
+  // Usa service role se disponível, senão usa anon key
+  const key = serviceKey ?? anonKey
+  if (!key) throw new Error("Nenhuma chave Supabase configurada")
 
   return createClient(url, key, {
-    auth: { autoRefreshToken: false, persistSession: false },
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
   })
 }
