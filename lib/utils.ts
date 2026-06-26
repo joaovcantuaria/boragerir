@@ -164,10 +164,100 @@ export const labelsFormaPagamento: Record<string, string> = {
   cartao_debito: "Cartão de Débito", pix: "Pix", outro: "Outro",
 }
 
-// Áreas de atuação
+// Áreas de atuação — Beleza, Serviços, Comércio, Tecnologia e mais
 export const areasAtuacao = [
-  "Salão de Beleza", "Barbearia", "Estúdio de Estética",
-  "Clínica de Estética", "Estúdio de Tatuagem", "Loja de Roupas",
-  "Loja de Calçados", "Restaurante/Lanchonete", "Mercadinho/Mercearia",
-  "Farmácia", "Pet Shop", "Academia", "Outros",
+  // ── Beleza & Estética ──────────────────────────
+  "Salão de Beleza",
+  "Barbearia",
+  "Estúdio de Estética",
+  "Clínica de Estética",
+  "Manicure e Pedicure",
+  "Estúdio de Sobrancelha",
+  "Estúdio de Tatuagem e Piercing",
+  "Maquiagem e Caracterização",
+  "Depilação",
+  "Spa e Relaxamento",
+
+  // ── Saúde & Bem-estar ──────────────────────────
+  "Academia e Musculação",
+  "Personal Trainer",
+  "Nutricionista",
+  "Psicólogo",
+  "Fisioterapeuta",
+  "Massoterapia",
+  "Yoga e Pilates",
+  "Studio de Dança",
+
+  // ── Serviços domésticos & Construção ──────────
+  "Eletricista",
+  "Encanador",
+  "Pintor",
+  "Marceneiro / Carpinteiro",
+  "Pedreiro / Construção",
+  "Jardineiro / Paisagismo",
+  "Dedetizador",
+  "Ar-condicionado / Refrigeração",
+  "Chaveiro",
+  "Limpeza Residencial / Comercial",
+  "Mudança e Frete",
+  "Marido de Aluguel",
+
+  // ── Tecnologia & Criatividade ─────────────────
+  "Fotógrafo",
+  "Videomaker / Filmagem",
+  "Designer Gráfico",
+  "Publicitário / Marketing",
+  "Desenvolvedor / TI",
+  "Social Media",
+  "Produtor de Conteúdo",
+  "Assessoria de Imprensa",
+
+  // ── Educação & Consultoria ────────────────────
+  "Professor Particular / Reforço",
+  "Escola de Idiomas",
+  "Consultoria Empresarial",
+  "Contador / Contabilidade",
+  "Advogado",
+  "Corretor de Imóveis",
+  "Corretor de Seguros",
+  "Coach / Mentoria",
+
+  // ── Alimentação ───────────────────────────────
+  "Restaurante / Lanchonete",
+  "Confeitaria / Padaria",
+  "Marmitex / Marmita Fitness",
+  "Food Truck",
+  "Bar / Pub",
+  "Buffet / Eventos",
+  "Delivery de Comida",
+
+  // ── Comércio ──────────────────────────────────
+  "Loja de Roupas / Moda",
+  "Loja de Calçados",
+  "Loja de Acessórios",
+  "Mercadinho / Mercearia",
+  "Farmácia / Drogaria",
+  "Loja de Cosméticos",
+  "Livraria / Papelaria",
+  "Loja de Eletrônicos",
+  "Loja de Presentes",
+
+  // ── Veículos ──────────────────────────────────
+  "Mecânico / Oficina",
+  "Estética Automotiva",
+
+  // ── Pets ──────────────────────────────────────
+  "Pet Shop",
+  "Banho e Tosa",
+  "Veterinário",
+  "Adestrador",
+
+  // ── Eventos ───────────────────────────────────
+  "Decoração de Festas",
+  "DJ / Sonorização",
+  "Cerimonialista",
+  "Aluguel de Fantasias / Figurinos",
+
+  // ── Outros ────────────────────────────────────
+  "Outros",
 ]

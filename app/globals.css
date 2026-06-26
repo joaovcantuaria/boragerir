@@ -118,3 +118,8 @@
 .shadow-orange {
   box-shadow: 0 4px 24px 0 hsl(26 89% 52% / 0.18);
 }
+
+/* Garante fundo branco nos popups/dropdowns no tema claro */
+[data-radix-popper-content-wrapper] {
+  --tw-bg-opacity: 1;
+}
