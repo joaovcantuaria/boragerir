@@ -11,11 +11,23 @@ export const metadata: Metadata = {
   description: "Gestão simples. Resultado de verdade. Sistema completo para salões, barbearias e pequenos negócios.",
   keywords: ["gestão", "salão de beleza", "barbearia", "caixa", "agendamento", "SaaS"],
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/logo-icon.png", sizes: "32x32", type: "image/png" },
+      { url: "/logo-icon.png", sizes: "192x192", type: "image/png" },
+      { url: "/logo-icon.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/logo-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+    shortcut: "/logo-icon.png",
+  },
   appleWebApp: { capable: true, statusBarStyle: "default", title: "Bora Gerir" },
   openGraph: {
     type: "website", locale: "pt_BR",
     title: "Bora Gerir — Gestão simples. Resultado de verdade.",
     siteName: "Bora Gerir",
+    images: [{ url: "/logo-icon.png" }],
   },
 }
 
