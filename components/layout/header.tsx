@@ -34,10 +34,18 @@ export function Header({ empresaNome = "Bora Gerir", empresaLogoUrl }: HeaderPro
   )
 
   return (
-    <header className={cn(
-      "h-16 flex items-center justify-between px-5 sticky top-0 z-20",
-      "bg-card/90 backdrop-blur-sm border-b border-border"
-    )}>
+  return (
+    <header
+      style={{
+        backgroundColor: "var(--header-bg, #ffffff)",
+        borderBottom: "1px solid var(--header-border, #e5e7eb)",
+      }}
+      className={cn(
+        "h-16 flex items-center justify-between px-5 sticky top-0 z-20",
+        "dark:[--header-bg:#0d0f1a] dark:[--header-border:rgba(255,255,255,0.08)]",
+        "backdrop-blur-sm"
+      )}
+    >
       {/* Nome da empresa */}
       <div className="flex items-center gap-2.5 min-w-0">
         {empresaLogoUrl && (

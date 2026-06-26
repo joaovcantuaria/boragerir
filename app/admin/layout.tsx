@@ -92,7 +92,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         initial={false}
         animate={{ width: collapsed ? 64 : 220 }}
         transition={{ duration: 0.18, ease: "easeInOut" }}
-        className="hidden md:flex flex-col h-screen bg-[#111] border-r border-white/[0.07] fixed left-0 top-0 z-30 overflow-hidden"
+        style={{ backgroundColor: "#111111", borderRight: "1px solid rgba(255,255,255,0.07)" }}
+        className="hidden md:flex flex-col h-screen fixed left-0 top-0 z-30 overflow-hidden"
       >
         {/* Logo */}
         <div className="flex items-center h-16 px-4 border-b border-white/[0.07] shrink-0 gap-2.5">
@@ -161,7 +162,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Conteúdo */}
       <div className={cn("flex-1 min-h-screen transition-all duration-200", collapsed ? "md:ml-[64px]" : "md:ml-[220px]")}>
         {/* Header */}
-        <header className="h-14 border-b border-white/[0.07] bg-[#111] flex items-center justify-between px-6 sticky top-0 z-20">
+        <header
+          style={{ backgroundColor: "#111111", borderBottom: "1px solid rgba(255,255,255,0.07)" }}
+          className="h-14 flex items-center justify-between px-6 sticky top-0 z-20"
+        >
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-primary" />
             <span className="text-sm font-bold text-white/60">Painel Administrativo</span>
