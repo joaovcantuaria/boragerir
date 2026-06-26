@@ -7,7 +7,6 @@
 
 @layer base {
   :root {
-    /* Fundo off-white quente */
     --background: 40 30% 97%;
     --foreground: 0 0% 10%;
 
@@ -17,7 +16,6 @@
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 10%;
 
-    /* Laranja primário #F26E1D */
     --primary: 26 89% 52%;
     --primary-foreground: 0 0% 100%;
 
@@ -33,16 +31,11 @@
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 142 71% 45%;
-    --success-foreground: 0 0% 100%;
-
     --border: 40 15% 88%;
     --input: 40 15% 88%;
     --ring: 26 89% 52%;
-
     --radius: 0.625rem;
 
-    /* Gráficos */
     --chart-1: 26 89% 52%;
     --chart-2: 142 71% 45%;
     --chart-3: 0 84% 60%;
@@ -52,22 +45,22 @@
 
   .dark {
     --background: 0 0% 8%;
-    --foreground: 40 20% 96%;
+    --foreground: 0 0% 95%;
 
-    --card: 0 0% 11%;
-    --card-foreground: 40 20% 96%;
+    --card: 0 0% 12%;
+    --card-foreground: 0 0% 95%;
 
-    --popover: 0 0% 11%;
-    --popover-foreground: 40 20% 96%;
+    /* CRÍTICO: popover precisa de fundo sólido escuro no dark mode */
+    --popover: 0 0% 14%;
+    --popover-foreground: 0 0% 95%;
 
-    /* Laranja mantido no dark */
     --primary: 26 89% 52%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 16%;
-    --secondary-foreground: 40 20% 90%;
+    --secondary: 0 0% 18%;
+    --secondary-foreground: 0 0% 90%;
 
-    --muted: 0 0% 15%;
+    --muted: 0 0% 16%;
     --muted-foreground: 0 0% 55%;
 
     --accent: 26 89% 52%;
@@ -76,8 +69,8 @@
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 18%;
-    --input: 0 0% 18%;
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
     --ring: 26 89% 52%;
 
     --chart-1: 26 89% 52%;
@@ -107,19 +100,60 @@
     color: hsl(var(--foreground));
   }
 
-  /* Scrollbar personalizada */
   ::-webkit-scrollbar { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { background: hsl(var(--muted)); }
   ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 3px; }
   ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }
 }
 
-/* Utilitário de sombra laranja */
+/* ── Sombra laranja ─────────────────────────────────────── */
 .shadow-orange {
-  box-shadow: 0 4px 24px 0 hsl(26 89% 52% / 0.18);
+  box-shadow: 0 4px 24px 0 hsl(26 89% 52% / 0.2);
 }
 
-/* Garante fundo branco nos popups/dropdowns no tema claro */
-[data-radix-popper-content-wrapper] {
-  --tw-bg-opacity: 1;
+/* ── CORREÇÃO DEFINITIVA: todos os popups/flutuantes ─────
+   Força fundo e cor de texto explícitos em TODOS os
+   elementos flutuantes do Radix UI, independente do tema  */
+
+/* Dropdown Menu */
+[data-radix-popper-content-wrapper] [role="menu"],
+[data-radix-dropdown-menu-content],
+[data-radix-select-content],
+[data-radix-popover-content] {
+  background-color: hsl(var(--popover)) !important;
+  color: hsl(var(--popover-foreground)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+}
+
+/* Select viewport */
+[data-radix-select-viewport] {
+  background-color: hsl(var(--popover)) !important;
+}
+
+/* Dialog */
+[role="dialog"] {
+  background-color: hsl(var(--card)) !important;
+  color: hsl(var(--card-foreground)) !important;
+}
+
+/* Garantir que itens de menu tenham texto legível */
+[role="menuitem"],
+[role="option"] {
+  color: hsl(var(--foreground)) !important;
+}
+
+[role="menuitem"]:hover,
+[role="menuitem"]:focus,
+[role="option"]:hover,
+[role="option"]:focus,
+[data-highlighted] {
+  background-color: hsl(var(--primary)) !important;
+  color: white !important;
+}
+
+/* Item destrutivo (Sair) */
+[role="menuitem"].text-destructive:hover,
+[role="menuitem"].text-destructive:focus {
+  background-color: hsl(var(--destructive)) !important;
+  color: white !important;
 }
