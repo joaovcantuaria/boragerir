@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import {
   LayoutDashboard, Building2, CreditCard, HeadphonesIcon,
   Settings, ChevronLeft, ChevronRight, LogOut, Shield,
-  Tag, Users2, Bell, X,
+  Tag, Users2, Bell, X, Bot,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { LogoIcon } from "@/components/ui/logo"
@@ -15,13 +15,14 @@ import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 
 const navItems = [
-  { href: "/admin",               icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/admin/empresas",      icon: Building2,       label: "Empresas" },
-  { href: "/admin/assinaturas",   icon: CreditCard,      label: "Assinaturas" },
-  { href: "/admin/vendedores",    icon: Users2,          label: "Vendedores" },
-  { href: "/admin/cupons",        icon: Tag,             label: "Cupons" },
-  { href: "/admin/suporte",       icon: HeadphonesIcon,  label: "Suporte" },
-  { href: "/admin/configuracoes", icon: Settings,        label: "Configurações" },
+  { href: "/admin",                  icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/admin/empresas",         icon: Building2,       label: "Empresas" },
+  { href: "/admin/assinaturas",      icon: CreditCard,      label: "Assinaturas" },
+  { href: "/admin/vendedores",       icon: Users2,          label: "Vendedores" },
+  { href: "/admin/cupons",           icon: Tag,             label: "Cupons" },
+  { href: "/admin/atendimentos-ia",  icon: Bot,             label: "🌟 Atendimentos IA" },
+  { href: "/admin/suporte",          icon: HeadphonesIcon,  label: "Suporte" },
+  { href: "/admin/configuracoes",    icon: Settings,        label: "Configurações" },
 ]
 
 interface Notificacao {
