@@ -218,7 +218,7 @@ export async function POST(req: NextRequest) {
     // Detectar se precisa de suporte humano
     abrirTicket = /não (sei|consigo|tenho certeza)|problema técnico|bug|erro|não funciona|suporte humano|atendente/i.test(resposta)
 
-    // Salvar resposta da Mel
+    // Se encaminhou para suporte, atualizar status e CRIAR TICKET AUTOMÁTICO
     if (conversaId) {
       await supabase.from("mensagens_mel").insert({
         conversa_id: conversaId,
@@ -227,11 +227,45 @@ export async function POST(req: NextRequest) {
         conteudo: resposta,
       })
 
-      // Se encaminhou para suporte, atualizar status
       if (abrirTicket) {
         await supabase.from("conversas_mel")
           .update({ status: "encaminhado" })
           .eq("id", conversaId)
+
+        // Criar ticket de suporte automaticamente
+        const protoTicket = `SUP-${Date.now().toString().slice(-7)}`
+        const { data: ticket } = await supabase.from("tickets_suporte").insert({
+          empresa_id: empresa.id,
+          assunto: `Encaminhado pela Mel — ${mensagem.slice(0, 60)}`,
+          mensagem: `Conversa protocolo ${protocolo}.\n\nÚltima mensagem: "${mensagem}"\n\nA Mel não conseguiu resolver e encaminhou para suporte humano.`,
+          status: "aberto",
+          prioridade: "normal",
+        }).select("id").single()
+
+        if (ticket) {
+          await supabase.from("conversas_mel")
+            .update({ gerou_ticket: true, ticket_id: ticket.id })
+            .eq("id", conversaId)
+        }
+
+        // Adicionar mensagem informando o cliente sobre o ticket
+        const msgTicket = `Entendi! 😊 Abri um chamado de suporte para você com o protocolo **${protoTicket}**.\n\nAssim que um atendente humano estiver disponível, ele vai entrar em contato. Você receberá uma resposta em breve!\n\nAnote seu protocolo: **${protoTicket}**`
+
+        await supabase.from("mensagens_mel").insert({
+          conversa_id: conversaId,
+          empresa_id: empresa.id,
+          role: "assistant",
+          conteudo: msgTicket,
+        })
+
+        return NextResponse.json({
+          resposta: msgTicket,
+          conversa_id: conversaId,
+          protocolo,
+          abrir_ticket: false, // já foi aberto automaticamente
+          ticket_protocolo: protoTicket,
+          nome_usuario: nomePrimeiro,
+        })
       }
     }
 

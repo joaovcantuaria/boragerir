@@ -32,8 +32,20 @@ const DialogContent = React.forwardRef<
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content ref={ref}
+      // Previne que cliques em portais filhos (Select, Popover) fechem o dialog
+      onPointerDownOutside={(e) => {
+        // Se o alvo do clique for um portal do Radix (select, etc), não fechar
+        const target = e.target as Element
+        if (
+          target.closest("[data-radix-popper-content-wrapper]") ||
+          target.closest("[data-radix-select-content]") ||
+          target.closest("[role='listbox']") ||
+          target.closest("[role='option']")
+        ) {
+          e.preventDefault()
+        }
+      }}
       style={{
-        /* CSS inline — fundo sólido garantido em qualquer tema */
         backgroundColor: "#ffffff",
         color: "#111827",
         border: "1px solid #e5e7eb",

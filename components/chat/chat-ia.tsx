@@ -182,11 +182,11 @@ export function ChatIA() {
     ))
   }
 
-  // Estilos base do container flutuante
+  // Estilos base do container — FIXO no canto inferior direito
   const containerStyle: React.CSSProperties = {
-    position: "absolute",
-    bottom: "64px",
-    right: 0,
+    position: "fixed",
+    bottom: "80px",   // acima do botão flutuante
+    right: "16px",
     width: "360px",
     maxHeight: "580px",
     borderRadius: "20px",
@@ -195,11 +195,11 @@ export function ChatIA() {
     display: "flex",
     flexDirection: "column",
     backgroundColor: "#ffffff",
+    zIndex: 9998,
   }
 
   return (
-    <div style={{ position: "fixed", bottom: "80px", right: "16px", zIndex: 9999 }}
-      className="md:bottom-6">
+    <div style={{ position: "fixed", bottom: "24px", right: "16px", zIndex: 9999 }}>
       {/* Janela da Mel */}
       <AnimatePresence>
         {aberto && (
@@ -209,8 +209,7 @@ export function ChatIA() {
             exit={{ opacity: 0, y: 16, scale: 0.95 }}
             transition={{ duration: 0.18 }}
             style={containerStyle}
-          >
-            {/* ── HEADER ── */}
+          >            {/* ── HEADER ── */}
             <div style={{ background: "linear-gradient(135deg, #F26E1D, #e05e10)", padding: "14px 16px", flexShrink: 0 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -465,7 +464,7 @@ export function ChatIA() {
         )}
       </AnimatePresence>
 
-      {/* Botão flutuante */}
+      {/* Botão flutuante — sempre visível no canto inferior direito */}
       <AnimatePresence>
         {!aberto && (
           <motion.button
@@ -476,12 +475,15 @@ export function ChatIA() {
             whileTap={{ scale: 0.92 }}
             onClick={() => setAberto(true)}
             style={{
+              position: "fixed",
+              bottom: "24px",
+              right: "16px",
               width: 52, height: 52, borderRadius: "50%",
               background: "linear-gradient(135deg, #F26E1D, #e05e10)",
               border: "none", cursor: "pointer",
               display: "flex", alignItems: "center", justifyContent: "center",
               boxShadow: "0 4px 20px rgba(242,110,29,0.45)",
-              fontSize: 22, position: "relative",
+              fontSize: 22, zIndex: 9999,
             }}
             title="Falar com a Mel"
           >

@@ -24,6 +24,8 @@ const schemaProduto = z.object({
   tipo: z.enum(["produto", "servico"]),
   categoria_id: z.string().optional(),
   descricao: z.string().optional(),
+  codigo: z.string().optional(),
+  unidade_medida: z.string().optional(),
   preco: z.string().min(1, "Preço obrigatório"),
   custo: z.string().optional(),
   estoque_atual: z.string().optional(),
@@ -33,6 +35,19 @@ const schemaProduto = z.object({
 })
 
 type FormProduto = z.infer<typeof schemaProduto>
+
+const UNIDADES = [
+  { value: "unidade", label: "Unidade (un)" },
+  { value: "pacote", label: "Pacote (pct)" },
+  { value: "kilo", label: "Quilo (kg)" },
+  { value: "litro", label: "Litro (L)" },
+  { value: "hora", label: "Hora (h)" },
+  { value: "sessao", label: "Sessão" },
+  { value: "metro", label: "Metro (m)" },
+  { value: "caixa", label: "Caixa (cx)" },
+  { value: "par", label: "Par" },
+  { value: "outro", label: "Outro" },
+]
 
 export function ProdutosServicosClient({
   empresaId,
@@ -109,6 +124,8 @@ export function ProdutosServicosClient({
       tipo: data.tipo,
       categoria_id: data.categoria_id || null,
       descricao: data.descricao || null,
+      codigo: data.codigo || null,
+      unidade_medida: data.unidade_medida || "unidade",
       preco: parseFloat(data.preco),
       custo: data.custo ? parseFloat(data.custo) : null,
       estoque_atual: data.estoque_atual ? parseInt(data.estoque_atual) : null,
@@ -236,6 +253,25 @@ export function ProdutosServicosClient({
               <Label>Nome *</Label>
               <Input placeholder="Nome do item" {...register("nome")} />
               {errors.nome && <p className="text-destructive text-xs">{errors.nome.message}</p>}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Código (opcional)</Label>
+                <Input placeholder="Ex: PROD001" {...register("codigo")} />
+                <p className="text-xs text-muted-foreground">Para facilitar a busca na venda</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Vendido por</Label>
+                <Select defaultValue="unidade" onValueChange={(v) => setValue("unidade_medida", v)}>
+                  <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                  <SelectContent>
+                    {UNIDADES.map((u) => (
+                      <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             </div>
             <div className="space-y-2">
               <Label>Categoria</Label>

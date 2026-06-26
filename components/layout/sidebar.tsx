@@ -19,7 +19,7 @@ const navItemsBase = [
   { path: "/clientes",          icon: Users,           label: "Clientes" },
   { path: "/produtos-servicos", icon: ShoppingBag,     label: "Produtos/Serviços" },
   { path: "/orcamentos",        icon: FileText,        label: "Orçamentos" },
-  { path: "/funcionarios",      icon: UserCheck,       label: "Funcionários" },
+  { path: "/funcionarios",      icon: UserCheck,       label: "Colaboradores" },
   { path: "/financeiro",        icon: BarChart3,       label: "Financeiro" },
   { path: "/planos",            icon: CreditCard,      label: "Planos" },
   { path: "/configuracoes",     icon: Settings,        label: "Configurações" },

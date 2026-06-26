@@ -354,7 +354,7 @@ export function ConfiguracoesClient({
                       </div>
                     ))}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2">💳 Integração com gateway de pagamento em desenvolvimento.</p>
+                  <p className="text-xs text-muted-foreground mt-2">💳 Pagamentos processados com segurança pelo <strong>Mercado Pago</strong>. Cancele quando quiser.</p>
                 </div>
               )}
             </CardContent>

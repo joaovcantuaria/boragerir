@@ -76,7 +76,10 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
     : 0
 
   function selecionarPlano(id: PlanoId) {
-    if (empresa.plano === id && assinaturaAtiva?.status === "ativa") { toast.info("Você já tem este plano ativo."); return }
+    if (empresa.plano === id && assinaturaAtiva?.status === "ativa") {
+      toast.info("Você já tem este plano ativo.")
+      return
+    }
     setPlanoSel(id)
     setEtapa("pagamento")
   }

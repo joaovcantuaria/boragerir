@@ -24,7 +24,7 @@ const navPrincipal = [
 const navExtras = [
   { href: "/produtos-servicos", icon: ShoppingBag,  label: "Produtos/Serviços" },
   { href: "/orcamentos",        icon: FileText,     label: "Orçamentos" },
-  { href: "/funcionarios",      icon: UserCheck,    label: "Funcionários" },
+  { href: "/funcionarios",      icon: UserCheck,    label: "Colaboradores" },
   { href: "/financeiro",        icon: BarChart3,    label: "Financeiro" },
   { href: "/planos",            icon: CreditCard,   label: "Planos" },
   { href: "/configuracoes",     icon: Settings,     label: "Configurações" },

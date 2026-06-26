@@ -31,6 +31,9 @@ export type Database = {
           plano_ativo: boolean
           pontos_por_real: number
           pontos_para_desconto: number
+          recibo_template: "padrao" | "moderno" | "minimalista" | "colorido" | null
+          recibo_cor_primaria: string | null
+          recibo_rodape: string | null
           created_at: string
         }
         Insert: Omit<Database["public"]["Tables"]["empresas"]["Row"], "id" | "created_at"> & {
@@ -87,6 +90,8 @@ export type Database = {
           estoque_minimo: number | null
           comissao_percentual: number | null
           duracao_minutos: number | null
+          codigo: string | null
+          unidade_medida: "unidade" | "pacote" | "kilo" | "litro" | "hora" | "sessao" | "metro" | "caixa" | "par" | "outro" | null
           ativo: boolean
           created_at: string
         }
