@@ -32,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="pt-BR" suppressHydrationWarning>
       <head>
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+        <script src="https://sdk.mercadopago.com/js/v2" async></script>
       </head>
       <body className={`${inter.variable} font-sans antialiased`} suppressHydrationWarning>
         <ThemeProvider

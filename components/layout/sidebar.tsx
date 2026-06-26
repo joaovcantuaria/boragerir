@@ -50,7 +50,11 @@ export function Sidebar({ collapsed, onToggle, prefix = "" }: SidebarProps) {
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
         {navItems.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
+          // Dashboard só ativo quando exatamente /dashboard
+          // Outros itens ativam também em sub-rotas
+          const isActive = item.path === "/dashboard"
+            ? pathname === item.href
+            : pathname === item.href || pathname.startsWith(item.href + "/")
           const Icon = item.icon
           return (
             <Link

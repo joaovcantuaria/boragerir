@@ -145,21 +145,44 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
 
   async function pagarCartao() {
     if (!planoSel) return
+    if (!nomeCartao || !numeroCartao || !validade || !cvv) {
+      toast.error("Preencha todos os dados do cartão.")
+      return
+    }
     setLoading(true)
     try {
-      // Tokenizar cartão via MP SDK (simplificado)
-      toast.info("Processando pagamento...")
+      // Tokenizar cartão via Mercado Pago SDK
+      // @ts-ignore — MP SDK carregado via script
+      const mp = new window.MercadoPago(process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY)
+      const [mes, ano] = validade.split("/")
+      const tokenResult = await mp.createCardToken({
+        cardNumber: numeroCartao.replace(/\s/g, ""),
+        cardholderName: nomeCartao,
+        cardExpirationMonth: mes,
+        cardExpirationYear: `20${ano}`,
+        securityCode: cvv,
+      })
+
+      if (!tokenResult?.id) {
+        throw new Error("Não foi possível tokenizar o cartão.")
+      }
+
       const res = await fetch("/api/pagamentos/criar-assinatura", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plano: planoSel, periodicidade, card_token: "token_simulado" }),
+        body: JSON.stringify({
+          plano: planoSel,
+          periodicidade,
+          card_token: tokenResult.id,
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.erro)
       setEtapa("sucesso")
       toast.success("Assinatura criada! Bem-vindo ao plano " + planoEscolhido?.nome)
-    } catch (err) {
-      toast.error("Erro ao processar cartão. Verifique os dados.")
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erro ao processar cartão."
+      toast.error(msg)
     }
     setLoading(false)
   }

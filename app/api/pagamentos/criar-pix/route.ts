@@ -23,6 +23,12 @@ export async function POST(req: NextRequest) {
     })
 
     const payment = new Payment(mp)
+
+    // Montar nome e sobrenome da empresa
+    const partes = empresa.nome.trim().split(" ")
+    const firstName = partes[0] ?? empresa.nome
+    const lastName = partes.slice(1).join(" ") || firstName
+
     const resultado = await payment.create({
       body: {
         transaction_amount: valorTotal,
@@ -30,7 +36,15 @@ export async function POST(req: NextRequest) {
         payment_method_id: "pix",
         payer: {
           email: empresa.email,
-          first_name: empresa.nome,
+          first_name: firstName,
+          last_name: lastName,
+          // CPF/CNPJ do pagador (obrigatório em produção)
+          identification: empresa.documento
+            ? {
+                type: empresa.tipo_documento === "cnpj" ? "CNPJ" : "CPF",
+                number: empresa.documento.replace(/\D/g, ""),
+              }
+            : undefined,
         },
         metadata: {
           empresa_id: empresa.id,
@@ -41,6 +55,10 @@ export async function POST(req: NextRequest) {
       },
     })
 
+    if (!resultado.id) {
+      return NextResponse.json({ erro: "Erro ao criar pagamento no Mercado Pago" }, { status: 500 })
+    }
+
     // Salvar assinatura pendente
     await supabase.from("assinaturas").insert({
       empresa_id: empresa.id,
@@ -50,21 +68,22 @@ export async function POST(req: NextRequest) {
       forma_pagamento: "pix",
       valor_mensal: plano === "basico" ? 49 : 99,
       valor_total: valorTotal,
-      mp_pix_payment_id: resultado.id?.toString(),
+      mp_pix_payment_id: resultado.id.toString(),
       mp_pix_qr_code: resultado.point_of_interaction?.transaction_data?.qr_code_base64 ?? null,
       mp_pix_qr_code_text: resultado.point_of_interaction?.transaction_data?.qr_code ?? null,
     })
 
     return NextResponse.json({
       sucesso: true,
-      payment_id: resultado.id,
+      payment_id: resultado.id.toString(),
       qr_code: resultado.point_of_interaction?.transaction_data?.qr_code_base64,
       qr_code_text: resultado.point_of_interaction?.transaction_data?.qr_code,
       valor: valorTotal,
     })
 
-  } catch (error) {
-    console.error("Erro ao criar Pix:", error)
-    return NextResponse.json({ erro: "Erro ao criar pagamento Pix" }, { status: 500 })
+  } catch (error: unknown) {
+    console.error("Erro ao criar Pix:", JSON.stringify(error, null, 2))
+    const msg = error instanceof Error ? error.message : "Erro ao criar pagamento Pix"
+    return NextResponse.json({ erro: msg }, { status: 500 })
   }
 }

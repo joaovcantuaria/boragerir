@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { MercadoPagoConfig, PreApproval } from "mercadopago"
 import { createClient } from "@/lib/supabase/server"
-import { calcularValor, PLANOS_MP, type PlanoMP, type Periodicidade } from "@/lib/mercadopago/client"
+import { calcularValor, type PlanoMP, type Periodicidade } from "@/lib/mercadopago/client"
 import { addMonths, addYears } from "date-fns"
 
 export async function POST(req: NextRequest) {
@@ -21,6 +21,12 @@ export async function POST(req: NextRequest) {
       card_token: string
     }
 
+    if (!card_token || card_token === "token_simulado") {
+      return NextResponse.json({
+        erro: "Token do cartão inválido. Use o SDK do Mercado Pago para tokenizar o cartão."
+      }, { status: 400 })
+    }
+
     const { valorTotal, valorMensal, descricao } = calcularValor(plano, periodicidade)
     const mp = new MercadoPagoConfig({ accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN! })
     const preApproval = new PreApproval(mp)
@@ -28,21 +34,20 @@ export async function POST(req: NextRequest) {
     const dataInicio = new Date()
     const dataFim = periodicidade === "anual"
       ? addYears(dataInicio, 1)
-      : addMonths(dataInicio, 1)
+      : addMonths(dataInicio, 13) // 1 ano + 1 mês de margem para mensal
 
-    // Criar assinatura recorrente
     const resultado = await preApproval.create({
       body: {
         payer_email: empresa.email,
         card_token_id: card_token,
         reason: descricao,
         auto_recurring: {
-          frequency: periodicidade === "anual" ? 12 : 1,
+          frequency: 1,
           frequency_type: "months",
           transaction_amount: periodicidade === "anual" ? valorTotal : valorMensal,
           currency_id: "BRL",
           start_date: dataInicio.toISOString(),
-          end_date: periodicidade === "anual" ? dataFim.toISOString() : undefined,
+          ...(periodicidade === "anual" && { end_date: dataFim.toISOString() }),
         },
         back_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?assinatura=sucesso`,
         notification_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/mercadopago`,
@@ -78,14 +83,14 @@ export async function POST(req: NextRequest) {
 
     // Atualizar plano na empresa
     await supabase.from("empresas").update({
-      plano,
-      plano_ativo: true,
+      plano, plano_ativo: true,
     }).eq("id", empresa.id)
 
     return NextResponse.json({ sucesso: true, preapproval_id: resultado.id })
 
-  } catch (error) {
-    console.error("Erro ao criar assinatura:", error)
-    return NextResponse.json({ erro: "Erro ao processar assinatura" }, { status: 500 })
+  } catch (error: unknown) {
+    console.error("Erro ao criar assinatura:", JSON.stringify(error, null, 2))
+    const msg = error instanceof Error ? error.message : "Erro ao processar assinatura"
+    return NextResponse.json({ erro: msg }, { status: 500 })
   }
 }
