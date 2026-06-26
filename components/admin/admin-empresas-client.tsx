@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { format, parseISO } from "date-fns"
-import { Search, Building2, Eye, Shield, ShieldOff } from "lucide-react"
+import { Search, Building2, Eye, Shield, ShieldOff, Trash2, Bell } from "lucide-react"
 import { toast } from "sonner"
 import { formatarCNPJ, formatarCPF, formatarTelefone } from "@/lib/utils"
 
@@ -46,6 +46,30 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
     } else {
       toast.error("Erro ao alterar plano.")
     }
+  }
+
+  async function excluirEmpresa(empresa: Empresa) {
+    if (!confirm(`Excluir "${empresa.nome}" permanentemente? Esta ação não pode ser desfeita.`)) return
+    const res = await fetch("/api/admin/empresas/excluir", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ empresa_id: empresa.id }),
+    })
+    if (res.ok) {
+      setEmpresas((prev) => prev.filter((e) => e.id !== empresa.id))
+      toast.success("Empresa excluída.")
+    } else toast.error("Erro ao excluir empresa.")
+  }
+
+  async function enviarAlertaVencimento(empresa: Empresa) {
+    const res = await fetch("/api/admin/empresas/alerta-vencimento", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ empresa_id: empresa.id }),
+    })
+    const data = await res.json()
+    if (res.ok) toast.success(`Alerta enviado para ${data.email}`)
+    else toast.error("Erro ao enviar alerta.")
   }
 
   async function toggleAtivo(empresa: Empresa) {
@@ -151,11 +175,25 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
                   <Eye className="w-3.5 h-3.5" />
                 </button>
                 <button
+                  onClick={() => enviarAlertaVencimento(e)}
+                  className="p-1.5 rounded-lg hover:bg-white/10 text-yellow-400/60 hover:text-yellow-400 transition-colors"
+                  title="Enviar alerta de vencimento"
+                >
+                  <Bell className="w-3.5 h-3.5" />
+                </button>
+                <button
                   onClick={() => toggleAtivo(e)}
                   className={`p-1.5 rounded-lg hover:bg-white/10 transition-colors ${e.plano_ativo ? "text-emerald-400 hover:text-red-400" : "text-red-400 hover:text-emerald-400"}`}
                   title={e.plano_ativo ? "Desativar" : "Reativar"}
                 >
                   {e.plano_ativo ? <Shield className="w-3.5 h-3.5" /> : <ShieldOff className="w-3.5 h-3.5" />}
+                </button>
+                <button
+                  onClick={() => excluirEmpresa(e)}
+                  className="p-1.5 rounded-lg hover:bg-white/10 text-red-400/60 hover:text-red-400 transition-colors"
+                  title="Excluir empresa"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>

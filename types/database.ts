@@ -14,6 +14,7 @@ export type Database = {
           id: string
           user_id: string
           nome: string
+          slug: string | null
           tipo_documento: "cpf" | "cnpj"
           documento: string
           area_atuacao: string

@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import { format, parseISO } from "date-fns"
-import { CheckCircle, Clock, XCircle, CreditCard, QrCode, TrendingUp } from "lucide-react"
+import { CheckCircle, Clock, XCircle, CreditCard, QrCode, TrendingUp, Ban, Trash2, Play } from "lucide-react"
+import { toast } from "sonner"
 import { formatarMoeda } from "@/lib/utils"
 
 interface Assinatura {
@@ -31,6 +32,30 @@ export function AdminAssinaturasClient({ assinaturas, totais }: {
     const statusBate = filtro === "todos" || a.status === filtro
     return bate && statusBate
   })
+
+  async function acaoAssinatura(id: string, acao: "bloquear" | "desbloquear" | "cancelar" | "excluir") {
+    const confirmar = acao === "excluir" || acao === "cancelar"
+    if (confirmar && !confirm(`${acao === "excluir" ? "Excluir" : "Cancelar"} esta assinatura?`)) return
+
+    const res = await fetch("/api/admin/assinaturas/bloquear", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ assinatura_id: id, acao }),
+    })
+
+    if (res.ok) {
+      const data = await res.json()
+      if (acao === "excluir") {
+        // Recarregar a página para atualizar a lista
+        window.location.reload()
+      } else {
+        toast.success(`Assinatura ${data.status}`)
+        window.location.reload()
+      }
+    } else {
+      toast.error("Erro ao processar ação.")
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -109,6 +134,25 @@ export function AdminAssinaturasClient({ assinaturas, totais }: {
                 <Icon className={`w-3 h-3 ${badge.cor}`} />
                 {a.status}
               </span>
+              {/* Ações */}
+              <div className="flex items-center gap-1">
+                {a.status === "ativa" && (
+                  <button onClick={() => acaoAssinatura(a.id, "bloquear")} title="Bloquear"
+                    className="p-1 hover:bg-white/10 rounded-lg text-yellow-400/60 hover:text-yellow-400 transition-colors">
+                    <Ban className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {a.status === "pausada" && (
+                  <button onClick={() => acaoAssinatura(a.id, "desbloquear")} title="Desbloquear"
+                    className="p-1 hover:bg-white/10 rounded-lg text-emerald-400/60 hover:text-emerald-400 transition-colors">
+                    <Play className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                <button onClick={() => acaoAssinatura(a.id, "excluir")} title="Excluir"
+                  className="p-1 hover:bg-white/10 rounded-lg text-red-400/60 hover:text-red-400 transition-colors">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           )
         }) : (
