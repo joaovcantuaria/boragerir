@@ -61,6 +61,7 @@ export default async function AgendamentosPage() {
     <AgendamentosClient
       empresaId={empresa.id}
       plano={empresa.plano}
+      empresaSlug={empresa.slug ?? null}
       agendamentos={agendamentos}
       clientes={clientes ?? []}
       servicos={servicos ?? []}

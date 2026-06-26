@@ -18,8 +18,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { LinkAgendamento } from "@/components/agendamentos/link-agendamento"
 import { createClient } from "@/lib/supabase/client"
 import { coresStatus, labelsStatus, formatarTelefone } from "@/lib/utils"
+
 
 const schemaAgendamento = z.object({
   data_hora: z.string().min(1, "Data e hora obrigatórias"),
@@ -43,9 +45,9 @@ type AgendamentoCompleto = {
 }
 
 export function AgendamentosClient({
-  empresaId, plano, agendamentos: agInit, clientes, servicos, funcionarios
+  empresaId, plano, empresaSlug, agendamentos: agInit, clientes, servicos, funcionarios
 }: {
-  empresaId: string; plano: string
+  empresaId: string; plano: string; empresaSlug: string | null
   agendamentos: AgendamentoCompleto[]
   clientes: { id: string; nome_completo: string; telefone: string }[]
   servicos: { id: string; nome: string; duracao_minutos: number | null }[]
@@ -149,6 +151,13 @@ export function AgendamentosClient({
           <span className="hidden sm:inline">Novo Agendamento</span>
         </Button>
       </div>
+
+      {/* Link de agendamento online */}
+      <LinkAgendamento
+        empresaSlug={empresaSlug}
+        empresaId={empresaId}
+        plano={plano}
+      />
 
       {plano === "gratuito" && (
         <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg text-sm text-yellow-600 dark:text-yellow-400">
