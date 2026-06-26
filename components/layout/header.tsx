@@ -34,7 +34,6 @@ export function Header({ empresaNome = "Bora Gerir", empresaLogoUrl }: HeaderPro
   )
 
   return (
-  return (
     <header
       style={{
         backgroundColor: "var(--header-bg, #ffffff)",

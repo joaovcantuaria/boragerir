@@ -272,7 +272,6 @@ export function ProdutosServicosClient({
                 </Select>
               </div>
             </div>
-            </div>
             <div className="space-y-2">
               <Label>Categoria</Label>
               <Select onValueChange={(v) => setValue("categoria_id", v)}>

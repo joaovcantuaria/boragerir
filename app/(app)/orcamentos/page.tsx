@@ -16,7 +16,7 @@ export default async function OrcamentosPage() {
 
   const [{ data: orcamentos }, { data: clientes }, { data: produtos }] = await Promise.all([
     supabase.from("orcamentos")
-      .select("*, clientes(nome_completo, telefone), itens_orcamento(*)")
+      .select("*, clientes(nome_completo, telefone, email), itens_orcamento(*)")
       .eq("empresa_id", empresa.id)
       .order("created_at", { ascending: false }),
     supabase.from("clientes").select("id, nome_completo, telefone").eq("empresa_id", empresa.id).eq("ativo", true).order("nome_completo"),

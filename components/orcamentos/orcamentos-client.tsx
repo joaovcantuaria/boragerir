@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Plus, FileText, Search, Loader2, Send, Edit, AlertCircle, CheckCircle, XCircle } from "lucide-react"
+import { Plus, FileText, Search, Loader2, Send, Edit, AlertCircle, CheckCircle, XCircle, Mail } from "lucide-react"
 import { toast } from "sonner"
 import { format, addDays, isPast, differenceInDays } from "date-fns"
 import { Button } from "@/components/ui/button"
@@ -38,7 +38,7 @@ export function OrcamentosClient({ empresa, orcamentos: orcInit, clientes, produ
     id: string; titulo: string; numero_orcamento: number; status: string; total: number
     desconto: number; subtotal: number; validade_dias: number; created_at: string
     observacoes: string | null
-    clientes?: { nome_completo: string; telefone: string } | null
+    clientes?: { nome_completo: string; telefone: string; email?: string | null } | null
     itens_orcamento?: ItemOrc[]
   }[]
   clientes: { id: string; nome_completo: string; telefone: string }[]
@@ -117,6 +117,23 @@ export function OrcamentosClient({ empresa, orcamentos: orcInit, clientes, produ
     toast.success("Status atualizado!")
   }
 
+  async function enviarPorEmail(orc: typeof orcamentos[0]) {
+    const emailCliente = orc.clientes?.email ?? ""
+    const emailDestino = emailCliente || window.prompt(`E-mail do destinatário para enviar o orçamento "${orc.titulo}":`)
+    if (!emailDestino) return
+
+    const toastId = toast.loading("Enviando orçamento por e-mail...")
+    const res = await fetch("/api/orcamentos/enviar-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orcamento_id: orc.id, email_destino: emailDestino }),
+    })
+    const data = await res.json()
+    toast.dismiss(toastId)
+    if (res.ok) toast.success(data.mensagem)
+    else toast.error(data.erro ?? "Erro ao enviar e-mail.")
+  }
+
   function badgeStatus(orc: typeof orcamentos[0]) {
     const validade = addDays(new Date(orc.created_at), orc.validade_dias)
     const diasRestantes = differenceInDays(validade, new Date())
@@ -173,6 +190,10 @@ export function OrcamentosClient({ empresa, orcamentos: orcInit, clientes, produ
                         <Send className="w-3 h-3 mr-1" />WhatsApp
                       </Button>
                     )}
+                    <Button variant="ghost" size="xs" className="text-blue-500 hover:text-blue-600"
+                      onClick={() => enviarPorEmail(orc)}>
+                      <Mail className="w-3 h-3 mr-1" />E-mail
+                    </Button>
                     {orc.status === "pendente" && (
                       <Button variant="ghost" size="xs" className="text-emerald-500" onClick={() => alterarStatus(orc.id, "aprovado")}>
                         <CheckCircle className="w-3 h-3 mr-1" />Aprovar
