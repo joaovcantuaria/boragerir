@@ -1,36 +1,228 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BeautyFlow — Sistema de Gestão para Beleza
 
-## Getting Started
+Sistema SaaS multi-tenant completo para salões de beleza, barbearias, estúdios de estética e negócios similares.
 
-First, run the development server:
+## Stack Tecnológica
+
+- **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS v4
+- **Backend/DB**: Supabase (PostgreSQL + Auth + RLS + Storage)
+- **UI**: Radix UI + componentes customizados
+- **Gráficos**: Recharts
+- **PDF**: jsPDF + jsPDF-AutoTable
+- **Formulários**: React Hook Form + Zod
+- **Animações**: Framer Motion
+- **Notificações**: Sonner
+- **Ícones**: Lucide React
+- **Temas**: next-themes (dark/light)
+
+---
+
+## Pré-requisitos
+
+- Node.js 18.17 ou superior
+- npm 9+
+- Conta no [Supabase](https://supabase.com) (gratuita)
+
+---
+
+## Instalação
+
+### 1. Clone o repositório
+
+```bash
+git clone https://github.com/seu-usuario/beautyflow.git
+cd beautyflow
+```
+
+### 2. Instale as dependências
+
+```bash
+npm install
+```
+
+### 3. Configure as variáveis de ambiente
+
+```bash
+cp .env.local.example .env.local
+```
+
+Edite o `.env.local` com as suas credenciais do Supabase.
+
+---
+
+## Configuração do Supabase
+
+### 1. Crie um projeto no Supabase
+
+Acesse [supabase.com](https://supabase.com) e crie um novo projeto.
+
+### 2. Execute o script SQL
+
+No painel do Supabase, vá em **SQL Editor** e execute o conteúdo do arquivo:
+
+```
+supabase/schema.sql
+```
+
+Este script cria:
+- Todas as tabelas com relacionamentos
+- Triggers de auto-incremento de número de venda e orçamento
+- Políticas RLS (Row Level Security) completas
+- Índices de performance
+- Bucket de storage para logos
+
+### 3. Configure a autenticação
+
+Em **Authentication → Settings**:
+- Habilite "Email/Password" como provider
+- Configure o **Site URL** para `http://localhost:3000` (dev) ou sua URL de produção
+- Em **Redirect URLs**, adicione: `http://localhost:3000/**`
+
+### 4. Copie as chaves da API
+
+Em **Settings → API**:
+- Copie a **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
+- Copie a **anon public key** → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+---
+
+## Rodando Localmente
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Acesse [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Deploy no Vercel
 
-## Learn More
+### 1. Faça push para o GitHub
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+git init
+git add .
+git commit -m "feat: BeautyFlow SaaS inicial"
+git remote add origin https://github.com/seu-usuario/beautyflow.git
+git push -u origin main
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 2. Importe no Vercel
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Acesse [vercel.com](https://vercel.com)
+2. Clique em **New Project** → importe do GitHub
+3. Em **Environment Variables**, adicione:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+4. Clique em **Deploy**
 
-## Deploy on Vercel
+### 3. Configure o Supabase para produção
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Em **Authentication → Settings** do Supabase:
+- Adicione a URL do Vercel em **Site URL** e **Redirect URLs**
+- Ex: `https://beautyflow-xxx.vercel.app/**`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## Estrutura do Projeto
+
+```
+beautyflow/
+├── app/
+│   ├── (auth)/             # Páginas de login e cadastro
+│   ├── (app)/              # Páginas autenticadas
+│   │   ├── dashboard/
+│   │   ├── caixa/
+│   │   ├── clientes/
+│   │   ├── produtos-servicos/
+│   │   ├── venda/
+│   │   ├── orcamentos/
+│   │   ├── agendamentos/
+│   │   ├── funcionarios/
+│   │   ├── financeiro/
+│   │   └── configuracoes/
+│   └── onboarding/         # Fluxo de cadastro da empresa
+├── components/
+│   ├── ui/                 # Componentes base (Button, Card, etc.)
+│   ├── layout/             # Sidebar, Header, MobileNav
+│   ├── dashboard/
+│   ├── caixa/
+│   ├── clientes/
+│   ├── produtos/
+│   ├── venda/
+│   ├── orcamentos/
+│   ├── agendamentos/
+│   ├── funcionarios/
+│   ├── financeiro/
+│   └── configuracoes/
+├── lib/
+│   ├── supabase/           # Clientes browser, server e middleware
+│   ├── pdf/                # Geração de recibos e orçamentos
+│   └── utils.ts            # Funções utilitárias (CPF, moeda, etc.)
+├── types/
+│   ├── database.ts         # Tipos do Supabase
+│   └── index.ts            # Tipos de domínio
+├── hooks/
+│   └── use-empresa.ts
+├── public/
+│   ├── manifest.json       # PWA manifest
+│   └── sw.js               # Service Worker
+├── supabase/
+│   └── schema.sql          # Script SQL completo
+├── middleware.ts            # Proteção de rotas
+└── .env.local.example
+```
+
+---
+
+## Planos
+
+| Feature                  | Gratuito | Básico (R$49/mês) | Profissional (R$99/mês) |
+|--------------------------|----------|-------------------|--------------------------|
+| Clientes                 | 30       | 200               | Ilimitado                |
+| Produtos/Serviços        | 3        | Ilimitado         | Ilimitado                |
+| Funcionários             | —        | 3                 | Ilimitado                |
+| Agendamentos             | —        | ✓                 | ✓                        |
+| PDF sem marca d'água     | —        | ✓                 | ✓                        |
+| Programa de fidelidade   | —        | —                 | ✓                        |
+| Lembretes automáticos    | —        | —                 | ✓                        |
+| Relatórios avançados     | —        | ✓                 | ✓                        |
+
+> **Nota**: A integração com gateway de pagamento (Stripe/Mercado Pago) está marcada como TODO no código. Por ora, todos os planos funcionam para teste.
+
+---
+
+## Segurança
+
+- **RLS**: Todas as tabelas têm Row Level Security ativado. Um usuário nunca acessa dados de outra empresa.
+- **Middleware**: Todas as rotas autenticadas são protegidas pelo `middleware.ts`.
+- **Validação**: CPF validado no frontend com algoritmo oficial. Inputs sanitizados com Zod.
+
+---
+
+## Personalização
+
+Para trocar o nome/cor do app, edite `types/index.ts`:
+
+```typescript
+export const APP_CONFIG = {
+  nome: "BeautyFlow",
+  slogan: "Gestão inteligente para o seu negócio",
+  site: "https://beautyflow.app",
+  corPrimaria: "#10B981",
+  corDestructive: "#EF4444",
+}
+```
+
+E ajuste as variáveis CSS em `app/globals.css`:
+
+```css
+--primary: 160 84% 39%; /* verde #10B981 */
+```
+
+---
+
+## Licença
+
+MIT © BeautyFlow

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Fundo laranja arredondado -->
+  <rect width="64" height="64" rx="14" fill="#F26E1D"/>
+  
+  <!-- Barras do gráfico (branco) -->
+  <rect x="10" y="36" width="8" height="18" rx="2.5" fill="white"/>
+  <rect x="22" y="26" width="8" height="28" rx="2.5" fill="white"/>
+  <rect x="34" y="31" width="8" height="23" rx="2.5" fill="white"/>
+  
+  <!-- Seta de crescimento -->
+  <path d="M46 14 L56 14 L56 24" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M44 26 L55 15" stroke="white" stroke-width="4" stroke-linecap="round"/>
+</svg>
