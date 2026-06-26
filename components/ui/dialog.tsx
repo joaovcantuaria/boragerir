@@ -35,9 +35,7 @@ const DialogContent = React.forwardRef<
       className={cn(
         "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 p-6 shadow-2xl",
         "max-h-[90vh] overflow-y-auto rounded-2xl",
-        // Sólido, nunca transparente
-        "bg-white text-gray-900 border border-gray-200",
-        "dark:bg-[#161616] dark:text-gray-100 dark:border-white/10",
+        "bg-card text-card-foreground border border-border",
         "data-[state=open]:animate-in data-[state=closed]:animate-out",
         "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
         "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",

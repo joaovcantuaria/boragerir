@@ -1,33 +1,33 @@
 @import "tailwindcss";
 
 /* ============================================================
-   Bora Gerir — Design System v2
-   Clean · Moderno · Profissional
+   Bora Gerir — Design System v3
+   Clean no light · Elegante no dark
    ============================================================ */
 
 @layer base {
   /* ── TEMA CLARO ── */
   :root {
-    --background: 0 0% 98%;
-    --foreground: 220 20% 12%;
+    --background: 0 0% 97%;
+    --foreground: 220 25% 10%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 20% 12%;
+    --card-foreground: 220 25% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 20% 12%;
+    --popover-foreground: 220 25% 10%;
 
-    --primary: 26 90% 52%;       /* Laranja #F26E1D */
+    --primary: 26 90% 52%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 220 14% 95%;
     --secondary-foreground: 220 20% 30%;
 
-    --muted: 220 14% 94%;
-    --muted-foreground: 220 10% 50%;
+    --muted: 220 14% 93%;
+    --muted-foreground: 220 10% 48%;
 
-    --accent: 220 14% 94%;
-    --accent-foreground: 220 20% 12%;
+    --accent: 220 14% 93%;
+    --accent-foreground: 220 25% 10%;
 
     --destructive: 0 84% 58%;
     --destructive-foreground: 0 0% 100%;
@@ -40,39 +40,38 @@
 
   /* ── TEMA ESCURO ── */
   .dark {
-    --background: 220 20% 8%;
-    --foreground: 220 10% 93%;
+    --background: 220 18% 9%;
+    --foreground: 220 10% 92%;
 
-    --card: 220 17% 11%;
-    --card-foreground: 220 10% 93%;
+    --card: 220 16% 13%;
+    --card-foreground: 220 10% 92%;
 
-    --popover: 220 17% 13%;
-    --popover-foreground: 220 10% 93%;
+    --popover: 220 16% 15%;
+    --popover-foreground: 220 10% 92%;
 
     --primary: 26 90% 52%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 17% 17%;
-    --secondary-foreground: 220 10% 80%;
+    --secondary: 220 16% 18%;
+    --secondary-foreground: 220 10% 78%;
 
-    --muted: 220 17% 16%;
+    --muted: 220 16% 17%;
     --muted-foreground: 220 10% 52%;
 
-    --accent: 220 17% 17%;
-    --accent-foreground: 220 10% 93%;
+    --accent: 220 16% 18%;
+    --accent-foreground: 220 10% 92%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 17% 20%;
-    --input: 220 17% 20%;
+    --border: 220 16% 22%;
+    --input: 220 16% 22%;
     --ring: 26 90% 52%;
   }
 }
 
 @layer base {
   * { border-color: hsl(var(--border)); box-sizing: border-box; }
-
   html { scroll-behavior: smooth; }
 
   body {
@@ -80,48 +79,37 @@
     color: hsl(var(--foreground));
     font-family: var(--font-inter), system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
-    line-height: 1.5;
   }
 
   h1, h2, h3, h4, h5, h6 { font-weight: 700; line-height: 1.25; }
 
-  /* Scrollbar */
   ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 4px; }
-  ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.5); }
+  ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.4); }
 }
 
 /* ── Utilitários ── */
 .shadow-orange { box-shadow: 0 4px 20px hsl(26 90% 52% / 0.25); }
-.shadow-card   { box-shadow: 0 1px 3px hsl(220 20% 12% / 0.06), 0 4px 12px hsl(220 20% 12% / 0.04); }
 
-/* ── CORREÇÃO DEFINITIVA de contraste em componentes flutuantes ── */
-
-/* Todos os popups/dropdowns/selects: fundo sólido sempre */
-[data-radix-popper-content-wrapper] > * {
-  background: white !important;
-  color: hsl(220 20% 12%) !important;
-}
-.dark [data-radix-popper-content-wrapper] > * {
-  background: hsl(220 17% 13%) !important;
-  color: hsl(220 10% 93%) !important;
+/* ── Correção de contraste em componentes flutuantes ─────────
+   Garante fundo sólido no dark mode para todos os popups     */
+.dark [data-radix-popper-content-wrapper] > div,
+.dark [data-radix-select-content],
+.dark [data-radix-dropdown-menu-content],
+.dark [data-radix-popover-content] {
+  background-color: hsl(220 16% 15%) !important;
+  color: hsl(220 10% 92%) !important;
+  border-color: hsl(220 16% 22%) !important;
 }
 
-/* Itens de menu/select: estado normal e hover */
-[role="option"],
-[role="menuitem"] {
-  color: hsl(220 20% 20%) !important;
-}
-.dark [role="option"],
-.dark [role="menuitem"] {
+/* Items de menu no dark mode */
+.dark [data-radix-select-item],
+.dark [data-radix-dropdown-menu-item] {
   color: hsl(220 10% 85%) !important;
 }
-
-/* Estado highlighted/focus: laranja com branco */
-[data-highlighted],
-[role="option"]:focus,
-[role="menuitem"]:focus {
-  background: hsl(26 90% 52%) !important;
+.dark [data-radix-select-item][data-highlighted],
+.dark [data-radix-dropdown-menu-item]:focus {
+  background-color: hsl(26 90% 52%) !important;
   color: white !important;
 }

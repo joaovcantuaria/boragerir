@@ -42,16 +42,12 @@ export function Sidebar({ collapsed, onToggle, prefix = "" }: SidebarProps) {
       transition={{ duration: 0.18, ease: "easeInOut" }}
       className={cn(
         "hidden md:flex flex-col h-screen fixed left-0 top-0 z-30 overflow-hidden",
-        // Light: branco com borda sutil
-        "bg-white border-r border-gray-100",
-        // Dark: escuro profundo
-        "dark:bg-[#0d0d0d] dark:border-white/[0.06]"
+        "bg-card border-r border-border"
       )}
     >
       {/* Logo */}
       <div className={cn(
-        "flex items-center h-16 border-b shrink-0",
-        "border-gray-100 dark:border-white/[0.06]",
+        "flex items-center h-16 border-b border-border shrink-0",
         collapsed ? "px-4 justify-center" : "px-4"
       )}>
         <LogoBG collapsed={collapsed} />
@@ -77,8 +73,8 @@ export function Sidebar({ collapsed, onToggle, prefix = "" }: SidebarProps) {
                     isActive
                       // Ativo: laranja sólido, texto BRANCO sempre
                       ? "bg-[#F26E1D] text-white font-semibold shadow-orange"
-                      // Inativo light
-                      : "text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
+                      // Inativo: usa variáveis CSS (funciona em light e dark)
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   )}
                 >
                   <Icon className={cn("shrink-0", collapsed ? "w-5 h-5" : "w-[18px] h-[18px]")} />

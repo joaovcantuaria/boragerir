@@ -52,9 +52,7 @@ const DropdownMenuContent = React.forwardRef<
     <DropdownMenuPrimitive.Content ref={ref} sideOffset={sideOffset}
       className={cn(
         "z-50 min-w-[10rem] overflow-hidden rounded-xl border p-1 shadow-lg",
-        // SÓLIDO — nunca transparente
-        "bg-white border-gray-200 text-gray-900",
-        "dark:bg-[#1c1c1c] dark:border-white/10 dark:text-gray-100",
+        "bg-popover border-border text-popover-foreground",
         "data-[state=open]:animate-in data-[state=closed]:animate-out",
         "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
         "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
@@ -72,10 +70,8 @@ const DropdownMenuItem = React.forwardRef<
   <DropdownMenuPrimitive.Item ref={ref}
     className={cn(
       "relative flex cursor-default select-none items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium outline-none transition-colors",
-      // Normal: texto legível
-      "text-gray-700 dark:text-gray-300",
-      // Hover/Focus: laranja, texto branco
-      "focus:bg-[#F26E1D] focus:text-white",
+      "text-foreground/80",
+      "focus:bg-primary focus:text-primary-foreground",
       "data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&>svg]:size-4 [&>svg]:shrink-0",
       inset && "pl-8", className
     )}
