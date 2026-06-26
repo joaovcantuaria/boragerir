@@ -5,23 +5,24 @@ import { usePathname } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   LayoutDashboard, Wallet, Users, ShoppingBag, ShoppingCart,
-  FileText, Calendar, UserCheck, BarChart3, Settings,
+  FileText, Calendar, UserCheck, BarChart3, Settings, CreditCard,
   ChevronLeft, ChevronRight,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { LogoBG } from "@/components/ui/logo"
 
 const navItemsBase = [
-  { path: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { path: "/caixa",     icon: Wallet,          label: "Caixa" },
-  { path: "/venda",     icon: ShoppingCart,    label: "Nova Venda" },
-  { path: "/agendamentos", icon: Calendar,     label: "Agendamentos" },
-  { path: "/clientes",  icon: Users,           label: "Clientes" },
-  { path: "/produtos-servicos", icon: ShoppingBag, label: "Produtos/Serviços" },
-  { path: "/orcamentos", icon: FileText,       label: "Orçamentos" },
-  { path: "/funcionarios", icon: UserCheck,    label: "Funcionários" },
-  { path: "/financeiro", icon: BarChart3,      label: "Financeiro" },
-  { path: "/configuracoes", icon: Settings,    label: "Configurações" },
+  { path: "/dashboard",         icon: LayoutDashboard, label: "Dashboard" },
+  { path: "/caixa",             icon: Wallet,          label: "Caixa" },
+  { path: "/venda",             icon: ShoppingCart,    label: "Nova Venda" },
+  { path: "/agendamentos",      icon: Calendar,        label: "Agendamentos" },
+  { path: "/clientes",          icon: Users,           label: "Clientes" },
+  { path: "/produtos-servicos", icon: ShoppingBag,     label: "Produtos/Serviços" },
+  { path: "/orcamentos",        icon: FileText,        label: "Orçamentos" },
+  { path: "/funcionarios",      icon: UserCheck,       label: "Funcionários" },
+  { path: "/financeiro",        icon: BarChart3,       label: "Financeiro" },
+  { path: "/planos",            icon: CreditCard,      label: "Planos" },
+  { path: "/configuracoes",     icon: Settings,        label: "Configurações" },
 ]
 
 interface SidebarProps {

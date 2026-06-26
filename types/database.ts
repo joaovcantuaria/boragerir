@@ -259,6 +259,35 @@ export type Database = {
         }
         Update: Partial<Database["public"]["Tables"]["movimentacoes_caixa"]["Insert"]>
       }
+      assinaturas: {
+        Row: {
+          id: string
+          empresa_id: string
+          plano: "basico" | "profissional"
+          periodicidade: "mensal" | "anual"
+          status: "pendente" | "ativa" | "pausada" | "cancelada" | "expirada"
+          mp_subscription_id: string | null
+          mp_payment_id: string | null
+          mp_preapproval_id: string | null
+          mp_pix_qr_code: string | null
+          mp_pix_qr_code_text: string | null
+          mp_pix_payment_id: string | null
+          data_inicio: string | null
+          data_fim: string | null
+          proximo_vencimento: string | null
+          valor_mensal: number
+          valor_total: number
+          forma_pagamento: "cartao" | "pix" | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Omit<Database["public"]["Tables"]["assinaturas"]["Row"], "id" | "created_at" | "updated_at"> & {
+          id?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database["public"]["Tables"]["assinaturas"]["Insert"]>
+      }
     }
     Views: {
       [_ in never]: never
