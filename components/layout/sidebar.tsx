@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import {
   LayoutDashboard, Wallet, Users, ShoppingBag, ShoppingCart,
   FileText, Calendar, UserCheck, BarChart3, Settings, CreditCard,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, HeadphonesIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { LogoBG } from "@/components/ui/logo"
@@ -22,6 +22,7 @@ const navItemsBase = [
   { path: "/funcionarios",      icon: UserCheck,       label: "Colaboradores" },
   { path: "/financeiro",        icon: BarChart3,       label: "Financeiro" },
   { path: "/planos",            icon: CreditCard,      label: "Planos" },
+  { path: "/suporte",           icon: HeadphonesIcon,  label: "Suporte" },
   { path: "/configuracoes",     icon: Settings,        label: "Configurações" },
 ]
 

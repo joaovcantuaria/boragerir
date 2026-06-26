@@ -185,13 +185,13 @@ export function ChatIA() {
   // Estilos base do container — FIXO no canto inferior direito
   const containerStyle: React.CSSProperties = {
     position: "fixed",
-    bottom: "80px",   // acima do botão flutuante
+    bottom: "80px",
     right: "16px",
-    width: "360px",
-    maxHeight: "580px",
-    borderRadius: "20px",
+    width: "300px",        // reduzido de 360px
+    maxHeight: "460px",    // reduzido de 580px
+    borderRadius: "16px",
     overflow: "hidden",
-    boxShadow: "0 20px 60px rgba(0,0,0,0.2), 0 0 0 1px rgba(0,0,0,0.06)",
+    boxShadow: "0 12px 40px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)",
     display: "flex",
     flexDirection: "column",
     backgroundColor: "#ffffff",
@@ -210,20 +210,20 @@ export function ChatIA() {
             transition={{ duration: 0.18 }}
             style={containerStyle}
           >            {/* ── HEADER ── */}
-            <div style={{ background: "linear-gradient(135deg, #F26E1D, #e05e10)", padding: "14px 16px", flexShrink: 0 }}>
+            <div style={{ background: "linear-gradient(135deg, #F26E1D, #e05e10)", padding: "10px 14px", flexShrink: 0 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   {/* Avatar da Mel */}
                   <div style={{
-                    width: 38, height: 38, borderRadius: "50%",
+                    width: 32, height: 32, borderRadius: "50%",
                     background: "rgba(255,255,255,0.25)",
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 20,
+                    fontSize: 16,
                   }}>
                     🌟
                   </div>
                   <div>
-                    <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: "white" }}>Mel — Assistente IA</p>
+                    <p style={{ margin: 0, fontSize: 12, fontWeight: 800, color: "white" }}>Mel — Assistente IA</p>
                     <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                       <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#4ade80", animation: "pulse 2s infinite" }} />
                       <p style={{ margin: 0, fontSize: 10, color: "rgba(255,255,255,0.85)" }}>
@@ -348,8 +348,8 @@ export function ChatIA() {
                 {/* Mensagens */}
                 <div style={{
                   flex: 1, overflowY: "auto", background: "#f9f9f9",
-                  padding: "12px", display: "flex", flexDirection: "column", gap: 8,
-                  minHeight: 220,
+                  padding: "10px", display: "flex", flexDirection: "column", gap: 6,
+                  minHeight: 180,
                 }}>
                   {msgs.map((msg, i) => (
                     <div key={i} style={{ display: "flex", gap: 8, flexDirection: msg.role === "user" ? "row-reverse" : "row", alignItems: "flex-end" }}>
