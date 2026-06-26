@@ -13,12 +13,13 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   icons: {
     icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
       { url: "/icon.png", type: "image/png" },
     ],
     apple: [
       { url: "/apple-icon.png", type: "image/png" },
     ],
-    shortcut: "/icon.png",
+    shortcut: "/favicon.svg",
   },
   appleWebApp: { capable: true, statusBarStyle: "default", title: "Bora Gerir" },
   openGraph: {
