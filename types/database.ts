@@ -235,10 +235,12 @@ export type Database = {
           servico_id: string | null
           data_hora: string
           duracao_minutos: number
-          status: "agendado" | "confirmado" | "concluido" | "cancelado" | "faltou"
+          status: "agendado" | "confirmado" | "concluido" | "cancelado" | "faltou" | "solicitado" | "espera"
           observacoes: string | null
           nome_cliente_avulso: string | null
           telefone_cliente_avulso: string | null
+          email_cliente: string | null
+          origem: "manual" | "online" | null
           created_at: string
         }
         Insert: Omit<Database["public"]["Tables"]["agendamentos"]["Row"], "id" | "created_at"> & {

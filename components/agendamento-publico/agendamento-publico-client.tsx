@@ -22,6 +22,7 @@ interface Empresa { id: string; nome: string; area_atuacao: string; telefone: st
 const schema = z.object({
   nome: z.string().min(2, "Nome obrigatório"),
   telefone: z.string().min(10, "Telefone inválido"),
+  email: z.string().email("E-mail inválido").optional().or(z.literal("")),
   observacoes: z.string().optional(),
 })
 type FormData = z.infer<typeof schema>
@@ -70,9 +71,11 @@ export function AgendamentoPublicoClient({ empresa, servicos, funcionarios }: {
       funcionario_id: funcionarioSel?.id ?? null,
       data_hora: dataHora.toISOString(),
       duracao_minutos: servicoSel.duracao_minutos ?? 60,
-      status: "agendado",
+      status: "solicitado",   // entra como solicitação, aguarda confirmação
+      origem: "online",
       nome_cliente_avulso: dados.nome,
       telefone_cliente_avulso: dados.telefone,
+      email_cliente: dados.email || null,
       observacoes: dados.observacoes || null,
     })
 
@@ -90,8 +93,11 @@ export function AgendamentoPublicoClient({ empresa, servicos, funcionarios }: {
           <Check className="w-10 h-10 text-emerald-500" />
         </div>
         <div>
-          <h2 className="text-2xl font-black text-gray-900">Agendado! 🎉</h2>
-          <p className="text-gray-500 mt-2 text-sm">Seu agendamento foi realizado com sucesso.</p>
+          <h2 className="text-2xl font-black text-gray-900">Solicitação enviada! 🎉</h2>
+          <p className="text-gray-500 mt-2 text-sm">
+            Sua solicitação de agendamento foi recebida. O estabelecimento irá confirmar ou colocar na lista de espera em breve.
+            {dados?.email && <> Você receberá uma notificação no e-mail <strong>{dados.email}</strong>.</>}
+          </p>
         </div>
         <div className="bg-gray-50 rounded-2xl p-4 text-sm space-y-2 text-left">
           <div className="flex items-center gap-2 text-gray-600">
@@ -358,6 +364,15 @@ export function AgendamentoPublicoClient({ empresa, servicos, funcionarios }: {
                   {...register("telefone")}
                   onChange={(e) => { const f = formatarTelefone(e.target.value); e.target.value = f; setValue("telefone", f) }} />
                 {errors.telefone && <p className="text-red-500 text-xs">{errors.telefone.message}</p>}
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold text-gray-700">
+                  E-mail <span className="text-gray-400 font-normal">(para receber confirmação)</span>
+                </label>
+                <input type="email" placeholder="seu@email.com"
+                  className="w-full h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:outline-none focus:border-[#F26E1D]"
+                  {...register("email")} />
+                {errors.email && <p className="text-red-500 text-xs">{errors.email.message}</p>}
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-semibold text-gray-700">Observações</label>
