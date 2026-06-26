@@ -79,7 +79,7 @@ export function Header({ empresaNome = "Bora Gerir", empresaLogoUrl }: HeaderPro
               <Settings className="mr-2 h-4 w-4" />Configurações
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+            <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:bg-destructive focus:text-white">
               <LogOut className="mr-2 h-4 w-4" />Sair
             </DropdownMenuItem>
           </DropdownMenuContent>
