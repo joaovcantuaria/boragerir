@@ -13,19 +13,25 @@
       "src": "/logo-icon.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "maskable any"
+      "purpose": "any"
     },
     {
       "src": "/logo-icon.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "maskable any"
+      "purpose": "any"
     },
     {
       "src": "/logo-icon.png",
-      "sizes": "180x180",
+      "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "maskable"
+    },
+    {
+      "src": "/logo-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "screenshots": [],
@@ -35,13 +41,13 @@
       "name": "Nova Venda",
       "short_name": "Venda",
       "url": "/venda",
-      "icons": [{ "src": "/logo-icon.png", "sizes": "96x96" }]
+      "icons": [{ "src": "/logo-icon.png", "sizes": "192x192" }]
     },
     {
       "name": "Agendamentos",
       "short_name": "Agenda",
       "url": "/agendamentos",
-      "icons": [{ "src": "/logo-icon.png", "sizes": "96x96" }]
+      "icons": [{ "src": "/logo-icon.png", "sizes": "192x192" }]
     }
   ]
 }
