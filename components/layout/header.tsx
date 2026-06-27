@@ -35,32 +35,41 @@ export function Header({ empresaNome = "Bora Gerir", empresaLogoUrl }: HeaderPro
 
   return (
     <header
+      style={{ backgroundColor: "var(--header-bg)" }}
       className={cn(
         "h-16 flex items-center justify-between px-4 sticky top-0 z-20",
-        "bg-white dark:bg-[#0a0b0f]",
+        "[--header-bg:#ffffff] dark:[--header-bg:#0a0b0f]",
         "border-b border-gray-200 dark:border-white/[0.08]",
       )}
     >
       {/* Card premium da empresa */}
       <div className="flex items-center">
-        <div className={cn(
-          "flex items-center gap-2.5 px-3 py-1.5 rounded-xl border transition-all",
-          "border-[#F26E1D]/40 bg-[#F26E1D]/5",
-          "dark:border-[#F26E1D]/30 dark:bg-[#F26E1D]/10",
-        )}>
-          {/* Avatar com anel branco */}
-          <div className="relative">
-            <Avatar className="w-8 h-8 ring-2 ring-white dark:ring-white/20 shadow-sm">
+        <div style={{
+          border: "1.5px solid rgba(242,110,29,0.5)",
+          background: "rgba(242,110,29,0.08)",
+          borderRadius: "12px",
+          padding: "6px 12px",
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+        }}>
+          {/* Avatar com anel laranja */}
+          <div style={{ position: "relative" }}>
+            <Avatar className="w-8 h-8 shadow-sm" style={{ outline: "2px solid #F26E1D", outlineOffset: "2px" }}>
               {empresaLogoUrl
                 ? <AvatarImage src={empresaLogoUrl} alt={empresaNome} />
                 : null}
-              <AvatarFallback className="text-xs font-black bg-[#F26E1D] text-white">
+              <AvatarFallback className="text-xs font-black text-white" style={{ backgroundColor: "#F26E1D" }}>
                 {gerarIniciais(empresaNome)}
               </AvatarFallback>
             </Avatar>
-            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white dark:border-[#0a0b0f]" />
+            <div style={{
+              position: "absolute", bottom: -2, right: -2,
+              width: 10, height: 10, borderRadius: "50%",
+              backgroundColor: "#22c55e", border: "2px solid white",
+            }} />
           </div>
-          <span className="font-bold text-sm text-[#F26E1D] truncate max-w-[160px]">
+          <span style={{ color: "#F26E1D", fontWeight: 700, fontSize: 14, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {empresaNome}
           </span>
         </div>

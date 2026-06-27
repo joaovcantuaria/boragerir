@@ -137,6 +137,14 @@
   color: #e8eaf0 !important;
 }
 
+/* Header — fundo garantido em qualquer modo */
+header.sticky {
+  background-color: #ffffff !important;
+}
+.dark header.sticky {
+  background-color: #0a0b0f !important;
+}
+
 /* Mobile nav — nunca transparente */
 nav.mobile-nav-bar {
   position: fixed !important;
