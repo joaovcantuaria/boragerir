@@ -79,7 +79,7 @@ export function Sidebar({ collapsed, onToggle, prefix = "" }: SidebarProps) {
                       // Ativo: laranja sólido, texto BRANCO sempre
                       ? "bg-[#F26E1D] text-white font-semibold shadow-orange"
                       // Inativo: usa variáveis CSS (funciona em light e dark)
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      : "text-gray-500 dark:text-gray-400 hover:bg-muted hover:text-foreground dark:hover:bg-white/[0.06] dark:hover:text-white"
                   )}
                 >
                   <Icon className={cn("shrink-0", collapsed ? "w-5 h-5" : "w-[18px] h-[18px]")} />

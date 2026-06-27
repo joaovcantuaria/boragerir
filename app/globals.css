@@ -129,8 +129,8 @@
 
 /* Dialog/Modal — fundo sólido garantido */
 [role="dialog"] {
-  background-color: #ffffff !important;
-  color: #1a1a1a !important;
+  background-color: #ffffff;
+  color: #1a1a1a;
 }
 .dark [role="dialog"] {
   background-color: #16192a !important;

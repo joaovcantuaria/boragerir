@@ -35,13 +35,10 @@ export function Header({ empresaNome = "Bora Gerir", empresaLogoUrl }: HeaderPro
 
   return (
     <header
-      style={{
-        backgroundColor: "var(--header-bg, #ffffff)",
-        borderBottom: "1px solid var(--header-border, #e5e7eb)",
-      }}
       className={cn(
         "h-16 flex items-center justify-between px-5 sticky top-0 z-20",
-        "dark:[--header-bg:#0d0f1a] dark:[--header-border:rgba(255,255,255,0.08)]",
+        "bg-white dark:bg-[#0d0f1a]",
+        "border-b border-gray-200 dark:border-white/[0.08]",
         "backdrop-blur-sm"
       )}
     >
