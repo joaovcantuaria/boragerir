@@ -7,7 +7,8 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import {
   Wallet, Plus, Minus, ArrowDownCircle, ArrowUpCircle,
-  DollarSign, Loader2, X, TrendingUp, TrendingDown
+  DollarSign, Loader2, X, TrendingUp, TrendingDown,
+  History, Search, ChevronDown, ChevronUp, RefreshCw, Clock
 } from "lucide-react"
 import { toast } from "sonner"
 import { format } from "date-fns"
@@ -20,8 +21,25 @@ import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { createClient } from "@/lib/supabase/client"
 import { formatarMoeda, formatarDataHora } from "@/lib/utils"
+
+type CaixaAnterior = {
+  id: string
+  valor_abertura: number
+  valor_fechamento: number | null
+  valor_esperado: number | null
+  diferenca: number | null
+  data_abertura: string
+  data_fechamento: string | null
+  status: string
+  observacoes_abertura?: string | null
+}
+
+type Movimentacao = {
+  id: string; tipo: string; categoria: string; descricao: string; valor: number; created_at: string
+}
 
 interface CaixaClientProps {
   empresaId: string
@@ -29,14 +47,17 @@ interface CaixaClientProps {
   caixaAberto: {
     id: string; valor_abertura: number; data_abertura: string; observacoes_abertura?: string | null
   } | null
-  movimentacoes: {
-    id: string; tipo: string; categoria: string; descricao: string; valor: number; created_at: string
-  }[]
+  movimentacoes: Movimentacao[]
+  caixasAnteriores: CaixaAnterior[]
 }
 
-export function CaixaClient({ empresaId, userId, caixaAberto: caixaInicial, movimentacoes: movsIniciais }: CaixaClientProps) {
+export function CaixaClient({ empresaId, userId, caixaAberto: caixaInicial, movimentacoes: movsIniciais, caixasAnteriores: caixasAntInit }: CaixaClientProps) {
   const [caixa, setCaixa] = useState(caixaInicial)
   const [movimentacoes, setMovimentacoes] = useState(movsIniciais)
+  const [caixasAnteriores, setCaixasAnteriores] = useState<CaixaAnterior[]>(caixasAntInit)
+  const [caixaDetalhe, setCaixaDetalhe] = useState<{ caixa: CaixaAnterior; movs: Movimentacao[] } | null>(null)
+  const [loadingDetalhe, setLoadingDetalhe] = useState(false)
+  const [buscaAnt, setBuscaAnt] = useState("")
   const [modalAbrirCaixa, setModalAbrirCaixa] = useState(false)
   const [modalFecharCaixa, setModalFecharCaixa] = useState(false)
   const [modalMovimentacao, setModalMovimentacao] = useState<"sangria" | "suprimento" | "despesa" | null>(null)
@@ -84,6 +105,31 @@ export function CaixaClient({ empresaId, userId, caixaAberto: caixaInicial, movi
     toast.success("Caixa aberto com sucesso!")
     router.refresh()
     setLoading(false)
+  }
+
+  async function verDetalheCaixa(cx: CaixaAnterior) {
+    setLoadingDetalhe(true)
+    const { data: movs } = await supabase
+      .from("movimentacoes_caixa")
+      .select("*")
+      .eq("caixa_id", cx.id)
+      .order("created_at")
+    setCaixaDetalhe({ caixa: cx, movs: movs ?? [] })
+    setLoadingDetalhe(false)
+  }
+
+  async function reabrirCaixa(cx: CaixaAnterior) {
+    if (!confirm("Reabrir este caixa para correção? O caixa voltará ao status aberto.")) return
+    setLoadingDetalhe(true)
+    const { error } = await supabase
+      .from("caixas")
+      .update({ status: "aberto", data_fechamento: null, valor_fechamento: null, valor_esperado: null, diferenca: null })
+      .eq("id", cx.id)
+    if (error) { toast.error("Erro ao reabrir caixa."); setLoadingDetalhe(false); return }
+    toast.success("Caixa reaberto! Redirecionando...")
+    setCaixaDetalhe(null)
+    router.refresh()
+    setLoadingDetalhe(false)
   }
 
   async function fecharCaixa() {
@@ -153,6 +199,25 @@ export function CaixaClient({ empresaId, userId, caixaAberto: caixaInicial, movi
         <p className="text-muted-foreground">Controle de abertura, fechamento e movimentações</p>
       </div>
 
+      <Tabs defaultValue="atual">
+        <TabsList>
+          <TabsTrigger value="atual" className="gap-2">
+            <Wallet className="w-4 h-4" />
+            Caixa Atual
+          </TabsTrigger>
+          <TabsTrigger value="anteriores" className="gap-2">
+            <History className="w-4 h-4" />
+            Caixas Anteriores
+            {caixasAnteriores.length > 0 && (
+              <span className="bg-muted text-muted-foreground text-xs font-bold px-1.5 py-0.5 rounded-full">
+                {caixasAnteriores.length}
+              </span>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        {/* ── ABA ATUAL ── */}
+        <TabsContent value="atual" className="mt-4">
       {!caixa ? (
         // Caixa fechado
         <Card className="border-border">
@@ -248,6 +313,116 @@ export function CaixaClient({ empresaId, userId, caixaAberto: caixaInicial, movi
           </Card>
         </div>
       )}
+        </TabsContent>
+
+        {/* ── ABA CAIXAS ANTERIORES ── */}
+        <TabsContent value="anteriores" className="mt-4">
+          <CaixasAnterioresTab
+            caixas={caixasAnteriores}
+            busca={buscaAnt}
+            setBusca={setBuscaAnt}
+            onVerDetalhe={verDetalheCaixa}
+            loadingDetalhe={loadingDetalhe}
+          />
+        </TabsContent>
+      </Tabs>
+
+      {/* Modal detalhe caixa anterior */}
+      <Dialog open={!!caixaDetalhe} onOpenChange={(open) => { if (!open) setCaixaDetalhe(null) }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              Caixa de {caixaDetalhe ? format(new Date(caixaDetalhe.caixa.data_abertura), "dd/MM/yyyy", { locale: ptBR }) : ""}
+            </DialogTitle>
+          </DialogHeader>
+          {caixaDetalhe && (
+            <div className="space-y-4">
+              {/* Resumo do caixa */}
+              <div className="bg-muted rounded-xl p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Abertura</span>
+                  <span>{format(new Date(caixaDetalhe.caixa.data_abertura), "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
+                </div>
+                {caixaDetalhe.caixa.data_fechamento && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Fechamento</span>
+                    <span>{format(new Date(caixaDetalhe.caixa.data_fechamento), "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
+                  </div>
+                )}
+                <Separator />
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Valor abertura</span>
+                  <span>{formatarMoeda(caixaDetalhe.caixa.valor_abertura)}</span>
+                </div>
+                {caixaDetalhe.caixa.valor_esperado != null && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Valor esperado</span>
+                    <span>{formatarMoeda(caixaDetalhe.caixa.valor_esperado)}</span>
+                  </div>
+                )}
+                {caixaDetalhe.caixa.valor_fechamento != null && (
+                  <div className="flex justify-between text-sm font-bold">
+                    <span>Valor contado</span>
+                    <span className="text-primary">{formatarMoeda(caixaDetalhe.caixa.valor_fechamento)}</span>
+                  </div>
+                )}
+                {caixaDetalhe.caixa.diferenca != null && (
+                  <div className={`flex justify-between text-sm font-bold ${
+                    caixaDetalhe.caixa.diferenca >= 0 ? "text-emerald-500" : "text-red-500"
+                  }`}>
+                    <span>Diferença</span>
+                    <span>{caixaDetalhe.caixa.diferenca >= 0 ? "+" : ""}{formatarMoeda(caixaDetalhe.caixa.diferenca)}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Movimentações */}
+              {caixaDetalhe.movs.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                    Movimentações ({caixaDetalhe.movs.length})
+                  </p>
+                  <div className="space-y-1 max-h-48 overflow-y-auto">
+                    {caixaDetalhe.movs.map((mov) => (
+                      <div key={mov.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                        <div className="flex items-center gap-2">
+                          {mov.tipo === "entrada"
+                            ? <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+                            : <TrendingDown className="w-3.5 h-3.5 text-red-500" />
+                          }
+                          <div>
+                            <p className="text-xs font-medium">{mov.descricao}</p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {format(new Date(mov.created_at), "HH:mm")} · {mov.categoria}
+                            </p>
+                          </div>
+                        </div>
+                        <span className={`text-xs font-semibold ${mov.tipo === "entrada" ? "text-emerald-500" : "text-red-500"}`}>
+                          {mov.tipo === "entrada" ? "+" : "-"}{formatarMoeda(mov.valor)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCaixaDetalhe(null)}>Fechar</Button>
+            {caixaDetalhe && (
+              <Button
+                variant="outline"
+                className="border-amber-500 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10"
+                onClick={() => reabrirCaixa(caixaDetalhe.caixa)}
+                disabled={loadingDetalhe}
+              >
+                {loadingDetalhe ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                Reabrir para correção
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal abrir caixa */}
       <Dialog open={modalAbrirCaixa} onOpenChange={setModalAbrirCaixa}>
@@ -369,6 +544,106 @@ export function CaixaClient({ empresaId, userId, caixaAberto: caixaInicial, movi
           </form>
         </DialogContent>
       </Dialog>
+    </div>
+  )
+}
+
+// ─── Caixas Anteriores Tab ──────────────────────────────────────────────────
+
+function CaixasAnterioresTab({
+  caixas,
+  busca,
+  setBusca,
+  onVerDetalhe,
+  loadingDetalhe,
+}: {
+  caixas: CaixaAnterior[]
+  busca: string
+  setBusca: (v: string) => void
+  onVerDetalhe: (cx: CaixaAnterior) => void
+  loadingDetalhe: boolean
+}) {
+  const filtrados = caixas.filter((cx) => {
+    const t = busca.toLowerCase()
+    if (!t) return true
+    const dataAb = format(new Date(cx.data_abertura), "dd/MM/yyyy", { locale: ptBR })
+    const dataFc = cx.data_fechamento
+      ? format(new Date(cx.data_fechamento), "dd/MM/yyyy", { locale: ptBR })
+      : ""
+    return dataAb.includes(t) || dataFc.includes(t)
+  })
+
+  if (caixas.length === 0) {
+    return (
+      <div className="py-16 flex flex-col items-center gap-3 text-muted-foreground">
+        <History className="w-10 h-10 opacity-30" />
+        <p className="text-sm">Nenhum caixa anterior encontrado</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Buscar por data..."
+          className="pl-9"
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+        />
+      </div>
+
+      {filtrados.length === 0 ? (
+        <p className="text-center text-muted-foreground text-sm py-8">Nenhum resultado para a busca</p>
+      ) : (
+        <div className="border border-border rounded-xl overflow-hidden">
+          <div className="grid grid-cols-5 gap-2 px-4 py-2 bg-muted text-xs font-medium text-muted-foreground">
+            <span>Abertura</span>
+            <span>Fechamento</span>
+            <span className="text-right">Abertura (R$)</span>
+            <span className="text-right">Fechamento (R$)</span>
+            <span className="text-right">Ações</span>
+          </div>
+          {filtrados.map((cx) => {
+            const diferenca = cx.diferenca ?? 0
+            return (
+              <div key={cx.id} className="grid grid-cols-5 gap-2 px-4 py-3 border-t border-border text-sm items-center">
+                <span className="text-xs">
+                  {format(new Date(cx.data_abertura), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                </span>
+                <span className="text-xs">
+                  {cx.data_fechamento
+                    ? format(new Date(cx.data_fechamento), "dd/MM/yyyy HH:mm", { locale: ptBR })
+                    : "—"}
+                </span>
+                <span className="text-right text-xs">{formatarMoeda(cx.valor_abertura)}</span>
+                <div className="text-right">
+                  <span className="text-xs font-semibold">
+                    {cx.valor_fechamento != null ? formatarMoeda(cx.valor_fechamento) : "—"}
+                  </span>
+                  {cx.diferenca != null && (
+                    <p className={`text-[10px] font-bold ${diferenca >= 0 ? "text-emerald-500" : "text-red-500"}`}>
+                      {diferenca >= 0 ? "+" : ""}{formatarMoeda(diferenca)}
+                    </p>
+                  )}
+                </div>
+                <div className="flex justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-7 px-3"
+                    onClick={() => onVerDetalhe(cx)}
+                    disabled={loadingDetalhe}
+                  >
+                    {loadingDetalhe ? <Loader2 className="w-3 h-3 animate-spin" /> : "Ver detalhes"}
+                  </Button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -58,8 +58,28 @@ export function ConfiguracoesClient({
   const [docMostrarEndereco, setDocMostrarEndereco] = useState((empresa as any).doc_mostrar_endereco ?? true)
   const [docMostrarTelefone, setDocMostrarTelefone] = useState((empresa as any).doc_mostrar_telefone ?? true)
   const [loadingDoc, setLoadingDoc] = useState(false)
+  const [nomeUsuario, setNomeUsuario] = useState("")
+  const [telefoneUsuario, setTelefoneUsuario] = useState("")
+  const [loadingPessoal, setLoadingPessoal] = useState(false)
+  const [novoCnpj, setNovoCnpj] = useState("")
+  const [loadingCnpj, setLoadingCnpj] = useState(false)
+  const [loadingContaDados, setLoadingContaDados] = useState(true)
   const logoRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
+
+  // Carregar dados do usuário ao montar
+  useEffect(() => {
+    async function carregarDadosUsuario() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user?.user_metadata) {
+        setNomeUsuario(user.user_metadata.nome_completo ?? user.user_metadata.full_name ?? "")
+        setTelefoneUsuario(user.user_metadata.telefone ?? "")
+      }
+      setLoadingContaDados(false)
+    }
+    carregarDadosUsuario()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const { register, handleSubmit, setValue } = useForm({
     resolver: zodResolver(schemaNegocio),
@@ -158,6 +178,30 @@ export function ConfiguracoesClient({
     setLoadingDoc(false)
   }
 
+  async function salvarDadosPessoais() {
+    setLoadingPessoal(true)
+    const { error } = await supabase.auth.updateUser({
+      data: { nome_completo: nomeUsuario, telefone: telefoneUsuario },
+    })
+    if (error) { toast.error("Erro ao salvar."); setLoadingPessoal(false); return }
+    toast.success("Dados pessoais salvos!")
+    setLoadingPessoal(false)
+  }
+
+  async function adicionarCnpj() {
+    const cnpjLimpo = novoCnpj.replace(/\D/g, "")
+    if (!validarCNPJ(novoCnpj)) { toast.error("CNPJ inválido."); return }
+    setLoadingCnpj(true)
+    const { error } = await supabase.from("empresas").update({
+      cnpj_adicional: cnpjLimpo,
+      tipo_documento_principal: "cnpj",
+    } as any).eq("id", empresa.id)
+    if (error) { toast.error("Erro ao salvar CNPJ."); setLoadingCnpj(false); return }
+    setEmpresa((prev) => ({ ...prev, documento: cnpjLimpo, tipo_documento: "cnpj" } as any))
+    toast.success("CNPJ adicionado! Documentos passarão a usar o CNPJ.")
+    setLoadingCnpj(false)
+  }
+
   async function alterarSenha() {
     const { error } = await supabase.auth.updateUser({ password: novaSenha })
     if (error) { toast.error("Erro ao alterar senha."); return }
@@ -248,6 +292,29 @@ export function ConfiguracoesClient({
                   <span className="text-xs text-muted-foreground ml-2">(não pode ser alterado)</span>
                 </div>
 
+                {/* Adicionar CNPJ — só para quem tem CPF */}
+                {empresa.tipo_documento === "cpf" && (
+                  <div className="rounded-xl border border-border p-4 space-y-3">
+                    <div>
+                      <p className="text-sm font-semibold">Adicionar CNPJ</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Após adicionar, todos os documentos passarão a usar o CNPJ automaticamente.</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="00.000.000/0001-00"
+                        maxLength={18}
+                        value={novoCnpj}
+                        onChange={(e) => { const f = formatarCNPJ(e.target.value); e.target.value = f; setNovoCnpj(f) }}
+                        className="flex-1"
+                      />
+                      <Button onClick={adicionarCnpj} disabled={loadingCnpj || novoCnpj.length < 14} variant="outline"
+                        className="font-bold border-primary text-primary hover:bg-primary hover:text-white shrink-0">
+                        {loadingCnpj ? <Loader2 className="w-4 h-4 animate-spin" /> : "Adicionar"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="sm:col-span-2 space-y-1.5">
                     <Label>Nome do estabelecimento</Label>
@@ -327,62 +394,126 @@ export function ConfiguracoesClient({
         </TabsContent>
 
         {/* ── ABA PLANO ── */}
-        <TabsContent value="plano" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Meu Plano</CardTitle>
-              <CardDescription>Plano atual: <strong>{planoAtual.nome}</strong></CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="p-4 border-2 border-primary bg-primary/5 rounded-2xl shadow-orange">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-black text-lg">{planoAtual.nome}</h3>
-                    <p className="text-muted-foreground text-sm">
-                      {planoAtual.preco === 0 ? "Gratuito" : `R$ ${planoAtual.preco}/mês`}
-                    </p>
+        <TabsContent value="plano" className="mt-4 space-y-5">
+          {/* Plano atual — card premium */}
+          <div className="relative rounded-2xl overflow-hidden border border-[#F26E1D]/40">
+            {/* Gradiente de fundo sutil */}
+            <div className="absolute inset-0 bg-gradient-to-br from-[#F26E1D]/8 via-transparent to-transparent pointer-events-none" />
+            <div className="relative px-6 pt-6 pb-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#F26E1D] animate-pulse" />
+                    <span className="text-xs font-semibold text-[#F26E1D] uppercase tracking-widest">Plano ativo</span>
                   </div>
-                  <Badge className="bg-primary text-white gap-1 font-bold">
-                    <Check className="w-3 h-3" />Ativo
-                  </Badge>
+                  <h2 className="text-3xl font-black tracking-tight">{planoAtual.nome}</h2>
+                  <p className="text-muted-foreground text-sm">
+                    {planoAtual.preco === 0 ? "Gratuito para sempre" : `R$ ${planoAtual.preco} / mês`}
+                  </p>
                 </div>
-                <ul className="mt-3 space-y-1.5 text-sm text-muted-foreground">
-                  <li>✓ {planoAtual.limiteClientes ? `Até ${planoAtual.limiteClientes} clientes` : "Clientes ilimitados"}</li>
-                  <li>✓ {planoAtual.limiteProdutos ? `Até ${planoAtual.limiteProdutos} itens` : "Produtos ilimitados"}</li>
-                  {planoAtual.agendamentoOnline && <li>✓ Agendamentos online</li>}
-                  {planoAtual.fidelidade && <li>✓ Programa de fidelidade</li>}
-                  {planoAtual.lembretesAutomaticos && <li>✓ Lembretes automáticos</li>}
-                  {planoAtual.marcaDagua && <li className="text-yellow-600">⚠ PDFs com marca d&apos;água</li>}
-                </ul>
+                <div
+                  className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shrink-0"
+                  style={{ background: "linear-gradient(135deg, #F26E1D22, #F26E1D44)", border: "1px solid #F26E1D33" }}
+                >
+                  {planoAtual.preco === 0 ? "🆓" : planoAtual.preco === 49 ? "⚡" : "👑"}
+                </div>
               </div>
 
-              {empresa.plano !== "profissional" && (
-                <div>
-                  <h3 className="font-bold mb-3">Fazer upgrade</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {(["basico", "profissional"] as const).filter((p) => p !== empresa.plano).map((p) => (
-                      <div key={p} className="border border-border rounded-2xl p-4 hover:border-primary/40 transition-colors">
-                        <h4 className="font-black">{planosInfo[p].nome}</h4>
-                        <p className="text-2xl font-black my-1">
-                          R$ {planosInfo[p].preco}
-                          <span className="text-sm font-normal text-muted-foreground">/mês</span>
-                        </p>
-                        {/* Redireciona para a página de planos com checkout real */}
-                        <Button
-                          variant="outline"
-                          className="w-full mt-2 font-bold border-primary text-primary hover:bg-primary hover:text-white"
-                          onClick={() => window.location.href = "/planos"}
-                        >
-                          Assinar {planosInfo[p].nome}
-                        </Button>
-                      </div>
-                    ))}
+              {/* Divisor */}
+              <div className="my-4 border-t border-border/60" />
+
+              {/* Features em grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {[
+                  planoAtual.limiteClientes ? `Até ${planoAtual.limiteClientes} clientes` : "Clientes ilimitados",
+                  planoAtual.limiteProdutos ? `Até ${planoAtual.limiteProdutos} itens` : "Produtos ilimitados",
+                  planoAtual.agendamentoOnline ? "Agendamento online" : null,
+                  planoAtual.fidelidade ? "Programa de fidelidade" : null,
+                  planoAtual.lembretesAutomaticos ? "Lembretes automáticos" : null,
+                  planoAtual.relatoriosAvancados ? "Relatórios avançados" : null,
+                  planoAtual.exportacaoExcel ? "Exportação Excel" : null,
+                ].filter(Boolean).map((item) => (
+                  <div key={item} className="flex items-center gap-2.5 text-sm">
+                    <div
+                      className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+                      style={{ background: "linear-gradient(135deg, #F26E1D, #e05e10)" }}
+                    >
+                      <Check className="w-3 h-3 text-white" strokeWidth={2.5} />
+                    </div>
+                    <span className="text-foreground/80">{item}</span>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2">💳 Pagamentos processados com segurança pelo <strong>Mercado Pago</strong>. Cancele quando quiser.</p>
+                ))}
+                {planoAtual.marcaDagua && (
+                  <div className="flex items-center gap-2.5 text-sm">
+                    <div className="w-5 h-5 rounded-full bg-amber-500/15 flex items-center justify-center shrink-0">
+                      <span className="text-[9px]">⚠</span>
+                    </div>
+                    <span className="text-amber-600 dark:text-amber-400">PDFs com marca d&apos;água</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Upgrade */}
+          {empresa.plano !== "profissional" && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest px-2">Fazer upgrade</span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+
+              {(["basico", "profissional"] as const).filter((p) => p !== empresa.plano).map((p) => (
+                <div
+                  key={p}
+                  className="group relative rounded-2xl border border-border hover:border-[#F26E1D]/50 transition-all duration-200 p-5 cursor-pointer overflow-hidden"
+                  onClick={() => window.location.href = "/planos"}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#F26E1D]/0 via-[#F26E1D]/0 to-[#F26E1D]/0 group-hover:from-[#F26E1D]/4 transition-all duration-300 pointer-events-none" />
+                  <div className="relative flex items-center justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-lg">{p === "basico" ? "⚡" : "👑"}</span>
+                        <span className="font-bold text-base">{planosInfo[p].nome}</span>
+                        {p === "profissional" && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white" style={{ background: "#F26E1D" }}>
+                            RECOMENDADO
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-2xl font-black">R$ {planosInfo[p].preco}</span>
+                        <span className="text-sm text-muted-foreground font-normal">/mês</span>
+                      </div>
+                    </div>
+                    <Button
+                      className="shrink-0 font-bold text-white border-0 hover:opacity-90 transition-opacity"
+                      style={{ background: "linear-gradient(135deg, #F26E1D, #e05e10)" }}
+                    >
+                      Assinar
+                    </Button>
+                  </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              ))}
+
+              <p className="text-xs text-muted-foreground text-center pt-1">
+                💳 Pagamentos seguros pelo <strong>Mercado Pago</strong> · Cancele quando quiser
+              </p>
+            </div>
+          )}
+
+          {empresa.plano === "profissional" && (
+            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-5 py-4 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-emerald-500/15 flex items-center justify-center shrink-0">
+                <Check className="w-4 h-4 text-emerald-500" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Você está no plano máximo</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Aproveite todos os recursos sem limitações.</p>
+              </div>
+            </div>
+          )}
         </TabsContent>
 
         {/* ── ABA CATEGORIAS ── */}
@@ -528,27 +659,121 @@ export function ConfiguracoesClient({
         </TabsContent>
 
         {/* ── ABA CONTA ── */}
-        <TabsContent value="conta" className="mt-4">
+        <TabsContent value="conta" className="mt-4 space-y-4">
+          {/* Dados de cadastro */}
           <Card>
-            <CardHeader><CardTitle>Minha Conta</CardTitle></CardHeader>
-            <CardContent className="space-y-5">
-              <div className="space-y-1.5">
-                <Label>E-mail</Label>
-                <Input value={userEmail} disabled className="opacity-60 cursor-not-allowed" />
-                <p className="text-xs text-muted-foreground">Entre em contato com o suporte para alterar o e-mail.</p>
-              </div>
-              <Separator />
-              <div className="space-y-3">
-                <h3 className="font-bold">Alterar senha</h3>
-                <div className="space-y-1.5">
-                  <Label>Nova senha</Label>
-                  <Input type="password" placeholder="Mínimo 6 caracteres"
-                    value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} />
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <Lock className="w-4 h-4 text-primary" />
                 </div>
-                <Button onClick={alterarSenha} variant="outline" className="font-bold border-primary text-primary hover:bg-primary hover:text-white">
-                  Alterar senha
-                </Button>
+                <div>
+                  <CardTitle className="text-base">Dados de cadastro</CardTitle>
+                  <CardDescription>Informações da sua conta de acesso ao sistema</CardDescription>
+                </div>
               </div>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {loadingContaDados ? (
+                <div className="flex items-center gap-2 py-4 text-muted-foreground text-sm">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Carregando dados...
+                </div>
+              ) : (
+                <>
+                  {/* E-mail — readonly */}
+                  <div className="space-y-1.5">
+                    <Label>E-mail de acesso</Label>
+                    <div className="relative">
+                      <Input
+                        value={userEmail}
+                        disabled
+                        className="opacity-60 cursor-not-allowed pr-32"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium bg-muted px-2 py-0.5 rounded-md">
+                        não editável
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Para alterar o e-mail, entre em contato com o suporte.
+                    </p>
+                  </div>
+
+                  <Separator />
+
+                  {/* Nome e telefone */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label>Nome completo</Label>
+                      <Input
+                        placeholder="Seu nome completo"
+                        value={nomeUsuario}
+                        onChange={(e) => setNomeUsuario(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Telefone pessoal</Label>
+                      <Input
+                        placeholder="(11) 99999-9999"
+                        value={telefoneUsuario}
+                        onChange={(e) => {
+                          const f = formatarTelefone(e.target.value)
+                          e.target.value = f
+                          setTelefoneUsuario(f)
+                        }}
+                        maxLength={15}
+                      />
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={salvarDadosPessoais}
+                    disabled={loadingPessoal}
+                    className="font-bold text-white border-0 hover:opacity-90"
+                    style={{ background: "linear-gradient(135deg, #F26E1D, #e05e10)" }}
+                  >
+                    {loadingPessoal
+                      ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Salvando...</>
+                      : "Salvar dados pessoais"}
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Segurança / senha */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-red-500/10 flex items-center justify-center shrink-0">
+                  <Lock className="w-4 h-4 text-red-500" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">Segurança</CardTitle>
+                  <CardDescription>Mantenha sua conta protegida com uma senha forte</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-1.5">
+                <Label>Nova senha</Label>
+                <Input
+                  type="password"
+                  placeholder="Mínimo 6 caracteres"
+                  value={novaSenha}
+                  onChange={(e) => setNovaSenha(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Escolha uma senha com pelo menos 6 caracteres, combinando letras e números.
+                </p>
+              </div>
+              <Button
+                onClick={alterarSenha}
+                disabled={novaSenha.length < 6}
+                variant="outline"
+                className="font-bold border-border hover:border-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+              >
+                Alterar senha
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>

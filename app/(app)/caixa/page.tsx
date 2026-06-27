@@ -34,12 +34,22 @@ export default async function CaixaPage() {
     movimentacoes = data ?? []
   }
 
+  // Caixas anteriores (últimos 30 fechados)
+  const { data: caixasAnteriores } = await supabase
+    .from("caixas")
+    .select("*")
+    .eq("empresa_id", empresa.id)
+    .eq("status", "fechado")
+    .order("data_abertura", { ascending: false })
+    .limit(30)
+
   return (
     <CaixaClient
       empresaId={empresa.id}
       userId={user.id}
       caixaAberto={caixaAberto ?? null}
       movimentacoes={movimentacoes}
+      caixasAnteriores={caixasAnteriores ?? []}
     />
   )
 }

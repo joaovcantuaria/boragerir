@@ -42,38 +42,8 @@ export function Header({ empresaNome = "Bora Gerir", empresaLogoUrl }: HeaderPro
         "border-b border-gray-200 dark:border-white/[0.08]",
       )}
     >
-      {/* Card premium da empresa */}
-      <div className="flex items-center">
-        <div style={{
-          border: "1.5px solid rgba(242,110,29,0.5)",
-          background: "rgba(242,110,29,0.08)",
-          borderRadius: "12px",
-          padding: "6px 12px",
-          display: "flex",
-          alignItems: "center",
-          gap: "10px",
-        }}>
-          {/* Avatar com anel laranja */}
-          <div style={{ position: "relative" }}>
-            <Avatar className="w-8 h-8 shadow-sm" style={{ outline: "2px solid #F26E1D", outlineOffset: "2px" }}>
-              {empresaLogoUrl
-                ? <AvatarImage src={empresaLogoUrl} alt={empresaNome} />
-                : null}
-              <AvatarFallback className="text-xs font-black text-white" style={{ backgroundColor: "#F26E1D" }}>
-                {gerarIniciais(empresaNome)}
-              </AvatarFallback>
-            </Avatar>
-            <div style={{
-              position: "absolute", bottom: -2, right: -2,
-              width: 10, height: 10, borderRadius: "50%",
-              backgroundColor: "#22c55e", border: "2px solid white",
-            }} />
-          </div>
-          <span style={{ color: "#F26E1D", fontWeight: 700, fontSize: 14, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {empresaNome}
-          </span>
-        </div>
-      </div>
+      {/* Espaço vazio — sem card de nome */}
+      <div />
 
       {/* Ações */}
       <div className="flex items-center gap-1">

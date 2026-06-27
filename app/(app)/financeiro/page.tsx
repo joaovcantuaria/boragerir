@@ -17,7 +17,7 @@ export default async function FinanceiroPage() {
   const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
   const fimMes = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59).toISOString()
 
-  const [{ data: vendas }, { data: movimentacoes }, { data: funcionarios }, { data: debitos }] = await Promise.all([
+  const [{ data: vendas }, { data: movimentacoes }, { data: funcionarios }, { data: debitos }, { data: caixaAtivo }] = await Promise.all([
     supabase.from("vendas")
       .select("*, itens_venda(nome_item, subtotal, comissao_valor, funcionario_id:venda_id), clientes(nome_completo)")
       .eq("empresa_id", empresa.id)
@@ -35,7 +35,24 @@ export default async function FinanceiroPage() {
       .eq("empresa_id", empresa.id)
       .in("status", ["aberto", "parcial"])
       .order("created_at", { ascending: false }),
+    supabase.from("caixas")
+      .select("id, valor_abertura, status, data_abertura")
+      .eq("empresa_id", empresa.id)
+      .eq("status", "aberto")
+      .maybeSingle(),
   ])
+
+  // Calcular saldo atual do caixa aberto
+  let saldoCaixa = 0
+  if (caixaAtivo) {
+    const { data: movsAtuais } = await supabase
+      .from("movimentacoes_caixa")
+      .select("tipo, valor")
+      .eq("caixa_id", caixaAtivo.id)
+    const entradas = (movsAtuais ?? []).filter((m) => m.tipo === "entrada").reduce((s, m) => s + m.valor, 0)
+    const saidas = (movsAtuais ?? []).filter((m) => m.tipo === "saida").reduce((s, m) => s + m.valor, 0)
+    saldoCaixa = (caixaAtivo.valor_abertura ?? 0) + entradas - saidas
+  }
 
   return (
     <FinanceiroClient
@@ -45,6 +62,8 @@ export default async function FinanceiroPage() {
       movimentacoes={movimentacoes ?? []}
       funcionarios={funcionarios ?? []}
       debitos={debitos ?? []}
+      saldoCaixa={saldoCaixa}
+      caixaAberto={!!caixaAtivo}
     />
   )
 }

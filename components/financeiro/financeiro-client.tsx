@@ -5,8 +5,11 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
 } from "recharts"
-import { TrendingUp, TrendingDown, DollarSign, BarChart3, Search, Edit, XCircle, Loader2, Clock } from "lucide-react"
-import { format, parseISO } from "date-fns"
+import {
+  TrendingUp, TrendingDown, DollarSign, BarChart3, Search, Edit, XCircle, Loader2, Clock,
+  Wallet, Download, FileText, FileBarChart, Users, Calendar, ChevronDown
+} from "lucide-react"
+import { format, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, subMonths } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -36,12 +39,14 @@ type Venda = {
   clientes?: { nome_completo: string } | null
 }
 
-export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, movimentacoes, funcionarios, debitos }: {
+export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, movimentacoes, funcionarios, debitos, saldoCaixa = 0, caixaAberto = false }: {
   empresaId: string; plano: string
   vendas: Venda[]
   movimentacoes: { id: string; tipo: string; categoria: string; descricao: string; valor: number; created_at: string }[]
   funcionarios: { id: string; nome: string }[]
   debitos: { id: string; cliente_id: string; valor_total: number; valor_pago: number; valor_aberto: number; status: string; created_at: string; descricao: string | null; clientes?: { nome_completo: string } | null }[]
+  saldoCaixa?: number
+  caixaAberto?: boolean
 }) {
   const [vendas, setVendas] = useState(vendasIniciais)
   const [busca, setBusca] = useState("")
@@ -138,13 +143,14 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
       </div>
 
       {/* Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {[
           { label: "Recebido", valor: totalReceitas, cor: "text-emerald-500", bg: "bg-emerald-500/10", Icon: TrendingUp },
           { label: "A receber", valor: totalAReceber, cor: "text-amber-500", bg: "bg-amber-500/10", Icon: Clock },
           { label: "Despesas", valor: totalDespesas, cor: "text-red-500", bg: "bg-red-500/10", Icon: TrendingDown },
           { label: "Lucro líquido", valor: lucroLiquido, cor: lucroLiquido >= 0 ? "text-primary" : "text-red-500", bg: "bg-primary/10", Icon: DollarSign },
           { label: "Ticket médio", valor: ticketMedio, cor: "text-blue-500", bg: "bg-blue-500/10", Icon: BarChart3 },
+          { label: "Saldo em caixa", valor: saldoCaixa, cor: caixaAberto ? "text-violet-500" : "text-muted-foreground", bg: caixaAberto ? "bg-violet-500/10" : "bg-muted", Icon: Wallet },
         ].map(({ label, valor, cor, bg, Icon }) => (
           <Card key={label}>
             <CardContent className="p-4 flex items-center gap-3">
@@ -169,6 +175,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
             {totalAReceber > 0 && <span className="bg-amber-500 text-white text-xs font-black px-1.5 py-0.5 rounded-full">{debitos.length}</span>}
           </TabsTrigger>
           <TabsTrigger value="formas">Formas de pagamento</TabsTrigger>
+          <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
         </TabsList>
 
         <TabsContent value="faturamento" className="mt-4">
@@ -305,6 +312,11 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* ── ABA RELATÓRIOS ── */}
+        <TabsContent value="relatorios" className="mt-4">
+          <RelatoriosTab vendas={vendas} movimentacoes={movimentacoes} funcionarios={funcionarios} debitos={debitos} />
+        </TabsContent>
       </Tabs>
 
       {/* Modal de edição */}
@@ -356,6 +368,332 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  )
+}
+
+// ─── Componente de Relatórios ───────────────────────────────────────────────
+
+type RelatoriosProps = {
+  vendas: Venda[]
+  movimentacoes: { id: string; tipo: string; categoria: string; descricao: string; valor: number; created_at: string }[]
+  funcionarios: { id: string; nome: string }[]
+  debitos: { id: string; cliente_id: string; valor_total: number; valor_pago: number; valor_aberto: number; status: string; created_at: string; descricao: string | null; clientes?: { nome_completo: string } | null }[]
+}
+
+type TipoRelatorio = "resumo-diario" | "resumo-semanal" | "resumo-mensal" | "vendas-detalhado" | "por-colaborador" | "formas-pagamento" | "debitos" | "despesas" | "completo"
+
+const RELATORIOS: { id: TipoRelatorio; label: string; desc: string; icon: string; categoria: string }[] = [
+  { id: "resumo-diario",     label: "Resumo Diário",         desc: "Faturamento, vendas e movimentações do dia atual",         icon: "📅", categoria: "Básicos" },
+  { id: "resumo-semanal",    label: "Resumo Semanal",        desc: "Visão geral da semana atual com totais e comparativos",    icon: "📆", categoria: "Básicos" },
+  { id: "resumo-mensal",     label: "Resumo Mensal",         desc: "Análise completa do mês com todos os indicadores",         icon: "🗓️", categoria: "Básicos" },
+  { id: "vendas-detalhado",  label: "Vendas Detalhadas",     desc: "Lista completa de todas as vendas com cliente e valores",  icon: "🛍️", categoria: "Vendas" },
+  { id: "formas-pagamento",  label: "Por Forma de Pagamento",desc: "Distribuição de receita por método de pagamento",          icon: "💳", categoria: "Vendas" },
+  { id: "por-colaborador",   label: "Por Colaborador",       desc: "Desempenho e vendas de cada funcionário",                  icon: "👤", categoria: "Equipe" },
+  { id: "debitos",           label: "Débitos em Aberto",     desc: "Clientes com valores pendentes a receber",                 icon: "⏳", categoria: "Financeiro" },
+  { id: "despesas",          label: "Despesas e Saídas",     desc: "Todas as despesas, sangrias e saídas de caixa",            icon: "📉", categoria: "Financeiro" },
+  { id: "completo",          label: "Relatório Completo",    desc: "Relatório abrangente com todos os dados do período",       icon: "📊", categoria: "Avançados" },
+]
+
+function gerarConteudoRelatorio(
+  tipo: TipoRelatorio,
+  vendas: Venda[],
+  movimentacoes: RelatoriosProps["movimentacoes"],
+  funcionarios: RelatoriosProps["funcionarios"],
+  debitos: RelatoriosProps["debitos"],
+  periodo: { inicio: Date; fim: Date }
+): string {
+  const fmtData = (d: Date) => format(d, "dd/MM/yyyy", { locale: ptBR })
+  const fmtHora = (s: string) => format(new Date(s), "dd/MM/yyyy HH:mm", { locale: ptBR })
+  const fmtMoeda = (v: number) => `R$ ${v.toFixed(2).replace(".", ",")}`
+
+  const vendasPeriodo = vendas.filter((v) => {
+    const d = new Date(v.created_at)
+    return d >= periodo.inicio && d <= periodo.fim
+  })
+  const vendasConcluidas = vendasPeriodo.filter((v) => v.status === "concluida")
+  const movsPeriodo = movimentacoes.filter((m) => {
+    const d = new Date(m.created_at)
+    return d >= periodo.inicio && d <= periodo.fim
+  })
+
+  const totalRecebido = movsPeriodo.filter((m) => m.tipo === "entrada" && m.categoria === "venda").reduce((s, m) => s + m.valor, 0)
+  const totalDespesas = movsPeriodo.filter((m) => m.tipo === "saida" && m.categoria === "despesa").reduce((s, m) => s + m.valor, 0)
+  const totalSangrias = movsPeriodo.filter((m) => m.categoria === "sangria").reduce((s, m) => s + m.valor, 0)
+  const lucro = totalRecebido - totalDespesas
+  const ticketMedio = vendasConcluidas.length > 0 ? totalRecebido / vendasConcluidas.length : 0
+
+  const linhas: string[] = []
+  const sep = "═".repeat(55)
+  const sepFino = "─".repeat(55)
+
+  linhas.push(sep)
+  linhas.push(`  BEAUTYFLOW — ${RELATORIOS.find((r) => r.id === tipo)?.label.toUpperCase() ?? "RELATÓRIO"}`)
+  linhas.push(`  Período: ${fmtData(periodo.inicio)} a ${fmtData(periodo.fim)}`)
+  linhas.push(`  Gerado em: ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`)
+  linhas.push(sep)
+  linhas.push("")
+
+  if (["resumo-diario", "resumo-semanal", "resumo-mensal", "completo"].includes(tipo)) {
+    linhas.push("  RESUMO FINANCEIRO")
+    linhas.push(sepFino)
+    linhas.push(`  Vendas concluídas:   ${vendasConcluidas.length}`)
+    linhas.push(`  Total recebido:      ${fmtMoeda(totalRecebido)}`)
+    linhas.push(`  Total despesas:      ${fmtMoeda(totalDespesas)}`)
+    linhas.push(`  Sangrias:            ${fmtMoeda(totalSangrias)}`)
+    linhas.push(`  Lucro líquido:       ${fmtMoeda(lucro)}`)
+    linhas.push(`  Ticket médio:        ${fmtMoeda(ticketMedio)}`)
+    linhas.push("")
+  }
+
+  if (["vendas-detalhado", "completo"].includes(tipo)) {
+    linhas.push("  VENDAS DETALHADAS")
+    linhas.push(sepFino)
+    if (vendasConcluidas.length === 0) {
+      linhas.push("  Nenhuma venda no período.")
+    } else {
+      linhas.push("  Nº    Data/Hora          Cliente              Pagamento       Total")
+      linhas.push("  " + "─".repeat(53))
+      vendasConcluidas.forEach((v) => {
+        const num = String(v.numero_venda).padStart(4, "0")
+        const data = fmtHora(v.created_at).padEnd(18)
+        const cliente = ((v.clientes as any)?.nome_completo ?? "—").substring(0, 18).padEnd(20)
+        const pgto = (labelsFormaPagamento[v.forma_pagamento] ?? v.forma_pagamento).substring(0, 14).padEnd(16)
+        const total = fmtMoeda(v.total)
+        linhas.push(`  ${num}  ${data} ${cliente} ${pgto} ${total}`)
+      })
+    }
+    linhas.push("")
+  }
+
+  if (["formas-pagamento", "completo"].includes(tipo)) {
+    linhas.push("  POR FORMA DE PAGAMENTO")
+    linhas.push(sepFino)
+    const porPgto: Record<string, number> = {}
+    vendasConcluidas.forEach((v) => {
+      const k = labelsFormaPagamento[v.forma_pagamento] ?? v.forma_pagamento
+      porPgto[k] = (porPgto[k] ?? 0) + v.total
+    })
+    if (Object.keys(porPgto).length === 0) {
+      linhas.push("  Nenhum dado disponível.")
+    } else {
+      Object.entries(porPgto).sort((a, b) => b[1] - a[1]).forEach(([k, v]) => {
+        const perc = totalRecebido > 0 ? ((v / totalRecebido) * 100).toFixed(1) : "0.0"
+        linhas.push(`  ${k.padEnd(24)} ${fmtMoeda(v).padEnd(15)} (${perc}%)`)
+      })
+    }
+    linhas.push("")
+  }
+
+  if (["por-colaborador", "completo"].includes(tipo)) {
+    linhas.push("  POR COLABORADOR")
+    linhas.push(sepFino)
+    if (funcionarios.length === 0) {
+      linhas.push("  Nenhum colaborador cadastrado.")
+    } else {
+      funcionarios.forEach((f) => {
+        const vendasFunc = vendasConcluidas.filter((v) => {
+          const itens = (v as any).itens_venda ?? []
+          return itens.some((i: any) => i.funcionario_id === f.id)
+        })
+        const totalFunc = vendasFunc.reduce((s, v) => s + v.total, 0)
+        linhas.push(`  ${f.nome.padEnd(28)} ${vendasFunc.length} vendas   ${fmtMoeda(totalFunc)}`)
+      })
+    }
+    linhas.push("")
+  }
+
+  if (["debitos", "completo"].includes(tipo)) {
+    linhas.push("  DÉBITOS EM ABERTO")
+    linhas.push(sepFino)
+    if (debitos.length === 0) {
+      linhas.push("  Nenhum débito em aberto.")
+    } else {
+      const total = debitos.reduce((s, d) => s + d.valor_aberto, 0)
+      debitos.forEach((d) => {
+        const cliente = ((d.clientes as any)?.nome_completo ?? "—").substring(0, 24).padEnd(26)
+        const desc = (d.descricao ?? "Venda").substring(0, 16).padEnd(18)
+        linhas.push(`  ${cliente} ${desc} Em aberto: ${fmtMoeda(d.valor_aberto)}`)
+      })
+      linhas.push(`  ${"─".repeat(40)}`)
+      linhas.push(`  TOTAL EM ABERTO:             ${fmtMoeda(total)}`)
+    }
+    linhas.push("")
+  }
+
+  if (["despesas", "completo"].includes(tipo)) {
+    linhas.push("  DESPESAS E SAÍDAS")
+    linhas.push(sepFino)
+    const saidas = movsPeriodo.filter((m) => m.tipo === "saida")
+    if (saidas.length === 0) {
+      linhas.push("  Nenhuma saída no período.")
+    } else {
+      saidas.forEach((m) => {
+        const data = fmtHora(m.created_at).padEnd(18)
+        const cat = m.categoria.padEnd(12)
+        const desc = m.descricao.substring(0, 18).padEnd(20)
+        linhas.push(`  ${data} ${cat} ${desc} ${fmtMoeda(m.valor)}`)
+      })
+      linhas.push(`  ${"─".repeat(40)}`)
+      linhas.push(`  TOTAL SAÍDAS:  ${fmtMoeda(saidas.reduce((s, m) => s + m.valor, 0))}`)
+    }
+    linhas.push("")
+  }
+
+  linhas.push(sep)
+  linhas.push("  Relatório gerado pelo BeautyFlow — sistema de gestão")
+  linhas.push(sep)
+
+  return linhas.join("\n")
+}
+
+function RelatoriosTab({ vendas, movimentacoes, funcionarios, debitos }: RelatoriosProps) {
+  const [tipoSelecionado, setTipoSelecionado] = useState<TipoRelatorio>("resumo-mensal")
+  const [tipoPeriodo, setTipoPeriodo] = useState<"hoje" | "semana" | "mes" | "personalizado">("mes")
+  const [dataInicio, setDataInicio] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"))
+  const [dataFim, setDataFim] = useState(format(endOfMonth(new Date()), "yyyy-MM-dd"))
+  const [gerando, setGerando] = useState(false)
+
+  function aplicarPeriodoPre(tipo: "hoje" | "semana" | "mes" | "personalizado") {
+    setTipoPeriodo(tipo)
+    if (tipo === "hoje") {
+      setDataInicio(format(new Date(), "yyyy-MM-dd"))
+      setDataFim(format(new Date(), "yyyy-MM-dd"))
+    } else if (tipo === "semana") {
+      setDataInicio(format(startOfWeek(new Date(), { locale: ptBR }), "yyyy-MM-dd"))
+      setDataFim(format(endOfWeek(new Date(), { locale: ptBR }), "yyyy-MM-dd"))
+    } else if (tipo === "mes") {
+      setDataInicio(format(startOfMonth(new Date()), "yyyy-MM-dd"))
+      setDataFim(format(endOfMonth(new Date()), "yyyy-MM-dd"))
+    }
+  }
+
+  function baixarRelatorio() {
+    setGerando(true)
+    try {
+      const inicio = new Date(dataInicio + "T00:00:00")
+      const fim = new Date(dataFim + "T23:59:59")
+      const conteudo = gerarConteudoRelatorio(tipoSelecionado, vendas, movimentacoes, funcionarios, debitos, { inicio, fim })
+      const blob = new Blob([conteudo], { type: "text/plain;charset=utf-8" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      const nomeArq = `relatorio-${tipoSelecionado}-${dataInicio}-${dataFim}.txt`
+      a.download = nomeArq
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      toast.success("Relatório baixado com sucesso!")
+    } catch {
+      toast.error("Erro ao gerar relatório.")
+    }
+    setGerando(false)
+  }
+
+  const categorias = [...new Set(RELATORIOS.map((r) => r.categoria))]
+
+  return (
+    <div className="space-y-6">
+      {/* Seleção de relatório */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="w-1 h-5 rounded-full bg-primary" />
+          <h3 className="font-bold text-sm">Tipo de relatório</h3>
+        </div>
+        <div className="space-y-4">
+          {categorias.map((cat) => (
+            <div key={cat}>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{cat}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {RELATORIOS.filter((r) => r.categoria === cat).map((rel) => (
+                  <button
+                    key={rel.id}
+                    onClick={() => setTipoSelecionado(rel.id)}
+                    className={`text-left p-3.5 rounded-xl border transition-all ${
+                      tipoSelecionado === rel.id
+                        ? "border-[#F26E1D] bg-[#F26E1D]/8"
+                        : "border-border hover:border-[#F26E1D]/40 hover:bg-muted/50"
+                    }`}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <span className="text-lg mt-0.5">{rel.icon}</span>
+                      <div>
+                        <p className={`text-sm font-semibold ${tipoSelecionado === rel.id ? "text-[#F26E1D]" : ""}`}>{rel.label}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{rel.desc}</p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Período */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="w-1 h-5 rounded-full bg-primary" />
+          <h3 className="font-bold text-sm">Período</h3>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {(["hoje", "semana", "mes", "personalizado"] as const).map((p) => (
+            <button
+              key={p}
+              onClick={() => aplicarPeriodoPre(p)}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${
+                tipoPeriodo === p
+                  ? "border-[#F26E1D] bg-[#F26E1D]/10 text-[#F26E1D]"
+                  : "border-border hover:border-[#F26E1D]/40 text-muted-foreground"
+              }`}
+            >
+              {p === "hoje" ? "Hoje" : p === "semana" ? "Esta semana" : p === "mes" ? "Este mês" : "Personalizado"}
+            </button>
+          ))}
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label>Data início</Label>
+            <Input type="date" value={dataInicio} onChange={(e) => { setDataInicio(e.target.value); setTipoPeriodo("personalizado") }} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Data fim</Label>
+            <Input type="date" value={dataFim} onChange={(e) => { setDataFim(e.target.value); setTipoPeriodo("personalizado") }} />
+          </div>
+        </div>
+      </div>
+
+      {/* Preview e download */}
+      <div className="rounded-xl border border-border p-5 bg-muted/30 space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="font-semibold text-sm">
+              {RELATORIOS.find((r) => r.id === tipoSelecionado)?.icon}{" "}
+              {RELATORIOS.find((r) => r.id === tipoSelecionado)?.label}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {format(new Date(dataInicio + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })} até{" "}
+              {format(new Date(dataFim + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}
+            </p>
+          </div>
+          <Button
+            onClick={baixarRelatorio}
+            disabled={gerando}
+            className="gap-2 font-bold text-white border-0 hover:opacity-90 shrink-0"
+            style={{ background: "linear-gradient(135deg, #F26E1D, #e05e10)" }}
+          >
+            {gerando
+              ? <Loader2 className="w-4 h-4 animate-spin" />
+              : <Download className="w-4 h-4" />
+            }
+            Baixar relatório
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          O arquivo será baixado em formato <strong>.txt</strong>, compatível com qualquer editor de texto.
+        </p>
+      </div>
     </div>
   )
 }
