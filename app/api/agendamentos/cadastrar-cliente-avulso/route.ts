@@ -8,7 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 
 export async function POST(req: NextRequest) {
   try {
-    const { empresa_id, nome, telefone, email, agendamento_id } = await req.json()
+    const { empresa_id, nome, telefone, email, data_hora } = await req.json()
 
     if (!empresa_id || !nome || !telefone) {
       return NextResponse.json({ erro: "Dados insuficientes" }, { status: 400 })
@@ -17,8 +17,9 @@ export async function POST(req: NextRequest) {
     // Usa admin client para bypass de RLS (operação de sistema, não de usuário)
     const supabase = createAdminClient()
 
-    // Verificar se já existe cliente com mesmo telefone nessa empresa
     const telefoneLimpo = telefone.replace(/\D/g, "")
+
+    // Verificar se já existe cliente com mesmo telefone nessa empresa
     const { data: existente } = await supabase
       .from("clientes")
       .select("id")
@@ -29,8 +30,8 @@ export async function POST(req: NextRequest) {
     let clienteId: string
 
     if (existente) {
-      // Cliente já existe — só atualiza email se vier preenchido e estiver vazio
       clienteId = existente.id
+      // Atualiza email se vier preenchido e estiver vazio
       if (email) {
         await supabase
           .from("clientes")
@@ -65,12 +66,23 @@ export async function POST(req: NextRequest) {
       clienteId = novoCliente.id
     }
 
-    // Vincular o cliente_id ao agendamento
-    if (agendamento_id) {
-      await supabase
+    // Localizar o agendamento pelo telefone + empresa + data e vincular cliente_id
+    if (data_hora) {
+      const { data: agendamento } = await supabase
         .from("agendamentos")
-        .update({ cliente_id: clienteId })
-        .eq("id", agendamento_id)
+        .select("id")
+        .eq("empresa_id", empresa_id)
+        .eq("telefone_cliente_avulso", telefoneLimpo)
+        .eq("data_hora", data_hora)
+        .is("cliente_id", null)
+        .maybeSingle()
+
+      if (agendamento) {
+        await supabase
+          .from("agendamentos")
+          .update({ cliente_id: clienteId })
+          .eq("id", agendamento.id)
+      }
     }
 
     return NextResponse.json({ sucesso: true, cliente_id: clienteId })
