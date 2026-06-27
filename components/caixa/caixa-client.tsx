@@ -251,7 +251,7 @@ export function CaixaClient({ empresaId, userId, caixaAberto: caixaInicial, movi
 
       {/* Modal abrir caixa */}
       <Dialog open={modalAbrirCaixa} onOpenChange={setModalAbrirCaixa}>
-        <DialogContent>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Abrir Caixa</DialogTitle>
           </DialogHeader>
@@ -282,7 +282,7 @@ export function CaixaClient({ empresaId, userId, caixaAberto: caixaInicial, movi
 
       {/* Modal fechar caixa */}
       <Dialog open={modalFecharCaixa} onOpenChange={setModalFecharCaixa}>
-        <DialogContent>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Fechar Caixa</DialogTitle>
           </DialogHeader>
@@ -336,7 +336,7 @@ export function CaixaClient({ empresaId, userId, caixaAberto: caixaInicial, movi
 
       {/* Modal movimentação */}
       <Dialog open={!!modalMovimentacao} onOpenChange={() => setModalMovimentacao(null)}>
-        <DialogContent>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>
               {modalMovimentacao === "sangria" ? "Registrar Sangria"

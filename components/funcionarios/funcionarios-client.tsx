@@ -155,7 +155,7 @@ export function FuncionariosClient({ empresaId, plano, funcionarios: funcInit }:
       )}
 
       <Dialog open={modalAberto} onOpenChange={setModalAberto}>
-        <DialogContent>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader><DialogTitle>{editando ? "Editar" : "Novo"} Funcionário</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">

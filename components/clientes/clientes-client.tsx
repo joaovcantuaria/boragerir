@@ -224,7 +224,7 @@ export function ClientesClient({
 
       {/* Modal */}
       <Dialog open={modalAberto} onOpenChange={setModalAberto}>
-        <DialogContent>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>{editando ? "Editar Cliente" : "Novo Cliente"}</DialogTitle>
           </DialogHeader>

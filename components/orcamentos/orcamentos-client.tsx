@@ -219,7 +219,7 @@ export function OrcamentosClient({ empresa, orcamentos: orcInit, clientes, produ
 
       {/* Modal */}
       <Dialog open={modalAberto} onOpenChange={setModalAberto}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader><DialogTitle>Novo Orçamento</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">

@@ -354,8 +354,8 @@ export function AgendamentosClient({
       </Tabs>
 
       {/* Modal novo/editar agendamento */}
-      <Dialog open={modalAberto} onOpenChange={setModalAberto}>
-        <DialogContent>
+      <Dialog open={modalAberto} onOpenChange={(open) => { if (!open) { setModalAberto(false) } }}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>{editando ? "Editar Agendamento" : "Novo Agendamento"}</DialogTitle>
           </DialogHeader>
