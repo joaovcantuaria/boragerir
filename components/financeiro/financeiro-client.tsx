@@ -3,26 +3,94 @@
 import { useState } from "react"
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  LineChart, Line, PieChart, Pie, Cell
+  PieChart, Pie, Cell
 } from "recharts"
-import { TrendingUp, TrendingDown, DollarSign, Users, BarChart3, Search } from "lucide-react"
+import { TrendingUp, TrendingDown, DollarSign, BarChart3, Search, Edit, XCircle, Loader2 } from "lucide-react"
 import { format, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import { toast } from "sonner"
+import { createClient } from "@/lib/supabase/client"
 import { formatarMoeda, labelsFormaPagamento, coresStatus, labelsStatus } from "@/lib/utils"
 
 const CORES = ["#10B981", "#3B82F6", "#F59E0B", "#8B5CF6", "#EF4444"]
 
-export function FinanceiroClient({ empresaId, plano, vendas, movimentacoes, funcionarios }: {
+type Venda = {
+  id: string
+  numero_venda: number
+  total: number
+  subtotal: number
+  desconto: number
+  forma_pagamento: string
+  status: string
+  created_at: string
+  observacoes?: string | null
+  clientes?: { nome_completo: string } | null
+}
+
+export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, movimentacoes, funcionarios }: {
   empresaId: string; plano: string
-  vendas: { id: string; numero_venda: number; total: number; subtotal: number; desconto: number; forma_pagamento: string; status: string; created_at: string; clientes?: { nome_completo: string } | null }[]
+  vendas: Venda[]
   movimentacoes: { id: string; tipo: string; categoria: string; descricao: string; valor: number; created_at: string }[]
   funcionarios: { id: string; nome: string }[]
 }) {
+  const [vendas, setVendas] = useState(vendasIniciais)
   const [busca, setBusca] = useState("")
+  const [modalEditar, setModalEditar] = useState<Venda | null>(null)
+  const [editFormaPagamento, setEditFormaPagamento] = useState("")
+  const [editDesconto, setEditDesconto] = useState("")
+  const [editObservacoes, setEditObservacoes] = useState("")
+  const [loadingEdit, setLoadingEdit] = useState(false)
+  const [loadingCancel, setLoadingCancel] = useState<string | null>(null)
+  const supabase = createClient()
+
+  async function cancelarVenda(venda: Venda) {
+    if (!confirm(`Cancelar a venda #${String(venda.numero_venda).padStart(4,"0")} de ${formatarMoeda(venda.total)}?`)) return
+    setLoadingCancel(venda.id)
+    const { error } = await supabase.from("vendas").update({ status: "cancelada" }).eq("id", venda.id)
+    if (error) { toast.error("Erro ao cancelar venda."); setLoadingCancel(null); return }
+    // Reverter movimentação de caixa
+    await supabase.from("movimentacoes_caixa").delete().eq("venda_id", venda.id)
+    setVendas((prev) => prev.map((v) => v.id === venda.id ? { ...v, status: "cancelada" } : v))
+    toast.success(`Venda #${String(venda.numero_venda).padStart(4,"0")} cancelada.`)
+    setLoadingCancel(null)
+  }
+
+  function abrirEditar(venda: Venda) {
+    setModalEditar(venda)
+    setEditFormaPagamento(venda.forma_pagamento)
+    setEditDesconto(String(venda.desconto))
+    setEditObservacoes(venda.observacoes ?? "")
+  }
+
+  async function salvarEdicao() {
+    if (!modalEditar) return
+    setLoadingEdit(true)
+    const desconto = parseFloat(editDesconto) || 0
+    const total = Math.max(0, modalEditar.subtotal - desconto)
+    const { error } = await supabase.from("vendas").update({
+      forma_pagamento: editFormaPagamento,
+      desconto,
+      total,
+      observacoes: editObservacoes || null,
+    }).eq("id", modalEditar.id)
+    if (error) { toast.error("Erro ao salvar alterações."); setLoadingEdit(false); return }
+    setVendas((prev) => prev.map((v) => v.id === modalEditar.id
+      ? { ...v, forma_pagamento: editFormaPagamento, desconto, total, observacoes: editObservacoes || null }
+      : v
+    ))
+    toast.success("Venda atualizada!")
+    setModalEditar(null)
+    setLoadingEdit(false)
+  }
 
   const vendasConcluidas = vendas.filter((v) => v.status === "concluida")
   const totalReceitas = vendasConcluidas.reduce((s, v) => s + v.total, 0)
@@ -49,7 +117,7 @@ export function FinanceiroClient({ empresaId, plano, vendas, movimentacoes, func
   })
   const dadosPagamento = Object.entries(porPagamento).map(([name, value]) => ({ name, value }))
 
-  const vendasFiltradas = vendasConcluidas.filter((v) => {
+  const vendasFiltradas = vendas.filter((v) => {
     const t = busca.toLowerCase()
     return (
       String(v.numero_venda).includes(t) ||
@@ -121,16 +189,36 @@ export function FinanceiroClient({ empresaId, plano, vendas, movimentacoes, func
           </div>
           {vendasFiltradas.length > 0 ? (
             <div className="border border-border rounded-xl overflow-hidden">
-              <div className="grid grid-cols-5 gap-2 px-4 py-2 bg-muted text-xs font-medium text-muted-foreground">
-                <span>#</span><span>Cliente</span><span>Pagamento</span><span className="text-right">Total</span><span className="text-right">Data</span>
+              <div className="grid grid-cols-6 gap-2 px-4 py-2 bg-muted text-xs font-medium text-muted-foreground">
+                <span>#</span><span>Cliente</span><span>Pagamento</span><span>Status</span><span className="text-right">Total</span><span className="text-right">Ações</span>
               </div>
               {vendasFiltradas.map((v) => (
-                <div key={v.id} className="grid grid-cols-5 gap-2 px-4 py-3 border-t border-border text-sm items-center">
+                <div key={v.id} className={`grid grid-cols-6 gap-2 px-4 py-3 border-t border-border text-sm items-center ${v.status === "cancelada" ? "opacity-50" : ""}`}>
                   <span className="text-muted-foreground">{String(v.numero_venda).padStart(4, "0")}</span>
                   <span className="truncate">{v.clientes?.nome_completo ?? "—"}</span>
                   <span className="truncate text-xs">{labelsFormaPagamento[v.forma_pagamento] ?? v.forma_pagamento}</span>
-                  <span className="text-right font-semibold text-primary">{formatarMoeda(v.total)}</span>
-                  <span className="text-right text-xs text-muted-foreground">{format(parseISO(v.created_at), "dd/MM HH:mm")}</span>
+                  <span>
+                    <Badge className={`text-xs ${v.status === "cancelada" ? "bg-red-500/10 text-red-500 border-red-500/20" : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"}`}>
+                      {v.status === "cancelada" ? "Cancelada" : "Concluída"}
+                    </Badge>
+                  </span>
+                  <span className={`text-right font-semibold ${v.status === "cancelada" ? "line-through text-muted-foreground" : "text-primary"}`}>{formatarMoeda(v.total)}</span>
+                  <div className="flex gap-1 justify-end">
+                    {v.status === "concluida" && (
+                      <>
+                        <Button variant="ghost" size="xs" onClick={() => abrirEditar(v)} title="Editar">
+                          <Edit className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="xs" className="text-red-500 hover:text-red-600"
+                          onClick={() => cancelarVenda(v)} disabled={loadingCancel === v.id} title="Cancelar">
+                          {loadingCancel === v.id
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            : <XCircle className="w-3.5 h-3.5" />
+                          }
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -172,6 +260,56 @@ export function FinanceiroClient({ empresaId, plano, vendas, movimentacoes, func
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Modal de edição */}
+      <Dialog open={!!modalEditar} onOpenChange={(open) => { if (!open) setModalEditar(null) }}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>Editar Venda #{String(modalEditar?.numero_venda ?? 0).padStart(4, "0")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Forma de pagamento</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {(["dinheiro", "pix", "cartao_debito", "cartao_credito", "outro"] as const).map((fp) => (
+                  <button key={fp} type="button"
+                    onClick={() => setEditFormaPagamento(fp)}
+                    className={`py-2 px-3 rounded-lg border text-xs font-medium transition-colors ${
+                      editFormaPagamento === fp
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border hover:border-primary/50"
+                    }`}>
+                    {labelsFormaPagamento[fp]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Desconto (R$)</Label>
+              <Input type="number" step="0.01" min="0" value={editDesconto}
+                onChange={(e) => setEditDesconto(e.target.value)} placeholder="0,00" />
+              {modalEditar && (
+                <p className="text-xs text-muted-foreground">
+                  Subtotal: {formatarMoeda(modalEditar.subtotal)} →
+                  Novo total: <strong>{formatarMoeda(Math.max(0, modalEditar.subtotal - (parseFloat(editDesconto) || 0)))}</strong>
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>Observações</Label>
+              <Textarea value={editObservacoes} onChange={(e) => setEditObservacoes(e.target.value)}
+                placeholder="Observações sobre a venda..." rows={2} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setModalEditar(null)}>Cancelar</Button>
+            <Button onClick={salvarEdicao} disabled={loadingEdit}>
+              {loadingEdit ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Salvar alterações
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
