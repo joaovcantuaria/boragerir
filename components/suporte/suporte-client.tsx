@@ -134,7 +134,7 @@ export function SuporteClient({ empresaId, tickets: init }: {
       {/* Modal novo ticket */}
       {modalAberto && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-lg shadow-2xl space-y-4">
+          <div className="bg-white dark:bg-zinc-900 border border-border rounded-2xl p-6 w-full max-w-lg shadow-2xl space-y-4">
             <h2 className="text-lg font-black">Abrir ticket de suporte</h2>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-1.5">

@@ -41,20 +41,16 @@ export function Sidebar({ collapsed, onToggle, prefix = "" }: SidebarProps) {
       initial={false}
       animate={{ width: collapsed ? 64 : 232 }}
       transition={{ duration: 0.18, ease: "easeInOut" }}
-      style={{
-        backgroundColor: "var(--sidebar-bg, #ffffff)",
-        borderRight: "1px solid var(--sidebar-border, #e5e7eb)",
-      }}
       className={cn(
         "hidden md:flex flex-col h-screen fixed left-0 top-0 z-30 overflow-hidden",
-        "dark:[--sidebar-bg:#0d0f1a] dark:[--sidebar-border:rgba(255,255,255,0.06)]"
+        "bg-white dark:bg-[#0d0f1a]",
+        "border-r border-gray-200 dark:border-white/[0.06]"
       )}
     >
       {/* Logo */}
       <div
-        style={{ borderBottom: "1px solid var(--sidebar-border, #e5e7eb)" }}
         className={cn(
-          "flex items-center h-16 shrink-0",
+          "flex items-center h-16 shrink-0 border-b border-gray-200 dark:border-white/[0.06]",
           collapsed ? "px-4 justify-center" : "px-4"
         )}
       >
