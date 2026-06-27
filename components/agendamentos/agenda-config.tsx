@@ -126,10 +126,11 @@ export function AgendaConfig({ empresaId, config: configInicial }: AgendaConfigP
             const ativo = dias.includes(d.value)
             return (
               <button key={d.value} type="button" onClick={() => toggleDia(d.value)}
+                style={ativo ? { backgroundColor: "#F26E1D", color: "#ffffff" } : {}}
                 className={`flex flex-col items-center gap-1 py-3 rounded-xl text-xs font-bold transition-all ${
                   ativo
-                    ? "bg-primary text-white shadow-sm shadow-primary/30"
-                    : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                    ? "shadow-sm"
+                    : "bg-muted text-muted-foreground hover:text-foreground"
                 }`}>
                 <span className="text-base leading-none">{d.abrev}</span>
                 <span className="text-[10px] font-medium opacity-80">{d.label}</span>
