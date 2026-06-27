@@ -72,6 +72,7 @@ export function MobileNav({ prefix = "" }: { prefix?: string }) {
                   return (
                     <Link key={href} href={href}
                       onClick={() => setMenuAberto(false)}
+                      prefetch={true}
                       className={cn(
                         "flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-xs font-semibold transition-colors",
                         isActive
@@ -93,6 +94,7 @@ export function MobileNav({ prefix = "" }: { prefix?: string }) {
                   return (
                     <Link key={href} href={href}
                       onClick={() => setMenuAberto(false)}
+                      prefetch={true}
                       className={cn(
                         "flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-xs font-semibold transition-colors",
                         isActive
@@ -124,6 +126,7 @@ export function MobileNav({ prefix = "" }: { prefix?: string }) {
             const Icon = item.icon
             return (
               <Link key={href} href={href}
+                prefetch={true}
                 className={cn(
                   "flex-1 flex flex-col items-center justify-center gap-1 h-full text-[10px] font-semibold transition-colors",
                   isActive

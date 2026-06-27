@@ -70,6 +70,7 @@ export function Sidebar({ collapsed, onToggle, prefix = "" }: SidebarProps) {
               <li key={item.href}>
                 <Link
                   href={item.href}
+                  prefetch={true}
                   title={collapsed ? item.label : undefined}
                   className={cn(
                     "flex items-center gap-3 rounded-xl transition-all duration-150 relative group",
