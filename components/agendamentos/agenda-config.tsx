@@ -112,14 +112,22 @@ export function AgendaConfig({ empresaId, config: configInicial }: AgendaConfigP
 
       {/* Dias da semana */}
       <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Calendar className="w-4 h-4 text-primary" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Calendar className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <p className="font-semibold text-sm">Dias de atendimento</p>
+              <p className="text-xs text-muted-foreground">Selecione os dias em que você atende</p>
+            </div>
           </div>
-          <div>
-            <p className="font-semibold text-sm">Dias de atendimento</p>
-            <p className="text-xs text-muted-foreground">Selecione os dias em que você atende</p>
-          </div>
+          <button onClick={salvar} disabled={loading}
+            style={{ backgroundColor: "#F26E1D" }}
+            className="flex items-center gap-1.5 text-white text-xs font-bold px-3 py-2 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50">
+            {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+            Salvar
+          </button>
         </div>
         <div className="grid grid-cols-7 gap-2">
           {DIAS.map((d) => {
