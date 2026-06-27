@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { Moon, Sun, LogOut, Settings, Bell } from "lucide-react"
+import { Moon, Sun, LogOut, Settings, Bell, RefreshCw } from "lucide-react"
 import { useTheme } from "next-themes"
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -9,8 +9,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { createClient } from "@/lib/supabase/client"
-import { toast } from "sonner"
 import { gerarIniciais, cn } from "@/lib/utils"
+import { useRouter as useNav } from "next/navigation"
 
 interface HeaderProps {
   empresaNome?: string
@@ -36,27 +36,47 @@ export function Header({ empresaNome = "Bora Gerir", empresaLogoUrl }: HeaderPro
   return (
     <header
       className={cn(
-        "h-16 flex items-center justify-between px-5 sticky top-0 z-20",
+        "h-16 flex items-center justify-between px-4 sticky top-0 z-20",
         "bg-white dark:bg-[#0a0b0f]",
         "border-b border-gray-200 dark:border-white/[0.08]",
       )}
     >
-      {/* Nome da empresa */}
-      <div className="flex items-center gap-2.5 min-w-0">
-        {empresaLogoUrl && (
-          <img src={empresaLogoUrl} alt={empresaNome}
-            className="w-7 h-7 rounded-lg object-cover shrink-0" />
-        )}
-        <span className={cn(
-          "font-semibold text-sm truncate max-w-[200px]",
-          "text-gray-800 dark:text-gray-200"
+      {/* Card premium da empresa */}
+      <div className="flex items-center">
+        <div className={cn(
+          "flex items-center gap-2.5 px-3 py-1.5 rounded-xl border transition-all",
+          "border-[#F26E1D]/40 bg-[#F26E1D]/5",
+          "dark:border-[#F26E1D]/30 dark:bg-[#F26E1D]/10",
         )}>
-          {empresaNome}
-        </span>
+          {/* Avatar com anel branco */}
+          <div className="relative">
+            <Avatar className="w-8 h-8 ring-2 ring-white dark:ring-white/20 shadow-sm">
+              {empresaLogoUrl
+                ? <AvatarImage src={empresaLogoUrl} alt={empresaNome} />
+                : null}
+              <AvatarFallback className="text-xs font-black bg-[#F26E1D] text-white">
+                {gerarIniciais(empresaNome)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white dark:border-[#0a0b0f]" />
+          </div>
+          <span className="font-bold text-sm text-[#F26E1D] truncate max-w-[160px]">
+            {empresaNome}
+          </span>
+        </div>
       </div>
 
       {/* Ações */}
       <div className="flex items-center gap-1">
+        {/* Botão atualizar */}
+        <button
+          className={btnClass}
+          onClick={() => router.refresh()}
+          title="Atualizar"
+        >
+          <RefreshCw className="w-[17px] h-[17px]" />
+        </button>
+
         {/* Notificações */}
         <button className={btnClass}>
           <Bell className="w-[18px] h-[18px]" />
@@ -78,7 +98,7 @@ export function Header({ empresaNome = "Bora Gerir", empresaLogoUrl }: HeaderPro
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="ml-1 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary">
-              <Avatar className="w-8 h-8 ring-2 ring-transparent hover:ring-primary/30 transition-all">
+              <Avatar className="w-8 h-8 ring-2 ring-[#F26E1D]/30 hover:ring-[#F26E1D] transition-all">
                 {empresaLogoUrl && <AvatarImage src={empresaLogoUrl} alt={empresaNome} />}
                 <AvatarFallback className="text-xs font-black bg-[#F26E1D] text-white">
                   {gerarIniciais(empresaNome)}

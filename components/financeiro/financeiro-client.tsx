@@ -5,7 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
 } from "recharts"
-import { TrendingUp, TrendingDown, DollarSign, BarChart3, Search, Edit, XCircle, Loader2 } from "lucide-react"
+import { TrendingUp, TrendingDown, DollarSign, BarChart3, Search, Edit, XCircle, Loader2, Clock } from "lucide-react"
 import { format, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -36,11 +36,12 @@ type Venda = {
   clientes?: { nome_completo: string } | null
 }
 
-export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, movimentacoes, funcionarios }: {
+export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, movimentacoes, funcionarios, debitos }: {
   empresaId: string; plano: string
   vendas: Venda[]
   movimentacoes: { id: string; tipo: string; categoria: string; descricao: string; valor: number; created_at: string }[]
   funcionarios: { id: string; nome: string }[]
+  debitos: { id: string; cliente_id: string; valor_total: number; valor_pago: number; valor_aberto: number; status: string; created_at: string; descricao: string | null; clientes?: { nome_completo: string } | null }[]
 }) {
   const [vendas, setVendas] = useState(vendasIniciais)
   const [busca, setBusca] = useState("")
@@ -93,7 +94,10 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   }
 
   const vendasConcluidas = vendas.filter((v) => v.status === "concluida")
-  const totalReceitas = vendasConcluidas.reduce((s, v) => s + v.total, 0)
+  // Apenas o que efetivamente entrou no caixa (descontar débitos em aberto)
+  const totalRecebido = movimentacoes.filter((m) => m.tipo === "entrada" && m.categoria === "venda").reduce((s, m) => s + m.valor, 0)
+  const totalAReceber = debitos.reduce((s, d) => s + d.valor_aberto, 0)
+  const totalReceitas = totalRecebido // apenas o que entrou
   const totalDespesas = movimentacoes.filter((m) => m.tipo === "saida" && m.categoria === "despesa").reduce((s, m) => s + m.valor, 0)
   const lucroLiquido = totalReceitas - totalDespesas
   const ticketMedio = vendasConcluidas.length > 0 ? totalReceitas / vendasConcluidas.length : 0
@@ -134,10 +138,11 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
       </div>
 
       {/* Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {[
-          { label: "Total receitas", valor: totalReceitas, cor: "text-emerald-500", bg: "bg-emerald-500/10", Icon: TrendingUp },
-          { label: "Total despesas", valor: totalDespesas, cor: "text-red-500", bg: "bg-red-500/10", Icon: TrendingDown },
+          { label: "Recebido", valor: totalReceitas, cor: "text-emerald-500", bg: "bg-emerald-500/10", Icon: TrendingUp },
+          { label: "A receber", valor: totalAReceber, cor: "text-amber-500", bg: "bg-amber-500/10", Icon: Clock },
+          { label: "Despesas", valor: totalDespesas, cor: "text-red-500", bg: "bg-red-500/10", Icon: TrendingDown },
           { label: "Lucro líquido", valor: lucroLiquido, cor: lucroLiquido >= 0 ? "text-primary" : "text-red-500", bg: "bg-primary/10", Icon: DollarSign },
           { label: "Ticket médio", valor: ticketMedio, cor: "text-blue-500", bg: "bg-blue-500/10", Icon: BarChart3 },
         ].map(({ label, valor, cor, bg, Icon }) => (
@@ -159,6 +164,10 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
         <TabsList>
           <TabsTrigger value="faturamento">Faturamento</TabsTrigger>
           <TabsTrigger value="vendas">Vendas</TabsTrigger>
+          <TabsTrigger value="areceber" className="gap-2">
+            A Receber
+            {totalAReceber > 0 && <span className="bg-amber-500 text-white text-xs font-black px-1.5 py-0.5 rounded-full">{debitos.length}</span>}
+          </TabsTrigger>
           <TabsTrigger value="formas">Formas de pagamento</TabsTrigger>
         </TabsList>
 
@@ -190,7 +199,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
           {vendasFiltradas.length > 0 ? (
             <div className="border border-border rounded-xl overflow-hidden">
               <div className="grid grid-cols-6 gap-2 px-4 py-2 bg-muted text-xs font-medium text-muted-foreground">
-                <span>#</span><span>Cliente</span><span>Pagamento</span><span>Status</span><span className="text-right">Total</span><span className="text-right">Ações</span>
+                <span>#</span><span>Cliente</span><span>Pagamento</span><span>Status</span><span className="text-right">Total / Pago</span><span className="text-right">Ações</span>
               </div>
               {vendasFiltradas.map((v) => (
                 <div key={v.id} className={`grid grid-cols-6 gap-2 px-4 py-3 border-t border-border text-sm items-center ${v.status === "cancelada" ? "opacity-50" : ""}`}>
@@ -202,7 +211,15 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
                       {v.status === "cancelada" ? "Cancelada" : "Concluída"}
                     </Badge>
                   </span>
-                  <span className={`text-right font-semibold ${v.status === "cancelada" ? "line-through text-muted-foreground" : "text-primary"}`}>{formatarMoeda(v.total)}</span>
+                  <div className="text-right">
+                    <span className={`font-semibold ${v.status === "cancelada" ? "line-through text-muted-foreground" : "text-primary"}`}>{formatarMoeda(v.total)}</span>
+                    {/* Verificar se tem débito em aberto para essa venda */}
+                    {debitos.filter((d) => d.descricao?.includes(String(v.numero_venda).padStart(4,"0"))).map((d) => (
+                      <div key={d.id} className="text-xs text-amber-500 font-bold">
+                        {formatarMoeda(d.valor_aberto)} em aberto
+                      </div>
+                    ))}
+                  </div>
                   <div className="flex gap-1 justify-end">
                     {v.status === "concluida" && (
                       <>
@@ -224,6 +241,35 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
             </div>
           ) : (
             <p className="text-center text-muted-foreground py-12 text-sm">Nenhuma venda encontrada</p>
+          )}
+        </TabsContent>
+
+        <TabsContent value="areceber" className="mt-4 space-y-3">
+          {debitos.length === 0 ? (
+            <div className="py-12 text-center text-muted-foreground">
+              <Clock className="w-10 h-10 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">Nenhum valor a receber</p>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm text-muted-foreground">{debitos.length} débito(s) em aberto</p>
+                <p className="font-black text-amber-500">{formatarMoeda(totalAReceber)}</p>
+              </div>
+              <div className="border border-border rounded-xl overflow-hidden">
+                <div className="grid grid-cols-4 gap-2 px-4 py-2 bg-muted text-xs font-medium text-muted-foreground">
+                  <span>Cliente</span><span>Descrição</span><span className="text-right">Pago</span><span className="text-right">Em aberto</span>
+                </div>
+                {debitos.map((d) => (
+                  <div key={d.id} className="grid grid-cols-4 gap-2 px-4 py-3 border-t border-border text-sm items-center">
+                    <span className="truncate font-medium">{d.clientes?.nome_completo ?? "—"}</span>
+                    <span className="truncate text-xs text-muted-foreground">{d.descricao ?? "Venda"}</span>
+                    <span className="text-right text-emerald-500">{formatarMoeda(d.valor_pago)}</span>
+                    <span className="text-right font-bold text-amber-500">{formatarMoeda(d.valor_aberto)}</span>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </TabsContent>
 

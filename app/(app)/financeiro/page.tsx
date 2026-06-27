@@ -17,7 +17,7 @@ export default async function FinanceiroPage() {
   const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
   const fimMes = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59).toISOString()
 
-  const [{ data: vendas }, { data: movimentacoes }, { data: funcionarios }] = await Promise.all([
+  const [{ data: vendas }, { data: movimentacoes }, { data: funcionarios }, { data: debitos }] = await Promise.all([
     supabase.from("vendas")
       .select("*, itens_venda(nome_item, subtotal, comissao_valor, funcionario_id:venda_id), clientes(nome_completo)")
       .eq("empresa_id", empresa.id)
@@ -30,6 +30,11 @@ export default async function FinanceiroPage() {
       .gte("created_at", inicioMes)
       .lte("created_at", fimMes),
     supabase.from("funcionarios").select("id, nome").eq("empresa_id", empresa.id).eq("ativo", true),
+    supabase.from("debitos_clientes")
+      .select("id, cliente_id, valor_total, valor_pago, valor_aberto, status, created_at, descricao, clientes(nome_completo)")
+      .eq("empresa_id", empresa.id)
+      .in("status", ["aberto", "parcial"])
+      .order("created_at", { ascending: false }),
   ])
 
   return (
@@ -39,6 +44,7 @@ export default async function FinanceiroPage() {
       vendas={vendas ?? []}
       movimentacoes={movimentacoes ?? []}
       funcionarios={funcionarios ?? []}
+      debitos={debitos ?? []}
     />
   )
 }
