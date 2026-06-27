@@ -18,14 +18,31 @@ export async function POST(req: NextRequest) {
     const supabase = createAdminClient()
 
     const telefoneLimpo = telefone.replace(/\D/g, "")
+    // Telefone formatado no padrão brasileiro para match com cadastros manuais
+    const telefoneFormatado = telefoneLimpo.length === 11
+      ? `(${telefoneLimpo.slice(0,2)}) ${telefoneLimpo.slice(2,7)}-${telefoneLimpo.slice(7)}`
+      : telefoneLimpo.length === 10
+      ? `(${telefoneLimpo.slice(0,2)}) ${telefoneLimpo.slice(2,6)}-${telefoneLimpo.slice(6)}`
+      : telefoneLimpo
 
-    // Verificar se já existe cliente com mesmo telefone nessa empresa
-    const { data: existente } = await supabase
+    // Buscar cliente existente por telefone (limpo ou formatado) ou email
+    let { data: existente } = await supabase
       .from("clientes")
-      .select("id")
+      .select("id, email")
       .eq("empresa_id", empresa_id)
-      .eq("telefone", telefoneLimpo)
+      .or(`telefone.eq.${telefoneLimpo},telefone.eq.${telefoneFormatado}`)
       .maybeSingle()
+
+    // Se não achou por telefone, tenta por email
+    if (!existente && email) {
+      const { data: porEmail } = await supabase
+        .from("clientes")
+        .select("id, email")
+        .eq("empresa_id", empresa_id)
+        .eq("email", email)
+        .maybeSingle()
+      existente = porEmail
+    }
 
     let clienteId: string
 
@@ -72,7 +89,7 @@ export async function POST(req: NextRequest) {
         .from("agendamentos")
         .select("id")
         .eq("empresa_id", empresa_id)
-        .eq("telefone_cliente_avulso", telefoneLimpo)
+        .or(`telefone_cliente_avulso.eq.${telefoneLimpo},telefone_cliente_avulso.eq.${telefoneFormatado}`)
         .eq("data_hora", data_hora)
         .is("cliente_id", null)
         .maybeSingle()
