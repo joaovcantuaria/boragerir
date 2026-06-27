@@ -46,6 +46,7 @@ export function AgendamentoPublicoClient({ empresa, servicos, funcionarios }: {
   const [horarioSel, setHorarioSel] = useState<{ hora: number; min: number; label: string } | null>(null)
   const [mesAtual, setMesAtual] = useState(new Date())
   const [loading, setLoading] = useState(false)
+  const [emailConfirmacao, setEmailConfirmacao] = useState<string | null>(null)
   const supabase = createClient()
 
   const { register, handleSubmit, setValue, formState: { errors } } = useForm<FormData>({
@@ -81,6 +82,7 @@ export function AgendamentoPublicoClient({ empresa, servicos, funcionarios }: {
 
     if (error) { toast.error("Erro ao agendar. Tente novamente."); setLoading(false); return }
 
+    setEmailConfirmacao(dados.email || null)
     setEtapa("sucesso")
     setLoading(false)
   }
@@ -96,7 +98,7 @@ export function AgendamentoPublicoClient({ empresa, servicos, funcionarios }: {
           <h2 className="text-2xl font-black text-gray-900">Solicitação enviada! 🎉</h2>
           <p className="text-gray-500 mt-2 text-sm">
             Sua solicitação de agendamento foi recebida. O estabelecimento irá confirmar ou colocar na lista de espera em breve.
-            {dados?.email && <> Você receberá uma notificação no e-mail <strong>{dados.email}</strong>.</>}
+            {emailConfirmacao && <> Você receberá uma notificação no e-mail <strong>{emailConfirmacao}</strong>.</>}
           </p>
         </div>
         <div className="bg-gray-50 rounded-2xl p-4 text-sm space-y-2 text-left">
