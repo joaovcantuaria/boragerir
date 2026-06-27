@@ -3,8 +3,21 @@ import autoTable from "jspdf-autotable"
 import { formatarMoeda, formatarCPF, formatarCNPJ, formatarDataHora, labelsFormaPagamento, APP_CONFIG } from "@/lib/utils"
 import type { Empresa } from "@/types/index"
 
+function hexToRgb(hex: string): [number, number, number] {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return [isNaN(r) ? 242 : r, isNaN(g) ? 110 : g, isNaN(b) ? 29 : b]
+}
+
 interface GerarReciboParams {
-  empresa: Empresa
+  empresa: Empresa & {
+    doc_cor_primaria?: string | null
+    doc_mensagem_recibo?: string | null
+    doc_mostrar_cnpj?: boolean | null
+    doc_mostrar_endereco?: boolean | null
+    doc_mostrar_telefone?: boolean | null
+  }
   venda: {
     numero: number
     total: number
@@ -37,6 +50,14 @@ export async function gerarReciboPDF({ empresa, venda, cliente, itens }: GerarRe
   const doc = new jsPDF({ unit: "mm", format: "a4" })
   const isGratuito = empresa.plano === "gratuito"
 
+  // Configurações personalizadas
+  const corHex = empresa.doc_cor_primaria ?? "#F26E1D"
+  const corRGB = hexToRgb(corHex)
+  const msgRodape = empresa.doc_mensagem_recibo ?? "Obrigado pela preferência!"
+  const mostrarCnpj = empresa.doc_mostrar_cnpj ?? true
+  const mostrarEndereco = empresa.doc_mostrar_endereco ?? true
+  const mostrarTelefone = empresa.doc_mostrar_telefone ?? true
+
   // Marca d'água plano gratuito
   if (isGratuito) {
     doc.setFontSize(36)
@@ -46,9 +67,8 @@ export async function gerarReciboPDF({ empresa, venda, cliente, itens }: GerarRe
     doc.setTextColor(0, 0, 0)
   }
 
-  // ── HEADER ──
-  // Fundo laranja no header
-  doc.setFillColor(242, 110, 29) // #F26E1D
+  // Fundo da cor personalizada no header
+  doc.setFillColor(...corRGB)
   doc.rect(0, 0, 210, 42, "F")
 
   // Logo da empresa (se houver)
@@ -77,7 +97,7 @@ export async function gerarReciboPDF({ empresa, venda, cliente, itens }: GerarRe
   const docEmpresa = empresa.tipo_documento === "cnpj"
     ? `CNPJ: ${formatarCNPJ(empresa.documento ?? "")}`
     : `CPF: ${formatarCPF(empresa.documento ?? "")}`
-  doc.text(docEmpresa, xTextoInicio, 37)
+  if (mostrarCnpj) doc.text(docEmpresa, xTextoInicio, 37)
 
   // Rótulo RECIBO (canto direito)
   doc.setFontSize(16)
@@ -159,7 +179,7 @@ export async function gerarReciboPDF({ empresa, venda, cliente, itens }: GerarRe
   doc.setFont("helvetica", "bold")
   doc.setTextColor(26, 26, 26)
   doc.text("TOTAL:", col1, finalY + 18, { align: "right" })
-  doc.setTextColor(242, 110, 29)
+  doc.setTextColor(...corRGB)
   doc.text(formatarMoeda(venda.total), col2, finalY + 18, { align: "right" })
 
   // Forma de pagamento
@@ -174,7 +194,7 @@ export async function gerarReciboPDF({ empresa, venda, cliente, itens }: GerarRe
   // ── RODAPÉ ──
   doc.setFontSize(8)
   doc.setTextColor(180, 180, 180)
-  doc.text("Obrigado pela preferência! 🙏", 105, 278, { align: "center" })
+  doc.text(msgRodape, 105, 278, { align: "center" })
   doc.text(`Gerado por ${APP_CONFIG.nome} — ${APP_CONFIG.site}`, 105, 284, { align: "center" })
 
   doc.save(`recibo-${String(venda.numero).padStart(4, "0")}.pdf`)

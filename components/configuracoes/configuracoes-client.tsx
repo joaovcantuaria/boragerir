@@ -6,7 +6,7 @@ import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import {
   Loader2, Store, CreditCard, Tag, Star, Lock,
-  Plus, Trash2, Check, Upload, Camera
+  Plus, Trash2, Check, Upload, Camera, FileText
 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -51,6 +51,13 @@ export function ConfiguracoesClient({
   const [novaCategoria, setNovaCategoria] = useState("")
   const [tipoCat, setTipoCat] = useState<"produto" | "servico">("servico")
   const [novaSenha, setNovaSenha] = useState("")
+  const [docCorPrimaria, setDocCorPrimaria] = useState((empresa as any).doc_cor_primaria ?? "#F26E1D")
+  const [docMsgRecibo, setDocMsgRecibo] = useState((empresa as any).doc_mensagem_recibo ?? "Obrigado pela preferência!")
+  const [docMsgOrcamento, setDocMsgOrcamento] = useState((empresa as any).doc_mensagem_orcamento ?? "Este orçamento não tem valor fiscal.")
+  const [docMostrarCnpj, setDocMostrarCnpj] = useState((empresa as any).doc_mostrar_cnpj ?? true)
+  const [docMostrarEndereco, setDocMostrarEndereco] = useState((empresa as any).doc_mostrar_endereco ?? true)
+  const [docMostrarTelefone, setDocMostrarTelefone] = useState((empresa as any).doc_mostrar_telefone ?? true)
+  const [loadingDoc, setLoadingDoc] = useState(false)
   const logoRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
 
@@ -136,8 +143,22 @@ export function ConfiguracoesClient({
     toast.success("Categoria removida.")
   }
 
+  async function salvarDocumentos() {
+    setLoadingDoc(true)
+    const { error } = await supabase.from("empresas").update({
+      doc_cor_primaria: docCorPrimaria,
+      doc_mensagem_recibo: docMsgRecibo,
+      doc_mensagem_orcamento: docMsgOrcamento,
+      doc_mostrar_cnpj: docMostrarCnpj,
+      doc_mostrar_endereco: docMostrarEndereco,
+      doc_mostrar_telefone: docMostrarTelefone,
+    } as any).eq("id", empresa.id)
+    if (error) { toast.error("Erro ao salvar."); setLoadingDoc(false); return }
+    toast.success("Configurações dos documentos salvas!")
+    setLoadingDoc(false)
+  }
+
   async function alterarSenha() {
-    if (novaSenha.length < 6) { toast.error("Senha deve ter ao menos 6 caracteres."); return }
     const { error } = await supabase.auth.updateUser({ password: novaSenha })
     if (error) { toast.error("Erro ao alterar senha."); return }
     setNovaSenha("")
@@ -154,7 +175,7 @@ export function ConfiguracoesClient({
       </div>
 
       <Tabs defaultValue="negocio">
-        <TabsList className="grid grid-cols-4 w-full">
+        <TabsList className="grid grid-cols-5 w-full">
           <TabsTrigger value="negocio" className="gap-1.5 text-xs font-semibold">
             <Store className="w-3.5 h-3.5" /><span className="hidden sm:inline">Negócio</span>
           </TabsTrigger>
@@ -163,6 +184,9 @@ export function ConfiguracoesClient({
           </TabsTrigger>
           <TabsTrigger value="categorias" className="gap-1.5 text-xs font-semibold">
             <Tag className="w-3.5 h-3.5" /><span className="hidden sm:inline">Categorias</span>
+          </TabsTrigger>
+          <TabsTrigger value="documentos" className="gap-1.5 text-xs font-semibold">
+            <FileText className="w-3.5 h-3.5" /><span className="hidden sm:inline">Documentos</span>
           </TabsTrigger>
           <TabsTrigger value="conta" className="gap-1.5 text-xs font-semibold">
             <Lock className="w-3.5 h-3.5" /><span className="hidden sm:inline">Conta</span>
@@ -403,6 +427,98 @@ export function ConfiguracoesClient({
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-4">Nenhuma categoria criada</p>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── ABA DOCUMENTOS ── */}
+        <TabsContent value="documentos" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Layout de Recibos e Orçamentos</CardTitle>
+              <CardDescription>Personalize a aparência dos seus documentos PDF</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+
+              {/* Cor primária */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-5 rounded-full bg-primary" />
+                  <h3 className="font-bold text-sm">Cor dos documentos</h3>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <input type="color" value={docCorPrimaria}
+                      onChange={(e) => setDocCorPrimaria(e.target.value)}
+                      className="w-12 h-12 rounded-xl border border-border cursor-pointer p-1" />
+                    <div>
+                      <p className="text-sm font-semibold">{docCorPrimaria}</p>
+                      <p className="text-xs text-muted-foreground">Cor do cabeçalho e destaques</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    {["#F26E1D", "#1a1a2e", "#22c55e", "#3b82f6", "#8b5cf6", "#ef4444"].map((cor) => (
+                      <button key={cor} type="button"
+                        onClick={() => setDocCorPrimaria(cor)}
+                        className={`w-8 h-8 rounded-lg border-2 transition-all hover:scale-110 ${docCorPrimaria === cor ? "border-foreground scale-110" : "border-transparent"}`}
+                        style={{ backgroundColor: cor }} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Informações exibidas */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-5 rounded-full bg-primary" />
+                  <h3 className="font-bold text-sm">Informações exibidas no documento</h3>
+                </div>
+                <div className="space-y-2">
+                  {[
+                    { label: "Mostrar CNPJ/CPF da empresa", value: docMostrarCnpj, set: setDocMostrarCnpj },
+                    { label: "Mostrar endereço completo", value: docMostrarEndereco, set: setDocMostrarEndereco },
+                    { label: "Mostrar telefone", value: docMostrarTelefone, set: setDocMostrarTelefone },
+                  ].map(({ label, value, set }) => (
+                    <label key={label} className="flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-muted transition-colors cursor-pointer">
+                      <span className="text-sm">{label}</span>
+                      <button type="button" onClick={() => set(!value)}
+                        className={`relative w-11 h-6 rounded-full transition-colors ${value ? "bg-primary" : "bg-muted-foreground/30"}`}>
+                        <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${value ? "translate-x-5" : "translate-x-0.5"}`} />
+                      </button>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Mensagens personalizadas */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-5 rounded-full bg-primary" />
+                  <h3 className="font-bold text-sm">Mensagens personalizadas</h3>
+                </div>
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label>Rodapé do Recibo</Label>
+                    <Input value={docMsgRecibo} onChange={(e) => setDocMsgRecibo(e.target.value)}
+                      placeholder="Ex: Obrigado pela preferência!" maxLength={100} />
+                    <p className="text-xs text-muted-foreground">Aparece no final de cada recibo de venda</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Rodapé do Orçamento</Label>
+                    <Input value={docMsgOrcamento} onChange={(e) => setDocMsgOrcamento(e.target.value)}
+                      placeholder="Ex: Este orçamento não tem valor fiscal." maxLength={100} />
+                    <p className="text-xs text-muted-foreground">Aparece no final de cada orçamento</p>
+                  </div>
+                </div>
+              </div>
+
+              <Button onClick={salvarDocumentos} disabled={loadingDoc} className="font-bold">
+                {loadingDoc ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Salvando...</> : "Salvar configurações"}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
