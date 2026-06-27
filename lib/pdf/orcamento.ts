@@ -103,8 +103,9 @@ export async function gerarOrcamentoPDF({ empresa, orcamento, cliente, itens }: 
   }
 
   doc.setFontSize(8); doc.setTextColor(180, 180, 180)
-  doc.text("Este orçamento não tem valor fiscal.", 105, 275, { align: "center" })
-  doc.text(`Gerado por ${APP_CONFIG.nome} — ${APP_CONFIG.site}`, 105, 281, { align: "center" })
+  doc.text("Este orçamento não tem valor fiscal.", 105, 273, { align: "center" })
+  doc.setFontSize(7); doc.setTextColor(200, 200, 200)
+  doc.text(`Gerado por Bora Gerir — app.boragerir.com`, 105, 279, { align: "center" })
 
   doc.save(`orcamento-${String(orcamento.numero_orcamento).padStart(4, "0")}.pdf`)
 }

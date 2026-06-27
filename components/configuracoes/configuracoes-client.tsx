@@ -481,11 +481,15 @@ export function ConfiguracoesClient({
                     { label: "Mostrar endereço completo", value: docMostrarEndereco, set: setDocMostrarEndereco },
                     { label: "Mostrar telefone", value: docMostrarTelefone, set: setDocMostrarTelefone },
                   ].map(({ label, value, set }) => (
-                    <label key={label} className="flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-muted transition-colors cursor-pointer">
-                      <span className="text-sm">{label}</span>
+                    <label key={label} className="flex items-center justify-between py-3 px-4 rounded-xl border border-border hover:bg-muted/50 transition-colors cursor-pointer">
+                      <div>
+                        <span className="text-sm font-medium">{label}</span>
+                        <p className="text-xs text-muted-foreground mt-0.5">{value ? "Visível no documento" : "Oculto no documento"}</p>
+                      </div>
                       <button type="button" onClick={() => set(!value)}
-                        className={`relative w-11 h-6 rounded-full transition-colors ${value ? "bg-primary" : "bg-muted-foreground/30"}`}>
-                        <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${value ? "translate-x-5" : "translate-x-0.5"}`} />
+                        style={{ backgroundColor: value ? "#F26E1D" : undefined }}
+                        className={`relative w-12 h-6 rounded-full transition-all flex-shrink-0 ${!value ? "bg-gray-200 dark:bg-gray-700" : ""}`}>
+                        <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${value ? "translate-x-6" : "translate-x-0.5"}`} />
                       </button>
                     </label>
                   ))}

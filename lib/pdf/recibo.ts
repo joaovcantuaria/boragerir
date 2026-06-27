@@ -194,8 +194,10 @@ export async function gerarReciboPDF({ empresa, venda, cliente, itens }: GerarRe
   // ── RODAPÉ ──
   doc.setFontSize(8)
   doc.setTextColor(180, 180, 180)
-  doc.text(msgRodape, 105, 278, { align: "center" })
-  doc.text(`Gerado por ${APP_CONFIG.nome} — ${APP_CONFIG.site}`, 105, 284, { align: "center" })
+  doc.text(msgRodape, 105, 276, { align: "center" })
+  doc.setFontSize(7)
+  doc.setTextColor(200, 200, 200)
+  doc.text(`Gerado por Bora Gerir — app.boragerir.com`, 105, 282, { align: "center" })
 
   doc.save(`recibo-${String(venda.numero).padStart(4, "0")}.pdf`)
 }
