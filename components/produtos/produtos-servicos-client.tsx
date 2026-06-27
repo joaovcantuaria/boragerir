@@ -67,7 +67,9 @@ export function ProdutosServicosClient({
   const [tipoModal, setTipoModal] = useState<"produto" | "servico">("produto")
   const [editando, setEditando] = useState<ProdutoServico | null>(null)
   const [loading, setLoading] = useState(false)
-  const supabase = createClient()
+  const [criandoCategoria, setCriandoCategoria] = useState(false)
+  const [nomeNovaCategoria, setNomeNovaCategoria] = useState("")
+  const [loadingCategoria, setLoadingCategoria] = useState(false)
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<FormProduto>({
     resolver: zodResolver(schemaProduto),
@@ -84,6 +86,25 @@ export function ProdutosServicosClient({
     p.nome.toLowerCase().includes(busca.toLowerCase())
   )
 
+  const supabase = createClient()
+
+  async function criarCategoria() {
+    if (!nomeNovaCategoria.trim()) return
+    setLoadingCategoria(true)
+    const { data: nova, error } = await supabase
+      .from("categorias")
+      .insert({ empresa_id: empresaId, nome: nomeNovaCategoria.trim(), tipo: tipoModal })
+      .select()
+      .single()
+    if (error) { toast.error("Erro ao criar categoria."); setLoadingCategoria(false); return }
+    setCategorias((prev) => [...prev, nova])
+    setValue("categoria_id", nova.id)
+    setNomeNovaCategoria("")
+    setCriandoCategoria(false)
+    setLoadingCategoria(false)
+    toast.success("Categoria criada!")
+  }
+
   function abrirModalNovo(tipo: "produto" | "servico") {
     if (plano === "gratuito") {
       const qtdAtiva = produtos.filter((p) => p.ativo).length
@@ -95,12 +116,16 @@ export function ProdutosServicosClient({
     setTipoModal(tipo)
     setEditando(null)
     reset({ tipo })
+    setCriandoCategoria(false)
+    setNomeNovaCategoria("")
     setModalAberto(true)
   }
 
   function abrirModalEditar(produto: ProdutoServico) {
     setEditando(produto)
     setTipoModal(produto.tipo)
+    setCriandoCategoria(false)
+    setNomeNovaCategoria("")
     reset({
       nome: produto.nome,
       tipo: produto.tipo,
@@ -274,14 +299,55 @@ export function ProdutosServicosClient({
             </div>
             <div className="space-y-2">
               <Label>Categoria</Label>
-              <Select onValueChange={(v) => setValue("categoria_id", v)}>
-                <SelectTrigger><SelectValue placeholder="Selecionar categoria" /></SelectTrigger>
-                <SelectContent>
-                  {categorias.filter((c) => c.tipo === tipoModal).map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <Select
+                  value={watch("categoria_id") ?? ""}
+                  onValueChange={(v) => setValue("categoria_id", v)}
+                >
+                  <SelectTrigger className="flex-1"><SelectValue placeholder="Selecionar categoria" /></SelectTrigger>
+                  <SelectContent>
+                    {categorias.filter((c) => c.tipo === tipoModal).map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  title="Criar nova categoria"
+                  onClick={() => setCriandoCategoria((v) => !v)}
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+              {criandoCategoria && (
+                <div className="flex gap-2 mt-1">
+                  <Input
+                    placeholder="Nome da nova categoria"
+                    value={nomeNovaCategoria}
+                    onChange={(e) => setNomeNovaCategoria(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); criarCategoria() } }}
+                    autoFocus
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={loadingCategoria || !nomeNovaCategoria.trim()}
+                    onClick={criarCategoria}
+                  >
+                    {loadingCategoria ? <Loader2 className="w-4 h-4 animate-spin" /> : "Criar"}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => { setCriandoCategoria(false); setNomeNovaCategoria("") }}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
