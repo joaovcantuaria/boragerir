@@ -148,9 +148,18 @@ export function VendaClient({
   async function finalizarVenda() {
     if (itens.length === 0) { toast.error("Adicione ao menos um item."); return }
     if (!formaPagamento) { toast.error("Selecione a forma de pagamento."); return }
+    if (formaPagamento === "debito_cliente" && !clienteSelecionado) {
+      toast.error("Selecione um cliente para lançar o débito."); return
+    }
     if (!caixaId) { toast.error("Abra o caixa antes de realizar vendas.", { action: { label: "Ir para o caixa", onClick: () => window.location.href = "/caixa" } }); return }
 
     setLoading(true)
+
+    const isDebito = formaPagamento === "debito_cliente"
+    const valorPagoAgora = isDebito ? (parseFloat(valorRecebido) || 0) : total
+    const formaPagFinal = isDebito
+      ? (valorPagoAgora > 0 ? "dinheiro" : "outro")
+      : formaPagamento as "dinheiro" | "cartao_credito" | "cartao_debito" | "pix" | "outro"
     // Criar venda
     const { data: venda, error: errVenda } = await supabase
       .from("vendas")
@@ -162,7 +171,7 @@ export function VendaClient({
         subtotal,
         desconto: descontoValor,
         total,
-        forma_pagamento: formaPagamento as "dinheiro" | "cartao_credito" | "cartao_debito" | "pix" | "outro",
+        forma_pagamento: formaPagFinal,
         parcelas: parseInt(parcelas) || 1,
         status: "concluida",
         observacoes: observacoes || null,
@@ -194,9 +203,26 @@ export function VendaClient({
       tipo: "entrada",
       categoria: "venda",
       descricao: `Venda #${venda.numero_venda} - ${clienteSelecionado?.nome_completo ?? "Sem cliente"}`,
-      valor: total,
+      valor: isDebito ? valorPagoAgora : total,
       venda_id: venda.id,
     })
+
+    // Registrar débito do cliente se for pagamento em débito
+    if (isDebito && clienteSelecionado) {
+      const valorAberto = total - valorPagoAgora
+      if (valorAberto > 0) {
+        await supabase.from("debitos_clientes").insert({
+          empresa_id: empresa.id,
+          cliente_id: clienteSelecionado.id,
+          venda_id: venda.id,
+          valor_total: total,
+          valor_pago: valorPagoAgora,
+          valor_aberto: valorAberto,
+          descricao: `Venda #${venda.numero_venda}`,
+          status: valorPagoAgora > 0 ? "parcial" : "aberto",
+        })
+      }
+    }
 
     // Atualizar estoque de produtos
     for (const item of itens) {
@@ -241,6 +267,8 @@ export function VendaClient({
     setValorRecebido("")
     setVendaFinalizada(null)
     setModalSucesso(false)
+    setBuscaCliente("")
+    setBuscaProduto("")
   }
 
   function imprimirRecibo() {
@@ -295,18 +323,18 @@ export function VendaClient({
                   onFocus={() => setMostrarBuscaProduto(true)}
                 />
                 {mostrarBuscaProduto && buscaProduto && (
-                  <div className="absolute top-full left-0 right-0 z-10 bg-popover border border-border rounded-md shadow-lg mt-1 max-h-60 overflow-y-auto">
+                  <div className="absolute top-full left-0 right-0 z-50 bg-white dark:bg-zinc-900 border border-border rounded-xl shadow-xl mt-1 max-h-60 overflow-y-auto">
                     {produtosFiltrados.length > 0 ? produtosFiltrados.map((p) => (
                       <button
                         key={p.id}
-                        className="w-full text-left px-3 py-2.5 hover:bg-muted flex items-center justify-between text-sm"
+                        className="w-full text-left px-3 py-2.5 hover:bg-muted flex items-center justify-between text-sm transition-colors"
                         onClick={() => adicionarItem(p)}
                       >
                         <div>
-                          <span className="font-medium">{p.nome}</span>
+                          <span className="font-semibold text-foreground">{p.nome}</span>
                           <span className="ml-2 text-xs text-muted-foreground capitalize">({p.tipo})</span>
                         </div>
-                        <span className="font-semibold text-primary">{formatarMoeda(p.preco)}</span>
+                        <span className="font-bold text-primary">{formatarMoeda(p.preco)}</span>
                       </button>
                     )) : (
                       <p className="px-3 py-2 text-sm text-muted-foreground">Nenhum resultado</p>
@@ -385,11 +413,11 @@ export function VendaClient({
                   </button>
                 )}
                 {mostrarBuscaCliente && buscaCliente && !clienteSelecionado && (
-                  <div className="absolute top-full left-0 right-0 z-10 bg-popover border border-border rounded-md shadow-lg mt-1 max-h-48 overflow-y-auto">
+                  <div className="absolute top-full left-0 right-0 z-50 bg-white dark:bg-zinc-900 border border-border rounded-xl shadow-xl mt-1 max-h-48 overflow-y-auto">
                     {clientesFiltrados.map((c) => (
-                      <button key={c.id} className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
+                      <button key={c.id} className="w-full text-left px-3 py-2.5 hover:bg-muted text-sm transition-colors"
                         onClick={() => { setClienteSelecionado(c); setBuscaCliente(""); setMostrarBuscaCliente(false) }}>
-                        <p className="font-medium">{c.nome_completo}</p>
+                        <p className="font-semibold text-foreground">{c.nome_completo}</p>
                         <p className="text-xs text-muted-foreground">{c.telefone}</p>
                       </button>
                     ))}
@@ -471,15 +499,27 @@ export function VendaClient({
                   <button
                     key={fp}
                     onClick={() => setFormaPagamento(fp)}
-                    className={`py-2 px-3 rounded-lg border text-xs font-medium transition-colors ${
+                    style={formaPagamento === fp ? { backgroundColor: "#F26E1D", color: "#ffffff", borderColor: "#F26E1D" } : {}}
+                    className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all ${
                       formaPagamento === fp
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border hover:border-primary/50"
+                        ? "shadow-sm"
+                        : "border-border text-foreground hover:border-primary/50 hover:text-primary"
                     }`}
                   >
                     {labelsFormaPagamento[fp]}
                   </button>
                 ))}
+                <button
+                  onClick={() => setFormaPagamento("debito_cliente")}
+                  style={formaPagamento === "debito_cliente" ? { backgroundColor: "#F26E1D", color: "#ffffff", borderColor: "#F26E1D" } : {}}
+                  className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all col-span-2 ${
+                    formaPagamento === "debito_cliente"
+                      ? "shadow-sm"
+                      : "border-dashed border-amber-400 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10"
+                  }`}
+                >
+                  📋 Lançar como débito do cliente
+                </button>
               </div>
 
               {formaPagamento === "dinheiro" && (
@@ -496,6 +536,37 @@ export function VendaClient({
                   />
                   {troco !== null && troco > 0 && (
                     <p className="text-xs text-emerald-500 mt-1">Troco: {formatarMoeda(troco)}</p>
+                  )}
+                </div>
+              )}
+
+              {formaPagamento === "debito_cliente" && (
+                <div className="space-y-2">
+                  {!clienteSelecionado && (
+                    <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-500/10 px-3 py-2 rounded-lg">
+                      ⚠️ Selecione um cliente para lançar o débito
+                    </p>
+                  )}
+                  <div>
+                    <Label className="text-xs">Valor pago agora (opcional)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max={total}
+                      placeholder="0,00 — deixe vazio para débito total"
+                      value={valorRecebido}
+                      onChange={(e) => setValorRecebido(e.target.value)}
+                      className="mt-1 h-8 text-sm"
+                    />
+                  </div>
+                  {total > 0 && (
+                    <div className="flex justify-between text-xs px-1">
+                      <span className="text-muted-foreground">Valor em débito:</span>
+                      <span className="font-bold text-amber-600">
+                        {formatarMoeda(total - (parseFloat(valorRecebido) || 0))}
+                      </span>
+                    </div>
                   )}
                 </div>
               )}
