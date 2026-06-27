@@ -66,7 +66,7 @@ export function AgendamentoPublicoClient({ empresa, servicos, funcionarios }: {
 
     const dataHora = setMinutes(setHours(dataSel, horarioSel.hora), horarioSel.min)
 
-    const { error } = await supabase.from("agendamentos").insert({
+    const { data: agendamentoInserido, error } = await supabase.from("agendamentos").insert({
       empresa_id: empresa.id,
       servico_id: servicoSel.id,
       funcionario_id: funcionarioSel?.id ?? null,
@@ -78,9 +78,22 @@ export function AgendamentoPublicoClient({ empresa, servicos, funcionarios }: {
       telefone_cliente_avulso: dados.telefone,
       email_cliente: dados.email || null,
       observacoes: dados.observacoes || null,
-    })
+    }).select("id").single()
 
     if (error) { toast.error("Erro ao agendar. Tente novamente."); setLoading(false); return }
+
+    // Cadastrar cliente automaticamente e vincular ao agendamento (silencioso)
+    fetch("/api/agendamentos/cadastrar-cliente-avulso", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        empresa_id: empresa.id,
+        nome: dados.nome,
+        telefone: dados.telefone,
+        email: dados.email || null,
+        agendamento_id: agendamentoInserido.id,
+      }),
+    }).catch(() => {})
 
     // Disparar e-mail de confirmação de solicitação para o cliente
     if (dados.email) {
