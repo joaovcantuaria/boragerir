@@ -82,6 +82,22 @@ export function AgendamentoPublicoClient({ empresa, servicos, funcionarios }: {
 
     if (error) { toast.error("Erro ao agendar. Tente novamente."); setLoading(false); return }
 
+    // Disparar e-mail de confirmação de solicitação para o cliente
+    if (dados.email) {
+      fetch("/api/agendamentos/notificar-solicitacao", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nomeCliente: dados.nome,
+          emailCliente: dados.email,
+          nomeEmpresa: empresa.nome,
+          telefoneEmpresa: empresa.telefone,
+          servico: servicoSel.nome,
+          dataHora: dataHora.toISOString(),
+        }),
+      }).catch(() => {}) // silencioso — não bloqueia o fluxo
+    }
+
     setEmailConfirmacao(dados.email || null)
     setEtapa("sucesso")
     setLoading(false)
