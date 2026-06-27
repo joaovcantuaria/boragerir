@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Plus, Search, UserPlus, Loader2, Cake, Phone, Mail, Edit, Star, User, Building2 } from "lucide-react"
+import { Plus, Search, UserPlus, Loader2, Cake, Phone, Mail, Edit, Star, User, Building2, AlertTriangle, CreditCard, CheckCircle } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,10 +15,11 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { createClient } from "@/lib/supabase/client"
 import {
   formatarCPF, formatarTelefone, validarCPF,
-  eAniversarianteHoje, eAniversarianteEstaSemana, formatarData
+  eAniversarianteHoje, eAniversarianteEstaSemana, formatarData, formatarMoeda
 } from "@/lib/utils"
 import type { Cliente } from "@/types"
 
@@ -76,17 +77,30 @@ export function ClientesClient({
   empresaId,
   plano,
   clientes: clientesIniciais,
+  debitos: debitosIniciais,
 }: {
   empresaId: string
   plano: string
   clientes: Cliente[]
+  debitos: { id: string; cliente_id: string; valor_aberto: number; status: string }[]
 }) {
   const [clientes, setClientes] = useState(clientesIniciais)
+  const [debitos, setDebitos] = useState(debitosIniciais)
   const [busca, setBusca] = useState("")
   const [modalAberto, setModalAberto] = useState(false)
   const [editando, setEditando] = useState<Cliente | null>(null)
   const [loading, setLoading] = useState(false)
   const [tipoPessoa, setTipoPessoa] = useState<"pf" | "pj">("pf")
+  // Modal quitar débito
+  const [modalQuitarAberto, setModalQuitarAberto] = useState(false)
+  const [clienteQuitarId, setClienteQuitarId] = useState<string>("")
+  const [debitosDoCliente, setDebitosDoCliente] = useState<{
+    id: string; descricao: string | null; valor_total: number; valor_pago: number; valor_aberto: number; status: string; created_at: string
+  }[]>([])
+  const [selectedDebitos, setSelectedDebitos] = useState<Set<string>>(new Set())
+  const [formaPagQuite, setFormaPagQuite] = useState("")
+  const [loadingQuite, setLoadingQuite] = useState(false)
+  const [loadingDebitosCliente, setLoadingDebitosCliente] = useState(false)
   const supabase = createClient()
   const router = useRouter()
 
@@ -180,6 +194,57 @@ export function ClientesClient({
     setLoading(false)
   }
 
+  // ── Funções de débito ────────────────────────────────────────────────────────
+  function debitosPorCliente(clienteId: string) {
+    return debitos.filter((d) => d.cliente_id === clienteId)
+  }
+
+  function totalDebitoCliente(clienteId: string) {
+    return debitosPorCliente(clienteId).reduce((s, d) => s + d.valor_aberto, 0)
+  }
+
+  async function abrirQuitarDebito(clienteId?: string) {
+    setModalQuitarAberto(true)
+    setClienteQuitarId(clienteId ?? "")
+    setSelectedDebitos(new Set())
+    setFormaPagQuite("")
+    setDebitosDoCliente([])
+    if (clienteId) await buscarDebitosCliente(clienteId)
+  }
+
+  async function buscarDebitosCliente(clienteId: string) {
+    setLoadingDebitosCliente(true)
+    const { data } = await supabase
+      .from("debitos_clientes")
+      .select("id, descricao, valor_total, valor_pago, valor_aberto, status, created_at")
+      .eq("cliente_id", clienteId)
+      .in("status", ["aberto", "parcial"])
+      .order("created_at")
+    setDebitosDoCliente(data ?? [])
+    setSelectedDebitos(new Set((data ?? []).map((d) => d.id)))
+    setLoadingDebitosCliente(false)
+  }
+
+  async function quitarDebitos() {
+    if (!formaPagQuite) { toast.error("Selecione a forma de pagamento."); return }
+    if (selectedDebitos.size === 0) { toast.error("Selecione ao menos um débito."); return }
+    setLoadingQuite(true)
+    for (const debitoId of selectedDebitos) {
+      const debito = debitosDoCliente.find((d) => d.id === debitoId)
+      if (!debito) continue
+      await supabase.from("debitos_clientes").update({
+        valor_pago: debito.valor_total,
+        valor_aberto: 0,
+        status: "pago",
+        updated_at: new Date().toISOString(),
+      }).eq("id", debitoId)
+    }
+    setDebitos((prev) => prev.filter((d) => !selectedDebitos.has(d.id)))
+    toast.success(`${selectedDebitos.size} débito(s) quitado(s)!`)
+    setModalQuitarAberto(false)
+    setLoadingQuite(false)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -187,12 +252,31 @@ export function ClientesClient({
           <h1 className="text-2xl font-bold">Clientes</h1>
           <p className="text-muted-foreground">{clientes.length} cliente{clientes.length !== 1 ? "s" : ""} cadastrado{clientes.length !== 1 ? "s" : ""}</p>
         </div>
-        <Button onClick={abrirModalNovo} className="gap-2">
-          <UserPlus className="w-4 h-4" />
-          <span className="hidden sm:inline">Novo Cliente</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          {debitos.length > 0 && (
+            <Button variant="outline" onClick={() => abrirQuitarDebito()} className="gap-2 border-amber-400 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10">
+              <AlertTriangle className="w-4 h-4" />
+              <span className="hidden sm:inline">Quitar Débitos</span>
+              <span className="bg-amber-500 text-white text-xs font-black px-1.5 py-0.5 rounded-full">{debitos.length}</span>
+            </Button>
+          )}
+          <Button onClick={abrirModalNovo} className="gap-2">
+            <UserPlus className="w-4 h-4" />
+            <span className="hidden sm:inline">Novo Cliente</span>
+          </Button>
+        </div>
       </div>
 
+      <Tabs defaultValue="clientes">
+        <TabsList>
+          <TabsTrigger value="clientes">Clientes</TabsTrigger>
+          <TabsTrigger value="debitos" className="gap-2">
+            Débitos
+            {debitos.length > 0 && <span className="bg-amber-500 text-white text-xs font-black px-1.5 py-0.5 rounded-full">{debitos.length}</span>}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="clientes" className="mt-4 space-y-4">
       {/* Busca */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -233,6 +317,13 @@ export function ClientesClient({
                               <Star className="w-2.5 h-2.5" />{cliente.pontos_fidelidade} pts
                             </Badge>
                           )}
+                          {totalDebitoCliente(cliente.id) > 0 && (
+                            <Badge className="text-xs gap-1 bg-amber-500/10 text-amber-600 border-amber-400/30 cursor-pointer hover:bg-amber-500/20"
+                              onClick={(e) => { e.stopPropagation(); abrirQuitarDebito(cliente.id) }}>
+                              <AlertTriangle className="w-2.5 h-2.5" />
+                              Débito {formatarMoeda(totalDebitoCliente(cliente.id))}
+                            </Badge>
+                          )}
                         </div>
                         <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
                           {(cliente as any).tipo_pessoa === "pj"
@@ -266,8 +357,156 @@ export function ClientesClient({
           )}
         </div>
       )}
+        </TabsContent>
 
-      {/* Modal */}
+        {/* ── ABA DÉBITOS ── */}
+        <TabsContent value="debitos" className="mt-4 space-y-3">
+          {debitos.length === 0 ? (
+            <div className="py-16 text-center">
+              <CheckCircle className="w-12 h-12 mx-auto mb-3 text-emerald-500 opacity-60" />
+              <p className="font-medium text-muted-foreground">Nenhum débito em aberto</p>
+              <p className="text-sm text-muted-foreground mt-1">Todos os clientes estão em dia!</p>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">{debitos.length} débito(s) em aberto</p>
+                <Button onClick={() => abrirQuitarDebito()} style={{ backgroundColor: "#F26E1D" }} className="gap-2 text-white hover:opacity-90">
+                  <CreditCard className="w-4 h-4" />
+                  Quitar débitos
+                </Button>
+              </div>
+              {clientes
+                .filter((c) => totalDebitoCliente(c.id) > 0)
+                .map((c) => {
+                  const total = totalDebitoCliente(c.id)
+                  const qtd = debitosPorCliente(c.id).length
+                  return (
+                    <Card key={c.id} className="border-amber-400/30 hover:border-amber-400/60 transition-colors">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
+                              <span className="text-sm font-bold text-amber-600">{c.nome_completo.charAt(0).toUpperCase()}</span>
+                            </div>
+                            <div>
+                              <p className="font-semibold text-sm">{c.nome_completo}</p>
+                              <p className="text-xs text-muted-foreground">{c.telefone} · {qtd} débito{qtd > 1 ? "s" : ""}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 shrink-0">
+                            <span className="font-black text-amber-600">{formatarMoeda(total)}</span>
+                            <Button size="sm" onClick={() => abrirQuitarDebito(c.id)}
+                              style={{ backgroundColor: "#F26E1D" }} className="text-white text-xs hover:opacity-90">
+                              Quitar
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+            </>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Modal Quitar Débito */}
+      <Dialog open={modalQuitarAberto} onOpenChange={(open) => { if (!open) setModalQuitarAberto(false) }}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Quitar Débitos</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Seletor de cliente */}
+            <div className="space-y-1.5">
+              <Label>Cliente</Label>
+              <select value={clienteQuitarId}
+                onChange={async (e) => { setClienteQuitarId(e.target.value); if (e.target.value) await buscarDebitosCliente(e.target.value) }}
+                className="w-full h-10 rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
+                <option value="">Selecionar cliente...</option>
+                {clientes.filter((c) => totalDebitoCliente(c.id) > 0).map((c) => (
+                  <option key={c.id} value={c.id}>{c.nome_completo} — {formatarMoeda(totalDebitoCliente(c.id))}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Débitos do cliente */}
+            {loadingDebitosCliente ? (
+              <div className="flex justify-center py-6"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+            ) : debitosDoCliente.length > 0 ? (
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wide">Débitos em aberto</Label>
+                {debitosDoCliente.map((d) => (
+                  <label key={d.id} className="flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-muted transition-colors cursor-pointer">
+                    <input type="checkbox"
+                      checked={selectedDebitos.has(d.id)}
+                      onChange={(e) => {
+                        const next = new Set(selectedDebitos)
+                        e.target.checked ? next.add(d.id) : next.delete(d.id)
+                        setSelectedDebitos(next)
+                      }}
+                      className="w-4 h-4 accent-primary rounded" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{d.descricao ?? "Débito"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(d.created_at).toLocaleDateString("pt-BR")} · Pago: {formatarMoeda(d.valor_pago)}
+                      </p>
+                    </div>
+                    <span className="font-black text-amber-600 shrink-0">{formatarMoeda(d.valor_aberto)}</span>
+                  </label>
+                ))}
+                {selectedDebitos.size > 0 && (
+                  <div className="flex justify-between text-sm font-bold px-1 pt-1">
+                    <span>Total a quitar:</span>
+                    <span className="text-primary">
+                      {formatarMoeda(debitosDoCliente.filter((d) => selectedDebitos.has(d.id)).reduce((s, d) => s + d.valor_aberto, 0))}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ) : clienteQuitarId ? (
+              <p className="text-sm text-muted-foreground text-center py-4">Nenhum débito em aberto para este cliente</p>
+            ) : null}
+
+            {/* Forma de pagamento */}
+            {debitosDoCliente.length > 0 && (
+              <div className="space-y-1.5">
+                <Label>Forma de pagamento</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { value: "dinheiro", label: "Dinheiro" },
+                    { value: "pix", label: "PIX" },
+                    { value: "cartao_debito", label: "Débito" },
+                    { value: "cartao_credito", label: "Crédito" },
+                    { value: "pix", label: "PIX" },
+                    { value: "outro", label: "Outro" },
+                  ].filter((v, i, arr) => arr.findIndex((x) => x.value === v.value) === i).map((fp) => (
+                    <button key={fp.value} type="button"
+                      onClick={() => setFormaPagQuite(fp.value)}
+                      style={formaPagQuite === fp.value ? { backgroundColor: "#F26E1D", color: "#ffffff", borderColor: "#F26E1D" } : {}}
+                      className={`py-2 rounded-xl border text-xs font-bold transition-all ${
+                        formaPagQuite === fp.value ? "" : "border-border text-foreground hover:border-primary/50"
+                      }`}>
+                      {fp.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setModalQuitarAberto(false)}>Cancelar</Button>
+            <Button onClick={quitarDebitos} disabled={loadingQuite || selectedDebitos.size === 0 || !formaPagQuite}
+              style={{ backgroundColor: "#F26E1D" }} className="text-white hover:opacity-90">
+              {loadingQuite ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+              Quitar {selectedDebitos.size > 0 ? `${selectedDebitos.size} débito${selectedDebitos.size > 1 ? "s" : ""}` : ""}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal cadastro/edição de cliente */}
       <Dialog open={modalAberto} onOpenChange={setModalAberto}>
         <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>

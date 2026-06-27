@@ -14,12 +14,19 @@ export default async function ClientesPage() {
     .from("empresas").select("*").eq("user_id", user.id).single()
   if (!empresa) redirect("/onboarding")
 
-  const { data: clientes } = await supabase
-    .from("clientes")
-    .select("*")
-    .eq("empresa_id", empresa.id)
-    .eq("ativo", true)
-    .order("nome_completo")
+  const [{ data: clientes }, { data: debitos }] = await Promise.all([
+    supabase
+      .from("clientes")
+      .select("*")
+      .eq("empresa_id", empresa.id)
+      .eq("ativo", true)
+      .order("nome_completo"),
+    supabase
+      .from("debitos_clientes")
+      .select("id, cliente_id, valor_aberto, status")
+      .eq("empresa_id", empresa.id)
+      .in("status", ["aberto", "parcial"]),
+  ])
 
-  return <ClientesClient empresaId={empresa.id} plano={empresa.plano} clientes={clientes ?? []} />
+  return <ClientesClient empresaId={empresa.id} plano={empresa.plano} clientes={clientes ?? []} debitos={debitos ?? []} />
 }
