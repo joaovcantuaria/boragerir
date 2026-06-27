@@ -1,5 +1,11 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
+import { LandingPage } from "@/components/landing/landing-page"
+
+export const metadata = {
+  title: "Bora Gerir — Gestão simples para pequenos negócios",
+  description: "Caixa, agendamentos, clientes, vendas e relatórios em um só lugar. Comece grátis hoje.",
+}
 
 export default async function HomePage() {
   const supabase = await createClient()
@@ -7,17 +13,9 @@ export default async function HomePage() {
 
   if (user) {
     const { data: empresa } = await supabase
-      .from("empresas")
-      .select("id")
-      .eq("user_id", user.id)
-      .single()
-
-    if (empresa) {
-      redirect("/dashboard")
-    } else {
-      redirect("/onboarding")
-    }
+      .from("empresas").select("id").eq("user_id", user.id).single()
+    redirect(empresa ? "/dashboard" : "/onboarding")
   }
 
-  redirect("/login")
+  return <LandingPage />
 }
