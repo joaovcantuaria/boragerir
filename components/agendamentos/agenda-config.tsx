@@ -1,22 +1,18 @@
 "use client"
 
 import { useState } from "react"
-import { Loader2, Save, Settings } from "lucide-react"
+import { Loader2, Save, Clock, Calendar, Coffee, Zap } from "lucide-react"
 import { toast } from "sonner"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { createClient } from "@/lib/supabase/client"
 
 const DIAS = [
-  { value: 0, label: "Dom" },
-  { value: 1, label: "Seg" },
-  { value: 2, label: "Ter" },
-  { value: 3, label: "Qua" },
-  { value: 4, label: "Qui" },
-  { value: 5, label: "Sex" },
-  { value: 6, label: "Sáb" },
+  { value: 0, label: "Dom", abrev: "D" },
+  { value: 1, label: "Seg", abrev: "S" },
+  { value: 2, label: "Ter", abrev: "T" },
+  { value: 3, label: "Qua", abrev: "Q" },
+  { value: 4, label: "Qui", abrev: "Q" },
+  { value: 5, label: "Sex", abrev: "S" },
+  { value: 6, label: "Sáb", abrev: "S" },
 ]
 
 interface AgendaConfigProps {
@@ -52,7 +48,6 @@ export function AgendaConfig({ empresaId, config: configInicial }: AgendaConfigP
 
   async function salvar() {
     if (dias.length === 0) { toast.error("Selecione ao menos um dia de atendimento."); return }
-    if (!horaInicio || !horaFim) { toast.error("Informe os horários de início e fim."); return }
     setLoading(true)
 
     const payload = {
@@ -73,11 +68,8 @@ export function AgendaConfig({ empresaId, config: configInicial }: AgendaConfigP
 
     if (error) {
       if (error.code === "23505") {
-        // Já existe, faz upsert
         const { error: errUpdate } = await supabase
-          .from("agenda_config")
-          .update(payload)
-          .eq("empresa_id", empresaId)
+          .from("agenda_config").update(payload).eq("empresa_id", empresaId)
         if (errUpdate) { toast.error("Erro ao salvar."); setLoading(false); return }
       } else {
         toast.error("Erro ao salvar configuração.")
@@ -86,11 +78,11 @@ export function AgendaConfig({ empresaId, config: configInicial }: AgendaConfigP
       }
     }
 
-    toast.success("Configuração salva! Os horários disponíveis foram atualizados.")
+    toast.success("Configuração salva com sucesso!")
     setLoading(false)
   }
 
-  // Preview dos slots que serão gerados
+  // Preview dos slots
   function gerarPreview(): string[] {
     const [hIni, mIni] = horaInicio.split(":").map(Number)
     const [hFim, mFim] = horaFim.split(":").map(Number)
@@ -112,115 +104,153 @@ export function AgendaConfig({ empresaId, config: configInicial }: AgendaConfigP
 
   const preview = gerarPreview()
 
+  const inputClass = "w-full h-11 rounded-xl border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+  const selectClass = "w-full h-11 rounded-xl border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all cursor-pointer"
+
   return (
-    <div className="space-y-5">
-      <div className="flex items-center gap-2">
-        <Settings className="w-5 h-5 text-primary" />
-        <h2 className="text-lg font-bold">Configuração da Agenda</h2>
-      </div>
+    <div className="max-w-2xl space-y-6">
 
       {/* Dias da semana */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold text-muted-foreground">Dias de atendimento</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-2 flex-wrap">
-            {DIAS.map((d) => (
+      <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Calendar className="w-4 h-4 text-primary" />
+          </div>
+          <div>
+            <p className="font-semibold text-sm">Dias de atendimento</p>
+            <p className="text-xs text-muted-foreground">Selecione os dias em que você atende</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-7 gap-2">
+          {DIAS.map((d) => {
+            const ativo = dias.includes(d.value)
+            return (
               <button key={d.value} type="button" onClick={() => toggleDia(d.value)}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all border ${
-                  dias.includes(d.value)
-                    ? "bg-primary text-white border-primary"
-                    : "border-border text-muted-foreground hover:border-primary/40"
+                className={`flex flex-col items-center gap-1 py-3 rounded-xl text-xs font-bold transition-all ${
+                  ativo
+                    ? "bg-primary text-white shadow-sm shadow-primary/30"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
                 }`}>
-                {d.label}
+                <span className="text-base leading-none">{d.abrev}</span>
+                <span className="text-[10px] font-medium opacity-80">{d.label}</span>
               </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+            )
+          })}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {dias.length === 0
+            ? "Nenhum dia selecionado"
+            : `${dias.length} dia${dias.length > 1 ? "s" : ""} selecionado${dias.length > 1 ? "s" : ""}`}
+        </p>
+      </div>
 
-      {/* Horários */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold text-muted-foreground">Horário de funcionamento</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>Início</Label>
-              <Input type="time" value={horaInicio} onChange={(e) => setHoraInicio(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Fim</Label>
-              <Input type="time" value={horaFim} onChange={(e) => setHoraFim(e.target.value)} />
-            </div>
+      {/* Horário de funcionamento */}
+      <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Clock className="w-4 h-4 text-primary" />
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>Intervalo entre slots (min)</Label>
-              <select value={intervalo} onChange={(e) => setIntervalo(e.target.value)}
-                className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
-                <option value="15">15 minutos</option>
-                <option value="30">30 minutos</option>
-                <option value="45">45 minutos</option>
-                <option value="60">1 hora</option>
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Duração padrão (min)</Label>
-              <select value={duracaoPadrao} onChange={(e) => setDuracaoPadrao(e.target.value)}
-                className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
-                <option value="30">30 minutos</option>
-                <option value="45">45 minutos</option>
-                <option value="60">1 hora</option>
-                <option value="90">1h30</option>
-                <option value="120">2 horas</option>
-              </select>
-            </div>
+          <div>
+            <p className="font-semibold text-sm">Horário de funcionamento</p>
+            <p className="text-xs text-muted-foreground">Defina o início e fim do expediente</p>
           </div>
-
+        </div>
+        <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <Label className="flex items-center gap-2">
-              Horário de almoço <span className="text-xs text-muted-foreground font-normal">(opcional)</span>
-            </Label>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="text-xs text-muted-foreground">Início</Label>
-                <Input type="time" value={almocoInicio} onChange={(e) => setAlmocoInicio(e.target.value)} className="mt-1" />
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">Fim</Label>
-                <Input type="time" value={almocoFim} onChange={(e) => setAlmocoFim(e.target.value)} className="mt-1" />
-              </div>
-            </div>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Abertura</label>
+            <input type="time" value={horaInicio} onChange={(e) => setHoraInicio(e.target.value)} className={inputClass} />
           </div>
-        </CardContent>
-      </Card>
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Encerramento</label>
+            <input type="time" value={horaFim} onChange={(e) => setHoraFim(e.target.value)} className={inputClass} />
+          </div>
+        </div>
+      </div>
 
-      {/* Preview dos slots */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold text-muted-foreground">
-            Preview — {preview.length} horários disponíveis por dia
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      {/* Slots */}
+      <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Zap className="w-4 h-4 text-primary" />
+          </div>
+          <div>
+            <p className="font-semibold text-sm">Slots de agendamento</p>
+            <p className="text-xs text-muted-foreground">Controle o tempo entre horários disponíveis</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Intervalo entre slots</label>
+            <select value={intervalo} onChange={(e) => setIntervalo(e.target.value)} className={selectClass}>
+              <option value="15">15 minutos</option>
+              <option value="30">30 minutos</option>
+              <option value="45">45 minutos</option>
+              <option value="60">1 hora</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Duração padrão</label>
+            <select value={duracaoPadrao} onChange={(e) => setDuracaoPadrao(e.target.value)} className={selectClass}>
+              <option value="30">30 minutos</option>
+              <option value="45">45 minutos</option>
+              <option value="60">1 hora</option>
+              <option value="90">1h30</option>
+              <option value="120">2 horas</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Almoço */}
+      <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Coffee className="w-4 h-4 text-primary" />
+          </div>
+          <div>
+            <p className="font-semibold text-sm">Pausa para almoço <span className="text-muted-foreground font-normal">(opcional)</span></p>
+            <p className="text-xs text-muted-foreground">Bloqueie horários de almoço automaticamente</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Início</label>
+            <input type="time" value={almocoInicio} onChange={(e) => setAlmocoInicio(e.target.value)} className={inputClass} />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Fim</label>
+            <input type="time" value={almocoFim} onChange={(e) => setAlmocoFim(e.target.value)} className={inputClass} />
+          </div>
+        </div>
+      </div>
+
+      {/* Preview */}
+      <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <p className="font-semibold text-sm">Preview dos horários</p>
+          <span className="text-xs bg-primary/10 text-primary font-bold px-2.5 py-1 rounded-full">
+            {preview.length} slots por dia
+          </span>
+        </div>
+        {preview.length > 0 ? (
           <div className="flex flex-wrap gap-1.5">
             {preview.map((slot) => (
-              <span key={slot} className="text-xs bg-primary/10 text-primary font-semibold px-2 py-1 rounded-lg">
+              <span key={slot} className="text-xs bg-muted text-foreground font-semibold px-2.5 py-1 rounded-lg border border-border">
                 {slot}
               </span>
             ))}
           </div>
-        </CardContent>
-      </Card>
+        ) : (
+          <p className="text-sm text-muted-foreground">Configure os horários acima para ver o preview</p>
+        )}
+      </div>
 
-      <Button onClick={salvar} disabled={loading} className="w-full gap-2 font-bold">
+      {/* Botão salvar */}
+      <button onClick={salvar} disabled={loading}
+        className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-sm shadow-primary/20">
         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-        Salvar configuração
-      </Button>
+        {loading ? "Salvando..." : "Salvar configuração"}
+      </button>
     </div>
   )
 }
