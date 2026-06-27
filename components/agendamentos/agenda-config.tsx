@@ -175,13 +175,13 @@ export function AgendaConfig({ empresaId, config: configInicial }: AgendaConfigP
             <Zap className="w-4 h-4 text-primary" />
           </div>
           <div>
-            <p className="font-semibold text-sm">Slots de agendamento</p>
-            <p className="text-xs text-muted-foreground">Controle o tempo entre horários disponíveis</p>
+            <p className="font-semibold text-sm">Horários disponíveis</p>
+            <p className="text-xs text-muted-foreground">Defina o intervalo e duração dos atendimentos</p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Intervalo entre slots</label>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Intervalo entre horários</label>
             <select value={intervalo} onChange={(e) => setIntervalo(e.target.value)} className={selectClass}>
               <option value="15">15 minutos</option>
               <option value="30">30 minutos</option>
