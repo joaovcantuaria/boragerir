@@ -57,8 +57,67 @@ export function ChatIA() {
   const [nomeUsuario, setNomeUsuario] = useState("você")
   const [conversas, setConversas] = useState<Conversa[]>([])
   const [carregandoHistorico, setCarregandoHistorico] = useState(false)
+  const [encerrado, setEncerrado] = useState(false)
+  const [aguardandoPresenca, setAguardandoPresenca] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const timerInatividade = useRef<NodeJS.Timeout | null>(null)
+  const timerEncerramento = useRef<NodeJS.Timeout | null>(null)
+
+  // Reinicia o timer de inatividade a cada mensagem
+  function reiniciarTimer() {
+    if (timerInatividade.current) clearTimeout(timerInatividade.current)
+    if (timerEncerramento.current) clearTimeout(timerEncerramento.current)
+    setAguardandoPresenca(false)
+
+    // 5 min sem resposta → pergunta se ainda está lá
+    timerInatividade.current = setTimeout(() => {
+      if (!conversaId) return
+      setAguardandoPresenca(true)
+      setMsgs((prev) => [...prev, {
+        role: "assistant",
+        conteudo: "Ei, ainda está aí? 😊 Quero ter certeza que resolvi tudo antes de encerrar nosso atendimento.",
+      }])
+
+      // 2 min sem resposta após a pergunta → encerra automaticamente
+      timerEncerramento.current = setTimeout(() => {
+        encerrarAutomaticamente()
+      }, 2 * 60 * 1000)
+    }, 5 * 60 * 1000)
+  }
+
+  async function encerrarAutomaticamente() {
+    if (timerInatividade.current) clearTimeout(timerInatividade.current)
+    if (timerEncerramento.current) clearTimeout(timerEncerramento.current)
+
+    if (conversaId) {
+      await fetch("/api/chat-ia", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ acao: "fechar_conversa", conversa_id: conversaId }),
+      }).catch(() => {})
+    }
+
+    setMsgs((prev) => [...prev, {
+      role: "assistant",
+      conteudo: "Como não tive resposta, encerrei nosso atendimento por inatividade. Se precisar de algo mais é só me chamar! 😊",
+    }])
+    setEncerrado(true)
+    setAguardandoPresenca(false)
+  }
+
+  // Limpar timers ao desmontar
+  useEffect(() => {
+    return () => {
+      if (timerInatividade.current) clearTimeout(timerInatividade.current)
+      if (timerEncerramento.current) clearTimeout(timerEncerramento.current)
+    }
+  }, [])
+
+  // Reiniciar timer quando conversa começa
+  useEffect(() => {
+    if (conversaId && !encerrado) reiniciarTimer()
+  }, [conversaId])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -112,12 +171,16 @@ export function ChatIA() {
   }
 
   function novaConversa() {
+    if (timerInatividade.current) clearTimeout(timerInatividade.current)
+    if (timerEncerramento.current) clearTimeout(timerEncerramento.current)
     setMsgs([{
       role: "assistant",
       conteudo: "Nova conversa iniciada! 😊 Como posso te ajudar?",
     }])
     setConversaId(null)
     setProtocolo("")
+    setEncerrado(false)
+    setAguardandoPresenca(false)
     setAba("chat")
   }
 
@@ -134,7 +197,11 @@ export function ChatIA() {
 
   async function enviar(texto?: string) {
     const msg = (texto ?? input).trim()
-    if (!msg || loading) return
+    if (!msg || loading || encerrado) return
+
+    // Reinicia timer de inatividade a cada mensagem do usuário
+    reiniciarTimer()
+    setAguardandoPresenca(false)
 
     setMsgs((p) => [...p, { role: "user", conteudo: msg }])
     setInput("")
@@ -154,11 +221,19 @@ export function ChatIA() {
       }
       if (data.nome_usuario) setNomeUsuario(data.nome_usuario)
 
-      setMsgs((p) => [...p, {
+      const respostaMel: Mensagem = {
         role: "assistant",
         conteudo: data.resposta,
         abrir_ticket: data.abrir_ticket,
-      }])
+      }
+      setMsgs((p) => [...p, respostaMel])
+
+      // Verificar se o atendimento foi encerrado pela Mel
+      if (data.encerrado) {
+        if (timerInatividade.current) clearTimeout(timerInatividade.current)
+        if (timerEncerramento.current) clearTimeout(timerEncerramento.current)
+        setEncerrado(true)
+      }
     } catch {
       setMsgs((p) => [...p, {
         role: "assistant",
@@ -430,30 +505,51 @@ export function ChatIA() {
 
                 {/* Input */}
                 <div style={{ background: "white", padding: "10px 12px", borderTop: "1px solid #f0f0f0", flexShrink: 0 }}>
-                  <div style={{
-                    display: "flex", alignItems: "center", gap: 8,
-                    background: "#f5f5f5", borderRadius: 12, padding: "7px 10px",
-                  }}>
-                    <input
-                      ref={inputRef}
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && enviar()}
-                      placeholder="Pergunte para a Mel..."
-                      disabled={loading}
-                      style={{ flex: 1, background: "none", border: "none", outline: "none", fontSize: 13, color: "#1a1a1a" }}
-                    />
-                    <button onClick={() => enviar()} disabled={!input.trim() || loading}
-                      style={{
-                        width: 30, height: 30, borderRadius: 9, border: "none",
-                        background: input.trim() ? "#F26E1D" : "#e5e7eb",
-                        cursor: input.trim() ? "pointer" : "default",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        transition: "background 0.15s",
+                  {encerrado ? (
+                    <div style={{ textAlign: "center", padding: "10px 0" }}>
+                      <div style={{
+                        display: "inline-flex", alignItems: "center", gap: 6,
+                        background: "#f0fdf4", border: "1px solid #86efac",
+                        borderRadius: 10, padding: "8px 14px",
+                        fontSize: 12, color: "#16a34a", fontWeight: 600,
                       }}>
-                      {loading ? <Loader2 size={13} color="white" /> : <Send size={13} color="white" />}
-                    </button>
-                  </div>
+                        <CheckCircle size={14} />
+                        Atendimento encerrado
+                      </div>
+                      <button onClick={novaConversa} style={{
+                        display: "block", margin: "8px auto 0", fontSize: 12,
+                        color: "#F26E1D", background: "none", border: "none",
+                        cursor: "pointer", fontWeight: 600, textDecoration: "underline",
+                      }}>
+                        Iniciar novo atendimento
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{
+                      display: "flex", alignItems: "center", gap: 8,
+                      background: "#f5f5f5", borderRadius: 12, padding: "7px 10px",
+                    }}>
+                      <input
+                        ref={inputRef}
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && enviar()}
+                        placeholder={aguardandoPresenca ? "Responda para continuar o atendimento..." : "Pergunte para a Mel..."}
+                        disabled={loading}
+                        style={{ flex: 1, background: "none", border: "none", outline: "none", fontSize: 13, color: "#1a1a1a" }}
+                      />
+                      <button onClick={() => enviar()} disabled={!input.trim() || loading}
+                        style={{
+                          width: 30, height: 30, borderRadius: 9, border: "none",
+                          background: input.trim() ? "#F26E1D" : "#e5e7eb",
+                          cursor: input.trim() ? "pointer" : "default",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          transition: "background 0.15s",
+                        }}>
+                        {loading ? <Loader2 size={13} color="white" /> : <Send size={13} color="white" />}
+                      </button>
+                    </div>
+                  )}
                   <p style={{ margin: "5px 0 0", textAlign: "center", fontSize: 10, color: "#ccc" }}>
                     Mel IA · Bora Gerir
                   </p>

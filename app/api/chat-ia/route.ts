@@ -114,6 +114,14 @@ Então diga algo como: "Olha ${nomeUsuario}, esse problema está além do que co
 
 Depois instrua: "Vai em **Suporte** no menu lateral → **Abrir ticket** → descreva o problema → enviar. Nossa equipe responde em até 24h nos dias úteis."
 
+## ENCERRAMENTO DO ATENDIMENTO
+Quando você resolver o problema do cliente ou responder a dúvida completamente, SEMPRE termine sua resposta com algo como:
+- "Consegui te ajudar com isso? Se tiver mais alguma dúvida é só falar! 😊"
+- "Resolveu o que precisava? Posso te ajudar com mais alguma coisa?"
+- "Ficou claro? Se precisar de mais alguma coisa, estou aqui!"
+
+Quando o cliente responder que está tudo certo, que é só isso, ou se despedir, encerre de forma calorosa e natural.
+
 ## IMPORTANTE
 - NUNCA diga que é um bot ou IA para o usuário final. Você é a Mel, da equipe do Bora Gerir.
 - NUNCA invente funcionalidades que não existem.
@@ -332,6 +340,16 @@ export async function POST(req: NextRequest) {
     // Detectar se a própria Mel sugeriu escalar para suporte
     const sugerindoTicket = /abrir.*ticket|chamado de suporte|equipe técnica|suporte.*menu|vá em.*suporte/i.test(resposta)
 
+    // Detectar se o cliente está encerrando (respostas de despedida/satisfação)
+    const clienteEncerrando = /^(é só isso|só isso|obrigad|valeu|tudo (bem|certo|resolvido)|era (só isso|isso mesmo)|pode encerrar|tchau|até|não preciso|não, obrigad|nada mais)/i.test(mensagem.trim())
+
+    // Se cliente está encerrando, adiciona mensagem de encerramento à resposta
+    let encerrado = false
+    if (clienteEncerrando && conversaId) {
+      resposta = `Fico feliz em ter ajudado! 😊 Se precisar de qualquer coisa, é só me chamar. Até a próxima, ${nomePrimeiro}!\n\n_Atendimento encerrado._`
+      encerrado = true
+    }
+
     // Salvar resposta da Mel
     if (conversaId) {
       await supabase.from("mensagens_mel").insert({
@@ -340,6 +358,13 @@ export async function POST(req: NextRequest) {
         role: "assistant",
         conteudo: resposta,
       })
+
+      // Encerrar conversa se cliente despediu
+      if (encerrado) {
+        await supabase.from("conversas_mel")
+          .update({ status: "resolvido", resolvido_por_ia: true })
+          .eq("id", conversaId)
+      }
 
       // Se sugeriu ticket, criar automaticamente e marcar conversa
       if (sugerindoTicket) {
@@ -368,6 +393,7 @@ export async function POST(req: NextRequest) {
       conversa_id: conversaId,
       protocolo,
       abrir_ticket: sugerindoTicket,
+      encerrado,
       nome_usuario: nomePrimeiro,
     })
 
