@@ -31,22 +31,22 @@
   .dark {
     --background: 220 18% 9%;
     --foreground: 220 10% 92%;
-    --card: 220 16% 13%;
+    --card: 220 18% 9%;
     --card-foreground: 220 10% 92%;
-    --popover: 220 16% 15%;
+    --popover: 220 16% 13%;
     --popover-foreground: 220 10% 92%;
     --primary: 26 90% 52%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 16% 18%;
+    --secondary: 220 16% 14%;
     --secondary-foreground: 220 10% 78%;
-    --muted: 220 16% 17%;
-    --muted-foreground: 220 10% 52%;
-    --accent: 220 16% 18%;
+    --muted: 220 16% 13%;
+    --muted-foreground: 220 10% 58%;
+    --accent: 220 16% 14%;
     --accent-foreground: 220 10% 92%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 16% 22%;
-    --input: 220 16% 22%;
+    --border: 220 16% 16%;
+    --input: 220 16% 16%;
     --ring: 26 90% 52%;
   }
 }
@@ -96,9 +96,9 @@
 .dark [role="listbox"],
 .dark [role="menu"],
 .dark [role="dialog"] {
-  background-color: #1e2030 !important;
+  background-color: hsl(220 16% 13%) !important;
   color: #e8eaf0 !important;
-  border-color: #2d3148 !important;
+  border-color: hsl(220 16% 16%) !important;
 }
 
 /* Viewport interno dos selects */
@@ -133,7 +133,7 @@
   color: #1a1a1a;
 }
 .dark [role="dialog"] {
-  background-color: #16192a !important;
+  background-color: hsl(220 16% 13%) !important;
   color: #e8eaf0 !important;
 }
 

@@ -167,7 +167,8 @@ export function DashboardClient({
                 <p className="text-sm text-muted-foreground">Abra o caixa para registrar vendas</p>
               </div>
             </div>
-            <Button variant="outline" onClick={() => router.push("/caixa")} size="sm">
+            <Button onClick={() => router.push("/caixa")} size="sm"
+              className="bg-[#F26E1D] hover:bg-[#e05e10] text-white font-bold border-0">
               Abrir caixa
             </Button>
           </CardContent>

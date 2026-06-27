@@ -43,14 +43,14 @@ export function Sidebar({ collapsed, onToggle, prefix = "" }: SidebarProps) {
       transition={{ duration: 0.18, ease: "easeInOut" }}
       className={cn(
         "hidden md:flex flex-col h-screen fixed left-0 top-0 z-30 overflow-hidden",
-        "bg-white dark:bg-[#0d0f1a]",
-        "border-r border-gray-200 dark:border-white/[0.06]"
+        "bg-background",
+        "border-r border-border"
       )}
     >
       {/* Logo */}
       <div
         className={cn(
-          "flex items-center h-16 shrink-0 border-b border-gray-200 dark:border-white/[0.06]",
+          "flex items-center h-16 shrink-0 border-b border-border",
           collapsed ? "px-4 justify-center" : "px-4"
         )}
       >
