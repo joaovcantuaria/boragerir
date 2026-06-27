@@ -4,16 +4,32 @@ import Image from "next/image"
 import { AnimatePresence, motion } from "framer-motion"
 
 // ─── Só o ícone (quadrado) ───────────────────────────────────
-export function LogoIcon({ size = 36, className = "" }: { size?: number; className?: string }) {
+export function LogoIcon({ size = 36, className = "", forceLight = false }: { size?: number; className?: string; forceLight?: boolean }) {
   return (
     <div className={`relative shrink-0 ${className}`} style={{ width: size, height: size }}>
-      <Image
-        src="/logo-icon.png"
-        alt="Bora Gerir"
-        fill
-        className="object-contain"
-        priority
-      />
+      {/* SVG inline — funciona em qualquer fundo */}
+      <svg
+        viewBox="0 0 40 40"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        width={size}
+        height={size}
+      >
+        {/* Fundo quadrado arredondado laranja */}
+        <rect width="40" height="40" rx="10" fill="#F26E1D" />
+        {/* Letra B em branco */}
+        <text
+          x="20"
+          y="28"
+          textAnchor="middle"
+          fontFamily="Arial, sans-serif"
+          fontWeight="900"
+          fontSize="24"
+          fill="white"
+        >
+          B
+        </text>
+      </svg>
     </div>
   )
 }
