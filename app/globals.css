@@ -139,6 +139,10 @@
 
 /* Mobile nav — nunca transparente */
 nav.mobile-nav-bar {
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
   background-color: #ffffff !important;
   border-top: 1px solid #e5e7eb !important;
 }

@@ -114,12 +114,13 @@ export function MobileNav({ prefix = "" }: { prefix?: string }) {
 
       {/* Barra de navegação inferior */}
       <nav className={cn(
-        "md:hidden fixed bottom-0 left-0 right-0 z-30 mobile-nav-bar",
+        "md:hidden fixed bottom-0 left-0 right-0 z-40 mobile-nav-bar",
         "bg-white border-t border-gray-200",
         "dark:bg-[#0f111a] dark:border-white/[0.08]"
-      )}>
-        {/* Safe area para iPhone */}
-        <div className="flex items-center h-16 pb-safe">
+      )}
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        <div className="flex items-center h-14">
           {navPrincipal.map((item) => {
             const href = `${prefix}${item.href}`
             const isActive = pathname === href || pathname.startsWith(href + "/")

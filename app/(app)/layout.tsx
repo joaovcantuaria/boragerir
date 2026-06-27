@@ -17,7 +17,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
       <div className={cn("transition-all duration-200", collapsed ? "md:ml-[64px]" : "md:ml-[232px]")}>
         <Header empresaNome={empresa?.nome} empresaLogoUrl={empresa?.logo_url} />
-        <main className="p-4 lg:p-6 pb-24 md:pb-6 min-h-[calc(100vh-4rem)]">
+        <main className="p-4 lg:p-6 pb-20 md:pb-6 min-h-[calc(100vh-4rem)]">
           {children}
         </main>
       </div>
