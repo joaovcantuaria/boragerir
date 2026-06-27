@@ -3,7 +3,7 @@ import { FuncionariosClient } from "@/components/funcionarios/funcionarios-clien
 import { redirect } from "next/navigation"
 
 export const dynamic = "force-dynamic"
-export const metadata = { title: "Funcionários" }
+export const metadata = { title: "Colaboradores" }
 
 export default async function FuncionariosPage() {
   const supabase = await createClient()

@@ -41,10 +41,10 @@ export function FuncionariosClient({ empresaId, plano, funcionarios: funcInit }:
   const limites: Record<string, number | null> = { gratuito: 0, basico: 3, profissional: null }
   const limite = limites[plano]
 
-  function abrirModalNovo() {
-    if (limite === 0) { toast.error("Funcionários disponíveis a partir do Plano Básico."); return }
+  async function abrirModalNovo() {
+    if (limite === 0) { toast.error("Colaboradores disponíveis a partir do Plano Básico."); return }
     if (limite !== null && funcionarios.filter((f) => f.ativo).length >= limite) {
-      toast.error(`Limite de ${limite} funcionários no plano ${plano}.`); return
+      toast.error(`Limite de ${limite} colaboradores no plano ${plano}.`); return
     }
     setEditando(null)
     reset()
@@ -75,12 +75,12 @@ export function FuncionariosClient({ empresaId, plano, funcionarios: funcInit }:
       const { error } = await supabase.from("funcionarios").update(payload).eq("id", editando.id)
       if (error) { toast.error("Erro ao atualizar."); setLoading(false); return }
       setFuncionarios((prev) => prev.map((f) => f.id === editando.id ? { ...f, ...payload } : f))
-      toast.success("Funcionário atualizado!")
+      toast.success("Colaborador atualizado!")
     } else {
       const { data: novo, error } = await supabase.from("funcionarios").insert(payload).select().single()
       if (error) { toast.error("Erro ao cadastrar."); setLoading(false); return }
       setFuncionarios((prev) => [...prev, novo])
-      toast.success("Funcionário cadastrado!")
+      toast.success("Colaborador cadastrado!")
     }
     setModalAberto(false)
     setLoading(false)
@@ -90,24 +90,24 @@ export function FuncionariosClient({ empresaId, plano, funcionarios: funcInit }:
     const { error } = await supabase.from("funcionarios").update({ ativo: !f.ativo }).eq("id", f.id)
     if (error) { toast.error("Erro."); return }
     setFuncionarios((prev) => prev.map((x) => x.id === f.id ? { ...x, ativo: !x.ativo } : x))
-    toast.success(f.ativo ? "Funcionário desativado." : "Funcionário reativado.")
+    toast.success(f.ativo ? "Colaborador desativado." : "Colaborador reativado.")
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Funcionários</h1>
+          <h1 className="text-2xl font-bold">Colaboradores</h1>
           <p className="text-muted-foreground">{funcionarios.filter((f) => f.ativo).length} ativo(s)</p>
         </div>
         <Button onClick={abrirModalNovo} className="gap-2">
-          <Plus className="w-4 h-4" /><span className="hidden sm:inline">Novo Funcionário</span>
+          <Plus className="w-4 h-4" /><span className="hidden sm:inline">Novo Colaborador</span>
         </Button>
       </div>
 
       {plano === "gratuito" && (
         <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg text-sm text-yellow-600 dark:text-yellow-400">
-          ⚡ Funcionários disponíveis a partir do Plano Básico.{" "}
+          ⚡ Colaboradores disponíveis a partir do Plano Básico.{" "}
           <a href="/configuracoes" className="underline font-medium">Ver planos</a>
         </div>
       )}
@@ -150,13 +150,13 @@ export function FuncionariosClient({ empresaId, plano, funcionarios: funcInit }:
       ) : (
         <div className="py-16 text-center text-muted-foreground">
           <UserCheck className="w-12 h-12 mx-auto mb-3 opacity-40" />
-          <p>Nenhum funcionário cadastrado</p>
+          <p>Nenhum colaborador cadastrado</p>
         </div>
       )}
 
       <Dialog open={modalAberto} onOpenChange={setModalAberto}>
         <DialogContent onInteractOutside={(e) => e.preventDefault()}>
-          <DialogHeader><DialogTitle>{editando ? "Editar" : "Novo"} Funcionário</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editando ? "Editar" : "Novo"} Colaborador</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
