@@ -265,8 +265,8 @@ export function ProdutosServicosClient({
       </Tabs>
 
       {/* Modal */}
-      <Dialog open={modalAberto} onOpenChange={setModalAberto}>
-        <DialogContent>
+      <Dialog open={modalAberto} onOpenChange={(open) => { if (!open) { setModalAberto(false); reset(); setCriandoCategoria(false); setNomeNovaCategoria("") } }}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>
               {editando ? "Editar" : "Novo"} {tipoModal === "produto" ? "Produto" : "Serviço"}
