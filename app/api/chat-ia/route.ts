@@ -280,7 +280,7 @@ export async function POST(req: NextRequest) {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "llama3-70b-8192",
+            model: "llama-3.3-70b-versatile",
             messages: [
               { role: "system", content: getSystemPrompt(nomePrimeiro, ctx) },
               ...historico.map((m) => ({ role: m.role, content: m.conteudo })),
