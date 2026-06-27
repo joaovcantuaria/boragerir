@@ -22,6 +22,7 @@ const navItems = [
   { href: "/admin/cupons",           icon: Tag,             label: "Cupons" },
   { href: "/admin/atendimentos-ia",  icon: Bot,             label: "🌟 Atendimentos IA" },
   { href: "/admin/suporte",          icon: HeadphonesIcon,  label: "Suporte" },
+  { href: "/admin/usuarios",         icon: Shield,          label: "Usuários" },
   { href: "/admin/configuracoes",    icon: Settings,        label: "Configurações" },
 ]
 
