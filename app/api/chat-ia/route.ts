@@ -124,8 +124,8 @@ Depois instrua: "Vai em **Suporte** no menu lateral → **Abrir ticket** → des
 function respostaFallback(pergunta: string, nome: string): string {
   const p = pergunta.toLowerCase()
 
-  if (p.includes("plano") || p.includes("assinatura") || p.includes("preço") || p.includes("upgrade") || p.includes("beneficio") || p.includes("diferença"))
-    return `Oi, ${nome}! 😊 Os planos do Bora Gerir são:\n\n🆓 **Gratuito — R$ 0/mês**: até 30 clientes, 3 produtos/serviços, caixa e vendas básicas. Sem agendamento online nem funcionários.\n\n⚡ **Básico — R$ 49/mês**: até 200 clientes, produtos ilimitados, agendamento online com link público, até 3 funcionários com comissão, orçamentos em PDF e relatórios financeiros.\n\n👑 **Profissional — R$ 99/mês**: tudo ilimitado + programa de fidelidade, lembretes automáticos, relatórios avançados com exportação e suporte prioritário.\n\nPara fazer upgrade, vá em **Planos** no menu! 🚀`
+  if (p.includes("plano") || p.includes("assinatura") || p.includes("preço") || p.includes("upgrade") || p.includes("beneficio") || p.includes("diferença") || p.includes("sentido") || p.includes("escolher") || p.includes("melhor"))
+    return `Oi, ${nome}! A escolha certa depende muito do seu negócio. Me conta: você tem funcionários? Precisa que seus clientes agendem pelo celular sem precisar te chamar? Tem muitos clientes cadastrados?\n\nCom essas informações consigo te indicar o plano que faz mais sentido sem que você pague por algo que não vai usar. 😊`
   if (p.includes("caixa") || p.includes("abrir") || p.includes("fechar"))
     return `Claro, ${nome}! Para **abrir o caixa**, vá em **Caixa** no menu e clique em **Abrir Caixa**. Informe o valor inicial e confirme! Para **fechar**, clique em **Fechar Caixa**, informe o valor contado e o sistema calcula qualquer diferença. 💰`
   if (p.includes("venda") || p.includes("vender") || p.includes("recibo"))
@@ -295,9 +295,36 @@ export async function POST(req: NextRequest) {
           const data = await res.json()
           resposta = data.choices?.[0]?.message?.content?.trim() ?? respostaFallback(mensagem, nomePrimeiro)
         } else {
-          resposta = respostaFallback(mensagem, nomePrimeiro)
+          const erroTexto = await res.text()
+          console.error(`Groq erro ${res.status}:`, erroTexto)
+          // Fallback para modelo menor se 70b indisponível
+          try {
+            const res2 = await fetch(GROQ_API_URL, {
+              method: "POST",
+              headers: { "Authorization": `Bearer ${groqKey}`, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                model: "llama3-8b-8192",
+                messages: [
+                  { role: "system", content: getSystemPrompt(nomePrimeiro, ctx) },
+                  ...historico.map((m) => ({ role: m.role, content: m.conteudo })),
+                  { role: "user", content: mensagem },
+                ],
+                max_tokens: 700,
+                temperature: 0.7,
+              }),
+            })
+            if (res2.ok) {
+              const data2 = await res2.json()
+              resposta = data2.choices?.[0]?.message?.content?.trim() ?? respostaFallback(mensagem, nomePrimeiro)
+            } else {
+              resposta = respostaFallback(mensagem, nomePrimeiro)
+            }
+          } catch {
+            resposta = respostaFallback(mensagem, nomePrimeiro)
+          }
         }
-      } catch {
+      } catch (err) {
+        console.error("Groq exception:", err)
         resposta = respostaFallback(mensagem, nomePrimeiro)
       }
     }
