@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LinkAgendamento } from "@/components/agendamentos/link-agendamento"
+import { AgendaConfig } from "@/components/agendamentos/agenda-config"
 import { createClient } from "@/lib/supabase/client"
 import { coresStatus, labelsStatus } from "@/lib/utils"
 
@@ -49,13 +50,18 @@ type AgendamentoCompleto = {
 }
 
 export function AgendamentosClient({
-  empresaId, plano, empresaSlug, agendamentos: agInit, clientes, servicos, funcionarios,
+  empresaId, plano, empresaSlug, agendamentos: agInit, clientes, servicos, funcionarios, agendaConfig,
 }: {
   empresaId: string; plano: string; empresaSlug: string | null
   agendamentos: AgendamentoCompleto[]
   clientes: { id: string; nome_completo: string; telefone: string }[]
   servicos: { id: string; nome: string; duracao_minutos: number | null }[]
   funcionarios: { id: string; nome: string }[]
+  agendaConfig: {
+    id?: string; dias_semana: number[]; hora_inicio: string; hora_fim: string
+    intervalo_minutos: number; duracao_padrao: number
+    almoco_inicio: string | null; almoco_fim: string | null
+  } | null
 }) {
   const [agendamentos, setAgendamentos] = useState(agInit)
   const [mesAtual, setMesAtual] = useState(new Date())
@@ -248,6 +254,7 @@ export function AgendamentosClient({
         <TabsList>
           <TabsTrigger value="calendario">Calendário</TabsTrigger>
           <TabsTrigger value="lista">Lista do dia</TabsTrigger>
+          <TabsTrigger value="configuracao">Configuração</TabsTrigger>
         </TabsList>
 
         <TabsContent value="calendario" className="mt-4">
@@ -350,6 +357,10 @@ export function AgendamentosClient({
                 onConfirmar={confirmarAgendamento}
                 nomeCliente={nomeCliente(ag)} />
             ))}
+        </TabsContent>
+
+        <TabsContent value="configuracao" className="mt-4">
+          <AgendaConfig empresaId={empresaId} config={agendaConfig} />
         </TabsContent>
       </Tabs>
 

@@ -18,32 +18,22 @@ export default async function AgendamentosPage() {
   // Queries separadas para evitar problema de inferência de tipo com joins
   const { data: agendamentosRaw } = await supabase
     .from("agendamentos")
-    .select("id, data_hora, status, duracao_minutos, observacoes, nome_cliente_avulso, telefone_cliente_avulso, cliente_id, funcionario_id, servico_id")
+    .select("id, data_hora, status, duracao_minutos, observacoes, nome_cliente_avulso, telefone_cliente_avulso, email_cliente, origem, cliente_id, funcionario_id, servico_id")
     .eq("empresa_id", empresa.id)
     .gte("data_hora", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
     .order("data_hora", { ascending: true })
 
-  const { data: clientes } = await supabase
-    .from("clientes")
-    .select("id, nome_completo, telefone")
-    .eq("empresa_id", empresa.id)
-    .eq("ativo", true)
-    .order("nome_completo")
-
-  const { data: servicos } = await supabase
-    .from("produtos_servicos")
-    .select("id, nome, duracao_minutos")
-    .eq("empresa_id", empresa.id)
-    .eq("tipo", "servico")
-    .eq("ativo", true)
-    .order("nome")
-
-  const { data: funcionarios } = await supabase
-    .from("funcionarios")
-    .select("id, nome")
-    .eq("empresa_id", empresa.id)
-    .eq("ativo", true)
-    .order("nome")
+  const [
+    { data: clientes },
+    { data: servicos },
+    { data: funcionarios },
+    { data: agendaConfig },
+  ] = await Promise.all([
+    supabase.from("clientes").select("id, nome_completo, telefone").eq("empresa_id", empresa.id).eq("ativo", true).order("nome_completo"),
+    supabase.from("produtos_servicos").select("id, nome, duracao_minutos").eq("empresa_id", empresa.id).eq("tipo", "servico").eq("ativo", true).order("nome"),
+    supabase.from("funcionarios").select("id, nome").eq("empresa_id", empresa.id).eq("ativo", true).order("nome"),
+    supabase.from("agenda_config").select("*").eq("empresa_id", empresa.id).maybeSingle(),
+  ])
 
   // Enriquecer agendamentos com dados relacionados
   const clientesMap = Object.fromEntries((clientes ?? []).map((c) => [c.id, c]))
@@ -66,6 +56,7 @@ export default async function AgendamentosPage() {
       clientes={clientes ?? []}
       servicos={servicos ?? []}
       funcionarios={funcionarios ?? []}
+      agendaConfig={agendaConfig ?? null}
     />
   )
 }

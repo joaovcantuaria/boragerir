@@ -1,10 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { format, addDays, isBefore, startOfDay, addMinutes, setHours, setMinutes } from "date-fns"
+import { format, isBefore, startOfDay, setHours, setMinutes } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import {
   Calendar, Clock, User, Scissors, Check,
@@ -27,12 +27,7 @@ const schema = z.object({
 })
 type FormData = z.infer<typeof schema>
 
-// Horários disponíveis padrão
-const HORARIOS = Array.from({ length: 22 }, (_, i) => {
-  const hora = Math.floor(i / 2) + 8
-  const min = i % 2 === 0 ? 0 : 30
-  return { hora, min, label: `${String(hora).padStart(2, "0")}:${String(min).padStart(2, "0")}` }
-}).filter((h) => h.hora < 19)
+interface Slot { hora: string; disponivel: boolean }
 
 export function AgendamentoPublicoClient({ empresa, servicos, funcionarios }: {
   empresa: Empresa
@@ -46,12 +41,42 @@ export function AgendamentoPublicoClient({ empresa, servicos, funcionarios }: {
   const [horarioSel, setHorarioSel] = useState<{ hora: number; min: number; label: string } | null>(null)
   const [mesAtual, setMesAtual] = useState(new Date())
   const [loading, setLoading] = useState(false)
+  const [loadingSlots, setLoadingSlots] = useState(false)
   const [emailConfirmacao, setEmailConfirmacao] = useState<string | null>(null)
+  const [slots, setSlots] = useState<Slot[]>([])
+  const [diasDisponiveis, setDiasDisponiveis] = useState<number[]>([1,2,3,4,5]) // dias da semana disponíveis
   const supabase = createClient()
 
   const { register, handleSubmit, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
+
+  // Buscar configuração da agenda ao carregar
+  useEffect(() => {
+    fetch(`/api/agendamentos/horarios-disponiveis?empresa_id=${empresa.id}&data=${format(new Date(), "yyyy-MM-dd")}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.config?.dias_semana) setDiasDisponiveis(data.config.dias_semana)
+      })
+      .catch(() => {})
+  }, [empresa.id])
+
+  // Buscar horários disponíveis quando data é selecionada
+  async function buscarSlots(data: Date) {
+    setLoadingSlots(true)
+    setSlots([])
+    try {
+      const dataStr = format(data, "yyyy-MM-dd")
+      const res = await fetch(`/api/agendamentos/horarios-disponiveis?empresa_id=${empresa.id}&data=${dataStr}`)
+      const json = await res.json()
+      if (json.slots) {
+        setSlots(json.slots)
+      }
+    } catch {
+      toast.error("Erro ao carregar horários disponíveis.")
+    }
+    setLoadingSlots(false)
+  }
 
   // Gerar dias do mês
   const hoje = startOfDay(new Date())
@@ -300,12 +325,14 @@ export function AgendamentoPublicoClient({ empresa, servicos, funcionarios }: {
                 {Array.from({ length: diasDoMes[0]?.getDay() ?? 0 }).map((_, i) => <div key={`b${i}`} />)}
                 {diasDoMes.map((dia) => {
                   const passado = isBefore(dia, hoje)
+                  const diaSemana = dia.getDay()
+                  const indisponivel = passado || !diasDisponiveis.includes(diaSemana)
                   const isSel = dataSel && format(dia, "yyyy-MM-dd") === format(dataSel, "yyyy-MM-dd")
                   return (
-                    <button key={dia.toISOString()} disabled={passado}
-                      onClick={() => { setDataSel(dia); setEtapa("horario") }}
+                    <button key={dia.toISOString()} disabled={indisponivel}
+                      onClick={() => { setDataSel(dia); buscarSlots(dia); setEtapa("horario") }}
                       className={`aspect-square rounded-xl text-sm font-semibold transition-all ${
-                        passado ? "text-gray-200 cursor-default"
+                        indisponivel ? "text-gray-200 cursor-default"
                         : isSel ? "bg-[#F26E1D] text-white"
                         : "text-gray-700 hover:bg-[#F26E1D]/10 hover:text-[#F26E1D]"
                       }`}>
@@ -334,19 +361,42 @@ export function AgendamentoPublicoClient({ empresa, servicos, funcionarios }: {
                 )}
               </div>
             </div>
-            <div className="grid grid-cols-4 gap-2">
-              {HORARIOS.map((h) => (
-                <button key={h.label}
-                  onClick={() => { setHorarioSel(h); setEtapa("dados") }}
-                  className={`py-3 rounded-xl text-sm font-bold transition-all border ${
-                    horarioSel?.label === h.label
-                      ? "bg-[#F26E1D] text-white border-[#F26E1D]"
-                      : "bg-white border-gray-200 text-gray-700 hover:border-[#F26E1D]/40 hover:text-[#F26E1D]"
-                  }`}>
-                  {h.label}
+
+            {loadingSlots ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-[#F26E1D]" />
+              </div>
+            ) : slots.length === 0 ? (
+              <div className="text-center py-12 text-gray-400">
+                <Clock className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                <p className="text-sm">Nenhum horário disponível neste dia</p>
+                <button onClick={() => setEtapa("data")} className="mt-3 text-[#F26E1D] text-sm font-semibold underline">
+                  Escolher outra data
                 </button>
-              ))}
-            </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-4 gap-2">
+                {slots.map((s) => {
+                  const [h, m] = s.hora.split(":").map(Number)
+                  const isSelected = horarioSel?.label === s.hora
+                  return (
+                    <button key={s.hora}
+                      disabled={!s.disponivel}
+                      onClick={() => { setHorarioSel({ hora: h, min: m, label: s.hora }); setEtapa("dados") }}
+                      className={`py-3 rounded-xl text-sm font-bold transition-all border ${
+                        !s.disponivel
+                          ? "bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed"
+                          : isSelected
+                          ? "bg-[#F26E1D] text-white border-[#F26E1D]"
+                          : "bg-white border-gray-200 text-gray-700 hover:border-[#F26E1D]/40 hover:text-[#F26E1D]"
+                      }`}>
+                      {s.hora}
+                      {!s.disponivel && <div className="text-[9px] text-gray-300 leading-none mt-0.5">ocupado</div>}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
         )}
 
