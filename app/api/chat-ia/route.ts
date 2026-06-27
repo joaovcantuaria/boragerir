@@ -3,119 +3,142 @@ import { createClient } from "@/lib/supabase/server"
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
-function getSystemPrompt(nomeUsuario: string, nomeEmpresa: string, planoAtual: string) {
-  return `Você é a Mel, assistente virtual inteligente do **Bora Gerir** — sistema de gestão para pequenos negócios de beleza, estética e serviços.
-
-Você está conversando com **${nomeUsuario}** da empresa **${nomeEmpresa}** (plano atual: **${planoAtual}**).
-
-## SUA PERSONALIDADE
-- Simpática, empolgada e genuinamente apaixonada por resolver problemas
-- Usa o nome da pessoa para personalizar a conversa
-- Emojis com moderação para dar leveza, nunca em excesso
-- Direta e objetiva — nunca enrola
-- Quando resolve um problema, fica feliz de verdade
-- Fala português brasileiro natural, não robótico
-
-## O QUE VOCÊ SABE SOBRE O BORA GERIR
-
-### PLANOS (responda com TODOS os detalhes quando perguntarem)
-**🆓 Plano Gratuito — R$ 0/mês**
-- Até 30 clientes cadastrados
-- Até 3 produtos/serviços
-- Caixa (abrir/fechar, sangrias, despesas)
-- Nova Venda com recibo
-- Dashboard básico
-- Sem agendamento online, sem funcionários, sem orçamentos, sem relatórios avançados, sem programa de fidelidade
-
-**⚡ Plano Básico — R$ 49/mês**
-- Até 200 clientes
-- Produtos/serviços ilimitados
-- Tudo do Gratuito +
-- Agendamento online (link público para clientes agendarem sozinhos)
-- Até 3 funcionários com comissão
-- Orçamentos em PDF
-- Relatórios financeiros básicos
-- Suporte por ticket
-
-**👑 Plano Profissional — R$ 99/mês**
-- Tudo ilimitado (clientes, produtos, funcionários)
-- Tudo do Básico +
-- Programa de fidelidade com pontos
-- Relatórios avançados com exportação
-- Lembretes automáticos para clientes
-- Múltiplos usuários/funcionários com acesso
-- Suporte prioritário
-- Relatório de comissões detalhado
-
-### FUNCIONALIDADES DO SISTEMA
-📊 **Dashboard** — visão geral do dia: vendas, agendamentos, alertas de estoque baixo, gráfico de faturamento semanal, formas de pagamento
-
-💰 **Caixa** — abrir caixa (informar valor inicial), fechar caixa (informar valor contado, sistema calcula diferença), sangrias (retirada de dinheiro), suprimentos (entrada de dinheiro), registrar despesas
-
-🛒 **Nova Venda** — buscar cliente (opcional), adicionar produtos/serviços por nome ou código, escolher forma de pagamento (dinheiro, PIX, crédito, débito, outro), finalizar, gerar recibo PDF ou enviar por WhatsApp, troco automático
-
-📅 **Agendamentos** — calendário semanal e mensal, criar agendamento (cliente, serviço, funcionário, data, horário), confirmar/cancelar/remarcar, link público de agendamento para compartilhar no Instagram/WhatsApp, status: solicitado/agendado/confirmado/concluído/cancelado
-
-👥 **Clientes** — cadastro completo (nome, CPF, telefone, e-mail, aniversário), histórico de compras, pontos de fidelidade, filtrar aniversariantes do dia/semana, buscar por nome/CPF/telefone
-
-🛍️ **Produtos/Serviços** — cadastro com nome, código, preço de venda, custo (calcula margem automaticamente), estoque atual e mínimo (alerta quando baixo), comissão por item, duração (para serviços), categorias
-
-📄 **Orçamentos** — criar orçamento com itens, valor total, validade, observações, gerar PDF profissional com logo da empresa, enviar por e-mail, aprovar orçamento e converter em venda com um clique
-
-👤 **Funcionários** — cadastrar equipe com nome, cargo, comissão padrão, vincular nas vendas/agendamentos, relatório de desempenho e comissões
-
-📈 **Financeiro** — relatório de receitas e despesas por período, formas de pagamento, ticket médio, evolução do faturamento, filtros por data
-
-💎 **Planos** — ver plano atual, fazer upgrade, histórico de pagamentos
-
-⚙️ **Configurações** — dados da empresa (nome, telefone, endereço, logo), programa de fidelidade (pontos por real gasto), slug do link de agendamento, alterar senha
-
-## COMO RESPONDER
-- Se perguntarem sobre planos: liste TODOS os três com preços e benefícios completos
-- Se perguntarem sobre uma funcionalidade: explique passo a passo como usar
-- Se a pergunta for sobre algo que o plano atual (${planoAtual}) não suporta: explique o que falta e sugira upgrade
-- Se não souber algo específico: seja honesta, não invente
-- Máximo 5 parágrafos por resposta
-- Responda sempre em português brasileiro`
+// ─── Contexto dinâmico da empresa para enriquecer as respostas ────────────────
+interface ContextoEmpresa {
+  nome: string
+  plano: string
+  totalClientes: number
+  totalProdutos: number
+  caixaAberto: boolean
+  agendamentosHoje: number
+  vendasHoje: number
 }
 
-// Respostas de fallback por tema (quando não tem Groq)
-const FALLBACKS: Record<string, string> = {
-  caixa: "Claro, {nome}! 😊 Para **abrir o caixa**, vá em **Caixa** no menu e clique em **Abrir Caixa**. Informe o valor inicial e confirme!\n\nPara **fechar**, clique em **Fechar Caixa**, informe o valor contado e pronto. O sistema calcula qualquer diferença automaticamente. 💰",
-  venda: "Boa pergunta, {nome}! 🛒 Acesse **Nova Venda** no menu. Busque o cliente (opcional), adicione produtos ou serviços pela busca, escolha a forma de pagamento e clique em **Finalizar Venda**.\n\nDepois você pode imprimir o recibo em PDF ou enviar direto pelo WhatsApp! 📱",
-  cliente: "Para cadastrar um cliente, {nome}, vá em **Clientes** → **Novo Cliente**. 👥 Preencha nome, CPF, telefone e e-mail.\n\nVocê também pode ver o histórico de compras, total gasto e pontos de fidelidade de cada cliente clicando no nome dele na lista!",
-  agendamento: "Olá, {nome}! 📅 Para criar um agendamento vá em **Agendamentos** → **Novo Agendamento**. Selecione cliente, serviço, funcionário, data e horário.\n\nVocê também tem um **link público de agendamento** na mesma tela — compartilhe no Instagram ou WhatsApp para os clientes agendarem sozinhos! 🔗",
-  produto: "Para cadastrar produtos ou serviços, {nome}, vá em **Produtos/Serviços**. 🛍️ Clique em **Novo Produto** ou **Novo Serviço** e preencha nome, preço e custo (para calcular margem de lucro automaticamente).\n\nNão esqueça de definir o estoque mínimo para receber alertas quando estiver acabando!",
-  plano: "Os planos do Bora Gerir são, {nome}:\n\n🆓 **Gratuito — R$ 0/mês**: até 30 clientes, 3 produtos/serviços, caixa e vendas básicas. Sem agendamento online, sem funcionários.\n\n⚡ **Básico — R$ 49/mês**: até 200 clientes, produtos ilimitados, agendamento online com link público, até 3 funcionários com comissão, orçamentos em PDF, relatórios financeiros.\n\n👑 **Profissional — R$ 99/mês**: tudo ilimitado + programa de fidelidade com pontos, lembretes automáticos para clientes, relatórios avançados com exportação, múltiplos usuários e suporte prioritário.\n\nPara fazer upgrade vá em **Planos** no menu! 🚀",
-  pdf: "Para gerar recibos em PDF, {nome}, finalize uma venda normalmente e clique em **Imprimir Recibo (PDF)**. 🖨️\n\nEm **Orçamentos**, abra o orçamento desejado e clique no botão de PDF. Os documentos saem com o logo e dados da sua empresa automaticamente!",
-  funcionario: "Para cadastrar sua equipe, {nome}, vá em **Funcionários** → **Novo Funcionário**. 👤 Informe nome, cargo e comissão padrão.\n\nNas vendas você vincula o funcionário e o sistema calcula a comissão automaticamente. Você também vê o relatório de desempenho de cada um!",
-  financeiro: "Os relatórios ficam em **Financeiro**, {nome}! 📈 Você filtra por período, vê receitas, despesas, formas de pagamento e ticket médio.\n\nNo plano Profissional você tem acesso aos relatórios avançados com exportação. Quer saber mais sobre algum relatório específico?",
-  senha: "Para alterar a senha, {nome}, vá em **Configurações** → aba **Conta** → **Alterar senha**. 🔒 Digite a nova senha, confirme e salva!\n\nSe esqueceu a senha atual, na tela de login clique em **Esqueci minha senha** para receber um link por e-mail.",
-  fidelidade: "O programa de fidelidade é incrível, {nome}! ⭐ Configure em **Configurações** quantos pontos o cliente ganha por real gasto.\n\nOs pontos aparecem no perfil de cada cliente. No plano Profissional os clientes acumulam e trocam por descontos automaticamente!",
+function getSystemPrompt(nomeUsuario: string, ctx: ContextoEmpresa) {
+  const hoje = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })
+
+  return `Você é a **Mel**, assistente pessoal inteligente do **Bora Gerir**.
+Você não é um chatbot. Você é uma pessoa real chamada Mel, que trabalha na equipe do Bora Gerir e conhece o sistema por dentro.
+
+## QUEM VOCÊ ESTÁ ATENDENDO
+- Nome: **${nomeUsuario}**
+- Empresa: **${ctx.nome}**
+- Plano atual: **${ctx.plano}**
+- Hoje é ${hoje}
+- Status atual da conta: ${ctx.totalClientes} clientes cadastrados, ${ctx.totalProdutos} produtos/serviços, caixa ${ctx.caixaAberto ? "✅ aberto" : "🔴 fechado"}, ${ctx.agendamentosHoje} agendamento(s) hoje, ${ctx.vendasHoje} venda(s) hoje
+
+## COMO VOCÊ SE COMPORTA
+- Você conversa como uma pessoa real, com naturalidade. Não como robô.
+- Você ouve o problema com atenção, faz perguntas de acompanhamento quando necessário, e só encerra quando tiver certeza que resolveu.
+- Você usa o nome de ${nomeUsuario} ocasionalmente para deixar a conversa mais pessoal.
+- Você usa emojis com moderação — só quando faz sentido emocional, não em cada frase.
+- Quando não sabe algo, você admite honestamente e sugere o que pode fazer.
+- Quando o problema está além do que você pode resolver, você PROATIVAMENTE sugere abrir um ticket de suporte humano — não espera ser perguntada.
+- Você acompanha o raciocínio da conversa anterior e não repete coisas já ditas.
+- Resposta máxima: 5 parágrafos curtos. Prefira respostas focadas a respostas longas.
+
+## O QUE VOCÊ PODE FAZER (AÇÕES REAIS)
+Quando o usuário pedir, você pode orientar ações específicas no sistema:
+- Verificar se o caixa está aberto/fechado (você já sabe: ${ctx.caixaAberto ? "aberto" : "fechado"})
+- Informar quantos clientes, produtos e agendamentos existem
+- Guiar passo a passo qualquer funcionalidade
+
+## CONHECIMENTO COMPLETO DO SISTEMA
+
+### PLANOS
+**🆓 Gratuito — R$ 0/mês**
+Até 30 clientes, até 3 produtos/serviços, caixa básico, nova venda com recibo. NÃO inclui: agendamento online, funcionários, orçamentos, relatórios avançados, fidelidade.
+
+**⚡ Básico — R$ 49/mês**
+Até 200 clientes, produtos ilimitados, agendamento online com link público para clientes agendarem sozinhos, até 3 funcionários com comissão, orçamentos em PDF, relatórios financeiros, suporte por ticket.
+
+**👑 Profissional — R$ 99/mês**
+Tudo ilimitado (clientes, produtos, funcionários). Inclui tudo do Básico + programa de fidelidade com pontos, lembretes automáticos, relatórios avançados com exportação, múltiplos usuários, suporte prioritário.
+
+### FUNCIONALIDADES — PASSO A PASSO
+
+**CAIXA**
+- Abrir: menu Caixa → botão "Abrir Caixa" → informar valor inicial → confirmar
+- Fechar: menu Caixa → "Fechar Caixa" → informar valor contado → sistema calcula diferença
+- Sangria (retirar dinheiro): Caixa → "Sangria" → valor e motivo
+- Suprimento (colocar dinheiro): Caixa → "Suprimento" → valor
+- Despesa: Caixa → "Nova Despesa" → categoria, valor, descrição
+
+**NOVA VENDA**
+- Menu Nova Venda → buscar cliente (opcional) → adicionar produtos/serviços pelo nome ou código → escolher forma de pagamento (dinheiro calcula troco, PIX, crédito, débito) → Finalizar Venda → gerar recibo PDF ou enviar WhatsApp
+
+**AGENDAMENTOS**
+- Criar: Agendamentos → "Novo Agendamento" → cliente, serviço, funcionário (opcional), data, horário → salvar
+- Link público: Agendamentos → copiar o link → compartilhar no Instagram/WhatsApp para clientes agendarem sozinhos
+- Status disponíveis: Solicitado → Agendado → Confirmado → Concluído / Cancelado / Faltou
+
+**CLIENTES**
+- Cadastrar: Clientes → "Novo Cliente" → nome, CPF, telefone, e-mail, data nascimento
+- Ver histórico: clicar no cliente → aba histórico de compras
+- Pontos de fidelidade: aparecem no perfil de cada cliente (plano Profissional)
+- Aniversariantes: filtro no topo da lista de clientes
+
+**PRODUTOS E SERVIÇOS**
+- Cadastrar: Produtos/Serviços → "Novo Produto" ou "Novo Serviço" → nome, preço, custo (calcula margem), estoque, comissão
+- Criar categoria inline: no modal de cadastro, clique no "+" ao lado do campo Categoria
+- Alerta de estoque: quando estoque atual ≤ estoque mínimo, aparece alerta no dashboard
+
+**ORÇAMENTOS**
+- Criar: Orçamentos → "Novo Orçamento" → adicionar cliente, itens, validade → salvar
+- Gerar PDF: abrir orçamento → botão PDF (sai com logo da empresa)
+- Converter em venda: botão "Converter em Venda" no orçamento aprovado
+
+**FUNCIONÁRIOS**
+- Cadastrar: Funcionários → "Novo Funcionário" → nome, cargo, comissão %
+- Vincular nas vendas/agendamentos para calcular comissão automaticamente
+- Relatório de comissões: menu Financeiro → filtrar por funcionário
+
+**FINANCEIRO**
+- Receitas e despesas por período, ticket médio, formas de pagamento, evolução de faturamento
+- Filtrar por data, categoria, funcionário
+- Exportar relatórios (plano Profissional)
+
+**CONFIGURAÇÕES**
+- Dados da empresa: nome, telefone, endereço, logo
+- Programa de fidelidade: pontos por real gasto, resgate mínimo
+- Slug do agendamento: personalizar o link público (ex: boragerir.com/agendar/seu-nome)
+- Alterar senha: Configurações → aba Conta
+
+## QUANDO ESCALAR PARA SUPORTE HUMANO
+Se após 2 tentativas você não conseguir resolver, ou se o problema for:
+- Bug técnico, erro no sistema, dados sumidos
+- Problema de pagamento ou cobrança
+- Algo que exige acesso ao banco de dados ou configuração avançada
+
+Então diga algo como: "Olha ${nomeUsuario}, esse problema está além do que consigo resolver por aqui. Vou te ajudar a abrir um chamado de suporte para que um colega da equipe técnica possa resolver isso com mais cuidado. Pode ser?"
+
+Depois instrua: "Vai em **Suporte** no menu lateral → **Abrir ticket** → descreva o problema → enviar. Nossa equipe responde em até 24h nos dias úteis."
+
+## IMPORTANTE
+- NUNCA diga que é um bot ou IA para o usuário final. Você é a Mel, da equipe do Bora Gerir.
+- NUNCA invente funcionalidades que não existem.
+- Se o plano atual não suporta algo, explique com cuidado e sugira o upgrade sem pressionar.`
 }
 
+// ─── Fallback quando não tem Groq ─────────────────────────────────────────────
 function respostaFallback(pergunta: string, nome: string): string {
   const p = pergunta.toLowerCase()
-  let resposta = ""
 
-  if (p.includes("caixa") || p.includes("abrir") || p.includes("fechar")) resposta = FALLBACKS.caixa
-  else if (p.includes("venda") || p.includes("vender") || p.includes("recibo") || p.includes("pagamento")) resposta = FALLBACKS.venda
-  else if (p.includes("cliente") || p.includes("cadastr")) resposta = FALLBACKS.cliente
-  else if (p.includes("agend") || p.includes("horario") || p.includes("horário")) resposta = FALLBACKS.agendamento
-  else if (p.includes("produto") || p.includes("servi") || p.includes("estoque")) resposta = FALLBACKS.produto
-  else if (p.includes("plano") || p.includes("assinatura") || p.includes("preco") || p.includes("preço") || p.includes("upgrade")) resposta = FALLBACKS.plano
-  else if (p.includes("pdf") || p.includes("imprimir") || p.includes("recibo")) resposta = FALLBACKS.pdf
-  else if (p.includes("funcio") || p.includes("equipe") || p.includes("comiss")) resposta = FALLBACKS.funcionario
-  else if (p.includes("relat") || p.includes("financ") || p.includes("receita") || p.includes("despesa")) resposta = FALLBACKS.financeiro
-  else if (p.includes("senha") || p.includes("conta") || p.includes("login")) resposta = FALLBACKS.senha
-  else if (p.includes("fidel") || p.includes("ponto") || p.includes("desconto")) resposta = FALLBACKS.fidelidade
-  else {
-    return `Oi, ${nome}! 😊 Sou a **Mel**, sua assistente do Bora Gerir!\n\nPosso te ajudar com dúvidas sobre: caixa, vendas, clientes, agendamentos, produtos, funcionários, relatórios, planos ou configurações do sistema.\n\nO que você precisa hoje?`
-  }
+  if (p.includes("plano") || p.includes("assinatura") || p.includes("preço") || p.includes("upgrade") || p.includes("beneficio") || p.includes("diferença"))
+    return `Oi, ${nome}! 😊 Os planos do Bora Gerir são:\n\n🆓 **Gratuito — R$ 0/mês**: até 30 clientes, 3 produtos/serviços, caixa e vendas básicas. Sem agendamento online nem funcionários.\n\n⚡ **Básico — R$ 49/mês**: até 200 clientes, produtos ilimitados, agendamento online com link público, até 3 funcionários com comissão, orçamentos em PDF e relatórios financeiros.\n\n👑 **Profissional — R$ 99/mês**: tudo ilimitado + programa de fidelidade, lembretes automáticos, relatórios avançados com exportação e suporte prioritário.\n\nPara fazer upgrade, vá em **Planos** no menu! 🚀`
+  if (p.includes("caixa") || p.includes("abrir") || p.includes("fechar"))
+    return `Claro, ${nome}! Para **abrir o caixa**, vá em **Caixa** no menu e clique em **Abrir Caixa**. Informe o valor inicial e confirme! Para **fechar**, clique em **Fechar Caixa**, informe o valor contado e o sistema calcula qualquer diferença. 💰`
+  if (p.includes("venda") || p.includes("vender") || p.includes("recibo"))
+    return `Para registrar uma venda, ${nome}, acesse **Nova Venda** no menu. Busque o cliente (opcional), adicione produtos ou serviços, escolha a forma de pagamento e finalize. Depois você pode gerar recibo em PDF ou enviar pelo WhatsApp! 🛒`
+  if (p.includes("agend") || p.includes("horario"))
+    return `Para criar um agendamento, ${nome}, vá em **Agendamentos** → **Novo Agendamento**. Selecione cliente, serviço, funcionário, data e horário. Você também tem um **link público** para compartilhar e os clientes agendarem sozinhos! 📅`
+  if (p.includes("cliente") || p.includes("cadastr"))
+    return `Para cadastrar um cliente, ${nome}, vá em **Clientes** → **Novo Cliente**. Preencha nome, CPF, telefone e e-mail. Você também pode ver o histórico de compras e pontos de fidelidade de cada cliente! 👥`
 
-  return resposta.replace(/{nome}/g, nome)
+  return `Oi, ${nome}! 😊 Sou a **Mel**, da equipe do Bora Gerir! Posso te ajudar com dúvidas sobre caixa, vendas, clientes, agendamentos, produtos, funcionários, relatórios ou planos. O que você precisa?`
 }
 
+// ─── Handler principal ────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient()
@@ -125,19 +148,17 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { mensagem, conversa_id, acao } = body
 
-    // Buscar empresa e nome do usuário
+    // Buscar empresa com plano
     const { data: empresa } = await supabase
       .from("empresas").select("id, nome, plano").eq("user_id", user.id).single()
     if (!empresa) return NextResponse.json({ erro: "Empresa não encontrada" }, { status: 404 })
 
-    // Nome do usuário (e-mail como fallback)
     const nomeUsuario = user.user_metadata?.nome_completo
       ?? user.email?.split("@")[0]?.replace(/[._]/g, " ")
       ?? "você"
-
     const nomePrimeiro = nomeUsuario.split(" ")[0]
 
-    // ── Ação: fechar conversa ─────────────────────────────
+    // ── Ações especiais ───────────────────────────────────
     if (acao === "fechar_conversa" && conversa_id) {
       await supabase.from("conversas_mel")
         .update({ status: "resolvido", resolvido_por_ia: true })
@@ -145,7 +166,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ sucesso: true })
     }
 
-    // ── Ação: buscar conversas anteriores ─────────────────
     if (acao === "listar_conversas") {
       const { data: conversas } = await supabase
         .from("conversas_mel")
@@ -156,7 +176,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(conversas ?? [])
     }
 
-    // ── Ação: buscar mensagens de uma conversa ────────────
     if (acao === "carregar_conversa" && conversa_id) {
       const { data: msgs } = await supabase
         .from("mensagens_mel")
@@ -166,19 +185,45 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(msgs ?? [])
     }
 
-    // ── Nova mensagem ─────────────────────────────────────
     if (!mensagem?.trim()) return NextResponse.json({ resposta: `Oi, ${nomePrimeiro}! Como posso te ajudar? 😊` })
 
-    // Criar ou usar conversa existente
+    // ── Buscar contexto real da empresa ───────────────────
+    const hoje = new Date()
+    const inicioDia = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()).toISOString()
+    const fimDia = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate(), 23, 59, 59).toISOString()
+
+    const [
+      { count: totalClientes },
+      { count: totalProdutos },
+      { data: caixaAberto },
+      { count: agendamentosHoje },
+      { count: vendasHoje },
+    ] = await Promise.all([
+      supabase.from("clientes").select("*", { count: "exact", head: true }).eq("empresa_id", empresa.id).eq("ativo", true),
+      supabase.from("produtos_servicos").select("*", { count: "exact", head: true }).eq("empresa_id", empresa.id).eq("ativo", true),
+      supabase.from("caixas").select("id").eq("empresa_id", empresa.id).eq("status", "aberto").maybeSingle(),
+      supabase.from("agendamentos").select("*", { count: "exact", head: true }).eq("empresa_id", empresa.id).gte("data_hora", inicioDia).lte("data_hora", fimDia),
+      supabase.from("vendas").select("*", { count: "exact", head: true }).eq("empresa_id", empresa.id).eq("status", "concluida").gte("created_at", inicioDia).lte("created_at", fimDia),
+    ])
+
+    const ctx: ContextoEmpresa = {
+      nome: empresa.nome,
+      plano: empresa.plano ?? "gratuito",
+      totalClientes: totalClientes ?? 0,
+      totalProdutos: totalProdutos ?? 0,
+      caixaAberto: !!caixaAberto,
+      agendamentosHoje: agendamentosHoje ?? 0,
+      vendasHoje: vendasHoje ?? 0,
+    }
+
+    // ── Criar ou continuar conversa ───────────────────────
     let conversaId = conversa_id
     let protocolo = ""
 
     if (!conversaId) {
-      // Gerar protocolo único
       const { data: prot } = await supabase.rpc("gerar_protocolo")
       protocolo = prot ?? `MEL-${Date.now()}`
 
-      // Criar nova conversa
       const { data: novaConversa } = await supabase
         .from("conversas_mel")
         .insert({
@@ -194,7 +239,6 @@ export async function POST(req: NextRequest) {
       conversaId = novaConversa?.id
       protocolo = novaConversa?.protocolo ?? protocolo
     } else {
-      // Buscar protocolo da conversa existente
       const { data: conv } = await supabase
         .from("conversas_mel").select("protocolo").eq("id", conversaId).single()
       protocolo = conv?.protocolo ?? ""
@@ -210,20 +254,19 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Buscar histórico da conversa
+    // Buscar histórico completo da conversa (últimas 20 mensagens para contexto)
     const { data: historicoDB } = await supabase
       .from("mensagens_mel")
       .select("role, conteudo")
       .eq("conversa_id", conversaId)
       .order("created_at")
-      .limit(12)
+      .limit(20)
 
-    const historico = (historicoDB ?? []).slice(0, -1) // excluir a última (que acabamos de inserir)
+    // Excluir a última mensagem (que acabamos de inserir)
+    const historico = (historicoDB ?? []).slice(0, -1)
 
-    // Gerar resposta
+    // ── Gerar resposta via Groq ───────────────────────────
     let resposta = ""
-    let abrirTicket = false
-
     const groqKey = process.env.GROQ_API_KEY
 
     if (!groqKey) {
@@ -239,18 +282,18 @@ export async function POST(req: NextRequest) {
           body: JSON.stringify({
             model: "llama3-70b-8192",
             messages: [
-              { role: "system", content: getSystemPrompt(nomePrimeiro, empresa.nome, empresa.plano ?? "gratuito") },
+              { role: "system", content: getSystemPrompt(nomePrimeiro, ctx) },
               ...historico.map((m) => ({ role: m.role, content: m.conteudo })),
               { role: "user", content: mensagem },
             ],
-            max_tokens: 600,
-            temperature: 0.65,
+            max_tokens: 700,
+            temperature: 0.7,
           }),
         })
 
         if (res.ok) {
           const data = await res.json()
-          resposta = data.choices?.[0]?.message?.content ?? respostaFallback(mensagem, nomePrimeiro)
+          resposta = data.choices?.[0]?.message?.content?.trim() ?? respostaFallback(mensagem, nomePrimeiro)
         } else {
           resposta = respostaFallback(mensagem, nomePrimeiro)
         }
@@ -259,10 +302,10 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Detectar se precisa de suporte humano
-    abrirTicket = /não (sei|consigo|tenho certeza)|problema técnico|bug|erro|não funciona|suporte humano|atendente/i.test(resposta)
+    // Detectar se a própria Mel sugeriu escalar para suporte
+    const sugerindoTicket = /abrir.*ticket|chamado de suporte|equipe técnica|suporte.*menu|vá em.*suporte/i.test(resposta)
 
-    // Se encaminhou para suporte, atualizar status e CRIAR TICKET AUTOMÁTICO
+    // Salvar resposta da Mel
     if (conversaId) {
       await supabase.from("mensagens_mel").insert({
         conversa_id: conversaId,
@@ -271,17 +314,16 @@ export async function POST(req: NextRequest) {
         conteudo: resposta,
       })
 
-      if (abrirTicket) {
+      // Se sugeriu ticket, criar automaticamente e marcar conversa
+      if (sugerindoTicket) {
         await supabase.from("conversas_mel")
           .update({ status: "encaminhado" })
           .eq("id", conversaId)
 
-        // Criar ticket de suporte automaticamente
-        const protoTicket = `SUP-${Date.now().toString().slice(-7)}`
         const { data: ticket } = await supabase.from("tickets_suporte").insert({
           empresa_id: empresa.id,
           assunto: `Encaminhado pela Mel — ${mensagem.slice(0, 60)}`,
-          mensagem: `Conversa protocolo ${protocolo}.\n\nÚltima mensagem: "${mensagem}"\n\nA Mel não conseguiu resolver e encaminhou para suporte humano.`,
+          mensagem: `Protocolo Mel: ${protocolo}\n\nProblema relatado: "${mensagem}"\n\nA Mel não conseguiu resolver e encaminhou para suporte humano.`,
           status: "aberto",
           prioridade: "normal",
         }).select("id").single()
@@ -291,25 +333,6 @@ export async function POST(req: NextRequest) {
             .update({ gerou_ticket: true, ticket_id: ticket.id })
             .eq("id", conversaId)
         }
-
-        // Adicionar mensagem informando o cliente sobre o ticket
-        const msgTicket = `Entendi! 😊 Abri um chamado de suporte para você com o protocolo **${protoTicket}**.\n\nAssim que um atendente humano estiver disponível, ele vai entrar em contato. Você receberá uma resposta em breve!\n\nAnote seu protocolo: **${protoTicket}**`
-
-        await supabase.from("mensagens_mel").insert({
-          conversa_id: conversaId,
-          empresa_id: empresa.id,
-          role: "assistant",
-          conteudo: msgTicket,
-        })
-
-        return NextResponse.json({
-          resposta: msgTicket,
-          conversa_id: conversaId,
-          protocolo,
-          abrir_ticket: false, // já foi aberto automaticamente
-          ticket_protocolo: protoTicket,
-          nome_usuario: nomePrimeiro,
-        })
       }
     }
 
@@ -317,15 +340,15 @@ export async function POST(req: NextRequest) {
       resposta,
       conversa_id: conversaId,
       protocolo,
-      abrir_ticket: abrirTicket,
+      abrir_ticket: sugerindoTicket,
       nome_usuario: nomePrimeiro,
     })
 
   } catch (error) {
     console.error("Erro Mel IA:", error)
     return NextResponse.json({
-      resposta: "Oi! Tive um probleminha técnico aqui. 😅 Tente novamente ou abra um ticket de suporte que um atendente vai te ajudar!",
-      abrir_ticket: true,
+      resposta: "Oi! Tive um probleminha técnico aqui. Tenta novamente em alguns segundos, tá? Se persistir, vai em **Suporte** no menu e abre um ticket que a gente resolve! 😊",
+      abrir_ticket: false,
     })
   }
 }
