@@ -257,92 +257,141 @@ export function AgendamentosClient({
           <TabsTrigger value="configuracao">Configuração</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="calendario" className="mt-4">
-          <Card>
-            <CardContent className="p-4">
-              {/* Navegação do mês */}
-              <div className="flex items-center justify-between mb-4">
-                <Button variant="ghost" size="icon" onClick={() => setMesAtual(subMonths(mesAtual, 1))}>
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <h3 className="font-bold capitalize">
-                  {format(mesAtual, "MMMM yyyy", { locale: ptBR })}
+        <TabsContent value="calendario" className="mt-4 space-y-4">
+          {/* Calendário premium */}
+          <div className="rounded-2xl border border-border bg-card overflow-hidden">
+            {/* Header do mês */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <button onClick={() => setMesAtual(subMonths(mesAtual, 1))}
+                className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-all">
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <div className="text-center">
+                <h3 className="font-black text-base capitalize">
+                  {format(mesAtual, "MMMM", { locale: ptBR })}
                 </h3>
-                <Button variant="ghost" size="icon" onClick={() => setMesAtual(addMonths(mesAtual, 1))}>
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
+                <p className="text-xs text-muted-foreground">{format(mesAtual, "yyyy")}</p>
               </div>
+              <button onClick={() => setMesAtual(addMonths(mesAtual, 1))}
+                className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-all">
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
 
+            <div className="p-4">
               {/* Dias da semana */}
-              <div className="grid grid-cols-7 mb-2">
+              <div className="grid grid-cols-7 mb-3">
                 {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
-                  <div key={d} className="text-center text-xs font-semibold text-muted-foreground py-1">{d}</div>
+                  <div key={d} className="text-center text-[11px] font-bold text-muted-foreground py-1 uppercase tracking-wide">{d}</div>
                 ))}
               </div>
 
-              {/* Grade clicável */}
-              <div className="grid grid-cols-7 gap-1">
+              {/* Grade */}
+              <div className="grid grid-cols-7 gap-1.5">
                 {Array.from({ length: diasDoMes[0]?.getDay() ?? 0 }).map((_, i) => <div key={`b-${i}`} />)}
                 {diasDoMes.map((dia) => {
                   const agsDoDia = agendamentos.filter((a) => isSameDay(parseISO(a.data_hora), dia))
                   const isSel = isSameDay(dia, diaSelecionado)
                   const isHoje = isToday(dia)
                   const temSolicitacao = agsDoDia.some((a) => a.status === "solicitado")
+                  const temAgendamentos = agsDoDia.length > 0
+
                   return (
                     <button key={dia.toISOString()} onClick={() => setDiaSelecionado(dia)}
-                      className={`relative aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-medium transition-all hover:scale-105
-                        ${isSel ? "bg-primary text-white shadow-orange"
-                          : isHoje ? "border-2 border-primary text-primary"
-                          : agsDoDia.length > 0 ? "bg-muted hover:bg-muted/80"
-                          : "hover:bg-muted text-foreground"
-                        }`}
+                      style={isSel ? { backgroundColor: "#F26E1D", color: "#ffffff" } : {}}
+                      className={`relative aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-semibold transition-all hover:scale-105 ${
+                        isSel ? "shadow-md"
+                        : isHoje ? "border-2 border-[#F26E1D] text-[#F26E1D]"
+                        : temAgendamentos ? "bg-primary/5 text-foreground"
+                        : "hover:bg-muted text-foreground"
+                      }`}
                     >
-                      {format(dia, "d")}
-                      {agsDoDia.length > 0 && (
-                        <span className={`absolute bottom-0.5 text-[9px] font-black leading-none ${
-                          isSel ? "text-white/80"
-                          : temSolicitacao ? "text-yellow-500"
-                          : "text-primary"
-                        }`}>
-                          {agsDoDia.length}
-                        </span>
+                      <span className="text-sm font-bold">{format(dia, "d")}</span>
+                      {temAgendamentos && (
+                        <div className="flex gap-0.5 mt-0.5">
+                          {Array.from({ length: Math.min(agsDoDia.length, 3) }).map((_, i) => (
+                            <div key={i} className={`w-1 h-1 rounded-full ${
+                              isSel ? "bg-white/70"
+                              : temSolicitacao ? "bg-yellow-500"
+                              : "bg-[#F26E1D]"
+                            }`} />
+                          ))}
+                        </div>
                       )}
                     </button>
                   )
                 })}
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Agendamentos do dia selecionado */}
-          <div className="mt-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-muted-foreground capitalize">
-                {format(diaSelecionado, "EEEE, d 'de' MMMM", { locale: ptBR })}
-                {" — "}{agendamentosDoDia.length} agendamento(s)
-              </h3>
-              <Button variant="outline" size="sm" onClick={abrirModalNovo} className="gap-1 text-xs">
-                <Plus className="w-3 h-3" />Agendar neste dia
-              </Button>
             </div>
-            {agendamentosDoDia.length > 0 ? (
-              <div className="space-y-2">
-                {agendamentosDoDia
-                  .sort((a, b) => new Date(a.data_hora).getTime() - new Date(b.data_hora).getTime())
-                  .map((ag) => (
-                    <AgendamentoCard key={ag.id} ag={ag}
-                      onEditar={abrirModalEditar}
-                      onAlterarStatus={alterarStatus}
-                      onConfirmar={confirmarAgendamento}
-                      nomeCliente={nomeCliente(ag)} />
-                  ))}
+
+            {/* Legenda */}
+            <div className="px-5 py-3 border-t border-border flex items-center gap-5 bg-muted/30">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <div className="w-2 h-2 rounded-full bg-[#F26E1D]" />
+                <span>Agendamentos</span>
               </div>
-            ) : (
-              <div className="py-10 text-center text-muted-foreground border border-dashed border-border rounded-2xl">
-                <Calendar className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">Nenhum agendamento neste dia</p>
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <div className="w-2 h-2 rounded-full bg-yellow-500" />
+                <span>Solicitações</span>
               </div>
-            )}
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <div className="w-4 h-4 rounded-lg border-2 border-[#F26E1D] flex items-center justify-center text-[10px] text-[#F26E1D] font-bold leading-none">H</div>
+                <span>Hoje</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Dia selecionado */}
+          <div className="rounded-2xl border border-border bg-card overflow-hidden">
+            {/* Header do dia */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <div>
+                <p className="font-black text-base capitalize">
+                  {format(diaSelecionado, "EEEE", { locale: ptBR })}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {format(diaSelecionado, "d 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {agendamentosDoDia.length > 0 && (
+                  <span className="text-xs font-bold bg-primary/10 text-primary px-2.5 py-1 rounded-full">
+                    {agendamentosDoDia.length} agendamento{agendamentosDoDia.length > 1 ? "s" : ""}
+                  </span>
+                )}
+                <button onClick={abrirModalNovo}
+                  style={{ backgroundColor: "#F26E1D" }}
+                  className="flex items-center gap-1.5 text-white text-xs font-bold px-3 py-2 rounded-xl hover:opacity-90 transition-opacity">
+                  <Plus className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Agendar</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Lista do dia */}
+            <div className="p-4">
+              {agendamentosDoDia.length > 0 ? (
+                <div className="space-y-2">
+                  {agendamentosDoDia
+                    .sort((a, b) => new Date(a.data_hora).getTime() - new Date(b.data_hora).getTime())
+                    .map((ag) => (
+                      <AgendamentoCard key={ag.id} ag={ag}
+                        onEditar={abrirModalEditar}
+                        onAlterarStatus={alterarStatus}
+                        onConfirmar={confirmarAgendamento}
+                        nomeCliente={nomeCliente(ag)} />
+                    ))}
+                </div>
+              ) : (
+                <div className="py-12 text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3">
+                    <Calendar className="w-7 h-7 text-muted-foreground opacity-50" />
+                  </div>
+                  <p className="text-sm font-medium text-muted-foreground">Nenhum agendamento neste dia</p>
+                  <p className="text-xs text-muted-foreground/60 mt-1">Clique em "Agendar" para adicionar</p>
+                </div>
+              )}
+            </div>
           </div>
         </TabsContent>
 
