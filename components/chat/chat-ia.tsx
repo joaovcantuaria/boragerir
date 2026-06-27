@@ -274,7 +274,7 @@ export function ChatIA() {
   }
 
   return (
-    <div style={{ position: "fixed", bottom: "24px", right: "16px", zIndex: 9999 }}>
+    <div style={{ position: "fixed", bottom: "72px", right: "16px", zIndex: 9999 }}>
       {/* Janela da Mel */}
       <AnimatePresence>
         {aberto && (
@@ -572,7 +572,7 @@ export function ChatIA() {
             onClick={() => setAberto(true)}
             style={{
               position: "fixed",
-              bottom: "24px",
+              bottom: "72px",
               right: "16px",
               width: 52, height: 52, borderRadius: "50%",
               background: "linear-gradient(135deg, #F26E1D, #e05e10)",
