@@ -37,9 +37,8 @@ export function Header({ empresaNome = "Bora Gerir", empresaLogoUrl }: HeaderPro
     <header
       className={cn(
         "h-16 flex items-center justify-between px-5 sticky top-0 z-20",
-        "bg-background",
-        "border-b border-border",
-        "backdrop-blur-sm"
+        "bg-white dark:bg-[#0a0b0f]",
+        "border-b border-gray-200 dark:border-white/[0.08]",
       )}
     >
       {/* Nome da empresa */}
