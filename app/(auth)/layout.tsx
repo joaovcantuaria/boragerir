@@ -1,4 +1,4 @@
-import { LogoFull } from "@/components/ui/logo"
+import Image from "next/image"
 
 export const dynamic = "force-dynamic"
 
@@ -12,9 +12,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <div className="absolute -bottom-32 -left-32 w-80 h-80 bg-primary/10 rounded-full blur-3xl" />
         </div>
 
-        {/* Logo */}
+        {/* Logo — versão branca para fundo escuro */}
         <div className="relative">
-          <LogoFull height={52} />
+          <LogoBranca />
         </div>
 
         {/* Headline */}
@@ -49,12 +49,46 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       {/* Painel direito — formulário */}
       <div className="flex-1 flex items-center justify-center p-6 bg-background">
         <div className="w-full max-w-md">
-          {/* Logo mobile */}
+          {/* Logo mobile — versão padrão (fundo claro) */}
           <div className="flex justify-center mb-8 lg:hidden">
-            <LogoFull height={44} />
+            <div className="relative h-11" style={{ width: "160px" }}>
+              <Image
+                src="/logo-full.png"
+                alt="Bora Gerir"
+                fill
+                className="object-contain object-left"
+                priority
+              />
+            </div>
           </div>
           {children}
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Logo branca para o painel escuro ─────────────────────────
+// Tenta usar logo-full-branca.png; se não existir, usa versão SVG inline
+function LogoBranca() {
+  return (
+    <div className="flex items-center gap-3">
+      {/* Ícone laranja */}
+      <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width={52} height={52}>
+        <rect width="40" height="40" rx="10" fill="#F26E1D" />
+        <text
+          x="20" y="28"
+          textAnchor="middle"
+          fontFamily="Arial, sans-serif"
+          fontWeight="900"
+          fontSize="24"
+          fill="white"
+        >B</text>
+      </svg>
+      {/* Texto branco */}
+      <div className="flex items-baseline gap-1">
+        <span className="font-black text-4xl text-white leading-none">Bora</span>
+        <span className="font-black text-4xl text-[#F26E1D] leading-none">Gerir</span>
       </div>
     </div>
   )
