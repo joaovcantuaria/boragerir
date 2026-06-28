@@ -28,8 +28,6 @@ export default async function FinanceiroPage() {
     { data: funcionarios },
     { data: debitos },
     { data: caixaAtivo },
-    { data: contasPagar },
-    { data: agendamentosFuturos },
   ] = await Promise.all([
     supabase.from("vendas")
       .select("*, itens_venda(nome_item, subtotal, comissao_valor, funcionario_id:venda_id), clientes(nome_completo)")
@@ -53,22 +51,34 @@ export default async function FinanceiroPage() {
       .eq("empresa_id", empresa.id)
       .eq("status", "aberto")
       .maybeSingle(),
-    // Contas a pagar dos próximos 60 dias + pendentes/atrasadas
-    supabase.from("contas_pagar")
+  ])
+
+  // Contas a pagar — tolerante se tabela ainda não existir
+  let contasPagar: any[] = []
+  try {
+    const { data: cp } = await supabase
+      .from("contas_pagar")
       .select("*")
       .eq("empresa_id", empresa.id)
       .or(`status.eq.pendente,status.eq.atrasado,data_vencimento.gte.${hoje.toISOString().substring(0, 10)}`)
       .order("data_vencimento", { ascending: true })
-      .limit(200),
-    // Agendamentos futuros confirmados para projeção de receita
-    supabase.from("agendamentos")
+      .limit(200)
+    contasPagar = cp ?? []
+  } catch { /* tabela ainda não criada no banco */ }
+
+  // Agendamentos futuros — tolerante a erro
+  let agendamentosFuturos: any[] = []
+  try {
+    const { data: ag } = await supabase
+      .from("agendamentos")
       .select("id, data_hora, status, servico_id, produtos_servicos(preco, nome)")
       .eq("empresa_id", empresa.id)
       .in("status", ["agendado", "confirmado"])
       .gte("data_hora", hoje.toISOString())
       .lte("data_hora", proximos60.toISOString())
-      .order("data_hora", { ascending: true }),
-  ])
+      .order("data_hora", { ascending: true })
+    agendamentosFuturos = ag ?? []
+  } catch { /* erro silencioso */ }
 
   // Calcular saldo atual do caixa aberto
   let saldoCaixa = 0

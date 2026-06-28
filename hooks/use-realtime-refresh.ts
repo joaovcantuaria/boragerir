@@ -37,7 +37,6 @@ export function useRealtimeRefresh(empresaId: string | null | undefined) {
       "produtos_servicos",
       "funcionarios",
       "debitos_clientes",
-      "contas_pagar",
     ]
 
     const canais = tabelas.map((tabela) =>
