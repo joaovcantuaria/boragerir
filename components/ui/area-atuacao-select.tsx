@@ -90,7 +90,7 @@ export function AreaAtuacaoSelect({
       {aberto && (
         <div className={cn(
           "absolute left-0 right-0 top-full mt-1 z-50 rounded-xl border shadow-lg overflow-hidden",
-          "bg-popover border-border"
+          "bg-white dark:bg-gray-900 border-border"
         )}>
           {/* Campo de busca */}
           <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border">
