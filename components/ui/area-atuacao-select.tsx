@@ -136,10 +136,10 @@ export function AreaAtuacaoSelect({
                 type="button"
                 onClick={() => selecionar(opcao)}
                 className={cn(
-                  "w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-left transition-colors",
+                  "w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-left transition-all border-l-2",
                   value === opcao
-                    ? "bg-primary/8 text-primary font-semibold"
-                    : "hover:bg-muted"
+                    ? "bg-[#F26E1D]/8 text-[#F26E1D] font-semibold border-l-[#F26E1D]"
+                    : "hover:bg-[#F26E1D]/5 hover:text-[#F26E1D] hover:border-l-[#F26E1D] border-l-transparent"
                 )}
               >
                 <span>{opcao}</span>
