@@ -42,6 +42,35 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const naoLidas = notifs.filter((n) => !n.lida).length
 
+  // Forçar theme-color da barra de status mobile para o fundo do admin
+  useEffect(() => {
+    const cor = modoClaro ? "#ffffff" : "#111113"
+    const bgCor = modoClaro ? "#f7f8fa" : "#0d0d0f"
+    // Atualizar todas as meta tags theme-color existentes
+    document.querySelectorAll('meta[name="theme-color"]').forEach((el) => {
+      el.setAttribute("content", cor)
+    })
+    // Criar uma se não existir
+    if (!document.querySelector('meta[name="theme-color"]')) {
+      const meta = document.createElement("meta")
+      meta.name = "theme-color"
+      meta.content = cor
+      document.head.appendChild(meta)
+    }
+    // Forçar fundo do html/body para evitar barra branca no mobile
+    document.documentElement.style.backgroundColor = bgCor
+    document.body.style.backgroundColor = bgCor
+
+    // Restaurar ao sair do admin
+    return () => {
+      document.querySelectorAll('meta[name="theme-color"]').forEach((el) => {
+        el.setAttribute("content", "#ffffff")
+      })
+      document.documentElement.style.backgroundColor = ""
+      document.body.style.backgroundColor = ""
+    }
+  }, [modoClaro])
+
   useEffect(() => {
     fetch("/api/admin/notificacoes")
       .then((r) => r.json())
