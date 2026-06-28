@@ -82,7 +82,7 @@ export function ConfiguracoesClient({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const { register, handleSubmit, setValue } = useForm({
+  const { register, handleSubmit, setValue, watch } = useForm({
     resolver: zodResolver(schemaNegocio),
     defaultValues: {
       nome: empresa.nome,

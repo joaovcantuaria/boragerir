@@ -1,64 +1,47 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 
-/**
- * Hook que escuta mudanças em tempo real nas tabelas críticas do Supabase
- * e chama router.refresh() automaticamente para recarregar os dados do servidor.
- *
- * Funciona com Next.js App Router: refresh() re-executa os Server Components
- * sem recarregar a página inteira — apenas os dados são atualizados.
- */
 export function useRealtimeRefresh(empresaId: string | null | undefined) {
   const router = useRouter()
-  const supabase = createClient()
-  // Debounce: evita múltiplos refreshes em cascata
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [mounted, setMounted] = useState(false)
 
-  function scheduleRefresh() {
-    if (timerRef.current) clearTimeout(timerRef.current)
-    timerRef.current = setTimeout(() => {
-      router.refresh()
-    }, 600)
-  }
+  useEffect(() => { setMounted(true) }, [])
 
   useEffect(() => {
-    if (!empresaId) return
+    if (!mounted || !empresaId) return
 
-    // Tabelas que disparam refresh quando há mudanças
+    const supabase = createClient()
+
+    function scheduleRefresh() {
+      if (timerRef.current) clearTimeout(timerRef.current)
+      timerRef.current = setTimeout(() => router.refresh(), 800)
+    }
+
     const tabelas = [
-      "vendas",
-      "agendamentos",
-      "clientes",
-      "movimentacoes_caixa",
-      "caixas",
-      "produtos_servicos",
-      "funcionarios",
-      "debitos_clientes",
+      "vendas", "agendamentos", "clientes",
+      "movimentacoes_caixa", "caixas",
+      "produtos_servicos", "funcionarios", "debitos_clientes",
     ]
 
     const canais = tabelas.map((tabela) =>
       supabase
         .channel(`realtime:${tabela}:${empresaId}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*", // INSERT, UPDATE, DELETE
-            schema: "public",
-            table: tabela,
-            filter: `empresa_id=eq.${empresaId}`,
-          },
-          () => scheduleRefresh()
-        )
+        .on("postgres_changes", {
+          event: "*",
+          schema: "public",
+          table: tabela,
+          filter: `empresa_id=eq.${empresaId}`,
+        }, scheduleRefresh)
         .subscribe()
     )
 
     return () => {
-      canais.forEach((canal) => supabase.removeChannel(canal))
+      canais.forEach((c) => supabase.removeChannel(c))
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [empresaId])
+  }, [mounted, empresaId])
 }
