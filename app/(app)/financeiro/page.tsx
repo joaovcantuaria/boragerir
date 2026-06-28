@@ -16,8 +16,21 @@ export default async function FinanceiroPage() {
 
   const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
   const fimMes = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59).toISOString()
+  // Próximos 60 dias para projeção
+  const hoje = new Date()
+  hoje.setHours(0, 0, 0, 0)
+  const proximos60 = new Date(hoje)
+  proximos60.setDate(proximos60.getDate() + 60)
 
-  const [{ data: vendas }, { data: movimentacoes }, { data: funcionarios }, { data: debitos }, { data: caixaAtivo }] = await Promise.all([
+  const [
+    { data: vendas },
+    { data: movimentacoes },
+    { data: funcionarios },
+    { data: debitos },
+    { data: caixaAtivo },
+    { data: contasPagar },
+    { data: agendamentosFuturos },
+  ] = await Promise.all([
     supabase.from("vendas")
       .select("*, itens_venda(nome_item, subtotal, comissao_valor, funcionario_id:venda_id), clientes(nome_completo)")
       .eq("empresa_id", empresa.id)
@@ -40,6 +53,21 @@ export default async function FinanceiroPage() {
       .eq("empresa_id", empresa.id)
       .eq("status", "aberto")
       .maybeSingle(),
+    // Contas a pagar dos próximos 60 dias + pendentes/atrasadas
+    supabase.from("contas_pagar")
+      .select("*")
+      .eq("empresa_id", empresa.id)
+      .or(`status.eq.pendente,status.eq.atrasado,data_vencimento.gte.${hoje.toISOString().substring(0, 10)}`)
+      .order("data_vencimento", { ascending: true })
+      .limit(200),
+    // Agendamentos futuros confirmados para projeção de receita
+    supabase.from("agendamentos")
+      .select("id, data_hora, status, servico_id, produtos_servicos(preco, nome)")
+      .eq("empresa_id", empresa.id)
+      .in("status", ["agendado", "confirmado"])
+      .gte("data_hora", hoje.toISOString())
+      .lte("data_hora", proximos60.toISOString())
+      .order("data_hora", { ascending: true }),
   ])
 
   // Calcular saldo atual do caixa aberto
@@ -64,6 +92,8 @@ export default async function FinanceiroPage() {
       debitos={debitos ?? []}
       saldoCaixa={saldoCaixa}
       caixaAberto={!!caixaAtivo}
+      contasPagar={contasPagar ?? []}
+      agendamentosFuturos={(agendamentosFuturos ?? []) as any[]}
     />
   )
 }

@@ -7,9 +7,10 @@ import {
 } from "recharts"
 import {
   TrendingUp, TrendingDown, DollarSign, BarChart3, Search, Edit, XCircle, Loader2, Clock,
-  Wallet, Download, FileText, FileBarChart, Users, Calendar, ChevronDown
+  Wallet, Download, FileText, FileBarChart, Users, Calendar, ChevronDown,
+  Plus, AlertTriangle, CheckCircle2, Trash2, Receipt, ArrowRightLeft
 } from "lucide-react"
-import { format, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, subMonths } from "date-fns"
+import { format, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, subMonths, addDays, isBefore, isToday } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -39,7 +40,32 @@ type Venda = {
   clientes?: { nome_completo: string } | null
 }
 
-export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, movimentacoes, funcionarios, debitos, saldoCaixa = 0, caixaAberto = false }: {
+type ContaPagar = {
+  id: string
+  descricao: string
+  valor: number
+  data_vencimento: string
+  categoria: string
+  status: "pendente" | "pago" | "atrasado"
+  recorrencia: "avulso" | "mensal" | "semanal"
+  recorrencia_grupo: string | null
+  data_pagamento: string | null
+  observacoes: string | null
+  created_at: string
+}
+
+const CATEGORIAS_CONTA = [
+  { value: "aluguel", label: "Aluguel", emoji: "🏠" },
+  { value: "energia", label: "Energia", emoji: "⚡" },
+  { value: "agua", label: "Água", emoji: "💧" },
+  { value: "fornecedor", label: "Fornecedor", emoji: "📦" },
+  { value: "salario", label: "Salário", emoji: "👤" },
+  { value: "marketing", label: "Marketing", emoji: "📣" },
+  { value: "manutencao", label: "Manutenção", emoji: "🔧" },
+  { value: "outros", label: "Outros", emoji: "📋" },
+]
+
+export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, movimentacoes, funcionarios, debitos, saldoCaixa = 0, caixaAberto = false, contasPagar: contasPagarIniciais = [], agendamentosFuturos = [] }: {
   empresaId: string; plano: string
   vendas: Venda[]
   movimentacoes: { id: string; tipo: string; categoria: string; descricao: string; valor: number; created_at: string }[]
@@ -47,8 +73,11 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   debitos: { id: string; cliente_id: string; valor_total: number; valor_pago: number; valor_aberto: number; status: string; created_at: string; descricao: string | null; clientes?: { nome_completo: string } | null }[]
   saldoCaixa?: number
   caixaAberto?: boolean
+  contasPagar?: ContaPagar[]
+  agendamentosFuturos?: { id: string; data_hora: string; status: string; produtos_servicos?: { preco: number; nome: string } | null }[]
 }) {
   const [vendas, setVendas] = useState(vendasIniciais)
+  const [contasPagar, setContasPagar] = useState<ContaPagar[]>(contasPagarIniciais)
   const [busca, setBusca] = useState("")
   const [modalEditar, setModalEditar] = useState<Venda | null>(null)
   const [editFormaPagamento, setEditFormaPagamento] = useState("")
@@ -175,6 +204,15 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
             {totalAReceber > 0 && <span className="bg-amber-500 text-white text-xs font-black px-1.5 py-0.5 rounded-full">{debitos.length}</span>}
           </TabsTrigger>
           <TabsTrigger value="formas">Formas de pagamento</TabsTrigger>
+          <TabsTrigger value="contaspagar" className="gap-2">
+            Contas a Pagar
+            {contasPagar.filter((c) => c.status === "atrasado").length > 0 && (
+              <span className="bg-red-500 text-white text-xs font-black px-1.5 py-0.5 rounded-full">
+                {contasPagar.filter((c) => c.status === "atrasado").length}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="fluxo">Fluxo de Caixa</TabsTrigger>
           <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
         </TabsList>
 
@@ -311,6 +349,24 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ── ABA CONTAS A PAGAR ── */}
+        <TabsContent value="contaspagar" className="mt-4">
+          <ContasPagarTab
+            empresaId={empresaId}
+            contas={contasPagar}
+            setContas={setContasPagar}
+          />
+        </TabsContent>
+
+        {/* ── ABA FLUXO DE CAIXA ── */}
+        <TabsContent value="fluxo" className="mt-4">
+          <FluxoCaixaTab
+            vendas={vendas}
+            contasPagar={contasPagar}
+            agendamentosFuturos={agendamentosFuturos}
+          />
         </TabsContent>
 
         {/* ── ABA RELATÓRIOS ── */}
@@ -694,6 +750,452 @@ function RelatoriosTab({ vendas, movimentacoes, funcionarios, debitos }: Relator
           O arquivo será baixado em formato <strong>.txt</strong>, compatível com qualquer editor de texto.
         </p>
       </div>
+    </div>
+  )
+}
+
+
+// ─── Aba Contas a Pagar ────────────────────────────────────────────────────
+
+function ContasPagarTab({
+  empresaId,
+  contas,
+  setContas,
+}: {
+  empresaId: string
+  contas: ContaPagar[]
+  setContas: React.Dispatch<React.SetStateAction<ContaPagar[]>>
+}) {
+  const hoje = new Date()
+  hoje.setHours(0, 0, 0, 0)
+
+  const [modalAberto, setModalAberto] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [filtroStatus, setFiltroStatus] = useState<"todos" | "pendente" | "atrasado" | "pago">("todos")
+  const [filtroPeriodo, setFiltroPeriodo] = useState<"todos" | "hoje" | "semana" | "mes">("mes")
+  const [form, setForm] = useState({
+    descricao: "", valor: "", data_vencimento: format(new Date(), "yyyy-MM-dd"),
+    categoria: "outros", recorrencia: "avulso", observacoes: "",
+  })
+
+  // Calcular status real (atrasado se pendente e vencida)
+  const contasComStatus = contas.map((c) => ({
+    ...c,
+    status: (c.status === "pendente" && isBefore(new Date(c.data_vencimento + "T23:59:59"), hoje))
+      ? "atrasado" as const
+      : c.status,
+  }))
+
+  const contasFiltradas = contasComStatus.filter((c) => {
+    if (filtroStatus !== "todos" && c.status !== filtroStatus) return false
+    if (filtroPeriodo === "hoje") return c.data_vencimento === format(hoje, "yyyy-MM-dd")
+    if (filtroPeriodo === "semana") {
+      const ini = format(startOfWeek(hoje, { locale: ptBR }), "yyyy-MM-dd")
+      const fim = format(endOfWeek(hoje, { locale: ptBR }), "yyyy-MM-dd")
+      return c.data_vencimento >= ini && c.data_vencimento <= fim
+    }
+    if (filtroPeriodo === "mes") {
+      const ini = format(startOfMonth(hoje), "yyyy-MM-dd")
+      const fim = format(endOfMonth(hoje), "yyyy-MM-dd")
+      return c.data_vencimento >= ini && c.data_vencimento <= fim
+    }
+    return true
+  })
+
+  const totalPendente = contasFiltradas.filter((c) => c.status === "pendente" || c.status === "atrasado").reduce((s, c) => s + c.valor, 0)
+  const totalAtrasado = contasFiltradas.filter((c) => c.status === "atrasado").reduce((s, c) => s + c.valor, 0)
+
+  async function salvar() {
+    if (!form.descricao || !form.valor || !form.data_vencimento) {
+      toast.error("Preencha descrição, valor e data de vencimento."); return
+    }
+    setLoading(true)
+    const res = await fetch("/api/financeiro/contas-pagar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    })
+    const data = await res.json()
+    if (!res.ok) { toast.error(data.erro ?? "Erro ao salvar conta."); setLoading(false); return }
+    toast.success(form.recorrencia === "avulso" ? "Conta cadastrada!" : `Conta recorrente criada!`)
+    setContas((prev) => [...(data.data ?? []), ...prev].sort((a, b) => a.data_vencimento.localeCompare(b.data_vencimento)))
+    setModalAberto(false)
+    setForm({ descricao: "", valor: "", data_vencimento: format(new Date(), "yyyy-MM-dd"), categoria: "outros", recorrencia: "avulso", observacoes: "" })
+    setLoading(false)
+  }
+
+  async function pagar(id: string) {
+    const res = await fetch("/api/financeiro/contas-pagar", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ _acao: "pagar", id }),
+    })
+    if (res.ok) {
+      setContas((prev) => prev.map((c) => c.id === id ? { ...c, status: "pago", data_pagamento: new Date().toISOString() } : c))
+      toast.success("Conta marcada como paga!")
+    }
+  }
+
+  async function excluir(conta: ContaPagar) {
+    if (conta.recorrencia_grupo) {
+      const opcao = confirm(`Esta é uma conta recorrente.\n\nOK = Excluir todas as futuras\nCancelar = Excluir só esta`)
+      const tipo = opcao ? "todas_futuras" : "apenas_esta"
+      await fetch("/api/financeiro/contas-pagar", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ _acao: "excluir", id: conta.id, tipo, grupo_id: conta.recorrencia_grupo, data_vencimento: conta.data_vencimento }),
+      })
+      if (opcao) {
+        setContas((prev) => prev.filter((c) => !(c.recorrencia_grupo === conta.recorrencia_grupo && c.data_vencimento >= conta.data_vencimento)))
+      } else {
+        setContas((prev) => prev.filter((c) => c.id !== conta.id))
+      }
+    } else {
+      if (!confirm("Excluir esta conta?")) return
+      await fetch("/api/financeiro/contas-pagar", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ _acao: "excluir", id: conta.id, tipo: "apenas_esta" }),
+      })
+      setContas((prev) => prev.filter((c) => c.id !== conta.id))
+    }
+    toast.success("Conta excluída.")
+  }
+
+  const catInfo = (v: string) => CATEGORIAS_CONTA.find((c) => c.value === v)
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="space-y-1">
+          <h2 className="text-base font-bold">Contas a Pagar</h2>
+          <div className="flex items-center gap-3 flex-wrap">
+            {totalAtrasado > 0 && (
+              <span className="flex items-center gap-1.5 text-xs font-semibold text-red-500 bg-red-500/10 px-2.5 py-1 rounded-full">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                {formatarMoeda(totalAtrasado)} em atraso
+              </span>
+            )}
+            {totalPendente > 0 && (
+              <span className="text-xs text-muted-foreground">
+                {formatarMoeda(totalPendente)} a pagar no período
+              </span>
+            )}
+          </div>
+        </div>
+        <Button onClick={() => setModalAberto(true)} size="sm" className="gap-2">
+          <Plus className="w-4 h-4" />Nova conta
+        </Button>
+      </div>
+
+      {/* Filtros */}
+      <div className="flex flex-wrap gap-2">
+        <div className="flex gap-1">
+          {(["todos", "hoje", "semana", "mes"] as const).map((p) => (
+            <button key={p} onClick={() => setFiltroPeriodo(p)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filtroPeriodo === p ? "bg-primary text-white" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
+              {p === "todos" ? "Todos" : p === "hoje" ? "Hoje" : p === "semana" ? "Esta semana" : "Este mês"}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-1 ml-auto">
+          {(["todos", "pendente", "atrasado", "pago"] as const).map((s) => (
+            <button key={s} onClick={() => setFiltroStatus(s)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all capitalize ${filtroStatus === s ? "bg-primary text-white" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
+              {s === "todos" ? "Todos" : s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Lista */}
+      {contasFiltradas.length === 0 ? (
+        <div className="py-14 text-center text-muted-foreground">
+          <Receipt className="w-10 h-10 mx-auto mb-3 opacity-30" />
+          <p className="text-sm font-medium">Nenhuma conta encontrada</p>
+          <p className="text-xs mt-1">Clique em "Nova conta" para cadastrar uma despesa futura.</p>
+        </div>
+      ) : (
+        <div className="border border-border rounded-xl overflow-hidden">
+          {contasFiltradas.map((conta, idx) => {
+            const cat = catInfo(conta.categoria)
+            const statusCor = conta.status === "atrasado"
+              ? "text-red-500 bg-red-500/10 border-red-500/20"
+              : conta.status === "pago"
+                ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/20"
+                : "text-amber-500 bg-amber-500/10 border-amber-500/20"
+            return (
+              <div key={conta.id} className={`flex items-center gap-3 px-4 py-3.5 ${idx > 0 ? "border-t border-border" : ""} hover:bg-muted/40 transition-colors`}>
+                <div className="text-xl shrink-0">{cat?.emoji ?? "📋"}</div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate">{conta.descricao}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs text-muted-foreground">
+                      {format(parseISO(conta.data_vencimento), "dd/MM/yyyy", { locale: ptBR })}
+                      {isToday(parseISO(conta.data_vencimento)) && <span className="ml-1 text-primary font-bold">· Hoje!</span>}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{cat?.label}</span>
+                    {conta.recorrencia !== "avulso" && (
+                      <span className="text-[10px] px-1.5 py-0.5 bg-muted rounded font-medium capitalize">{conta.recorrencia}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="text-right shrink-0 space-y-1">
+                  <p className="text-sm font-black">{formatarMoeda(conta.valor)}</p>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${statusCor}`}>
+                    {conta.status === "atrasado" ? "Atrasado" : conta.status === "pago" ? "Pago" : "Pendente"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  {conta.status !== "pago" && (
+                    <button onClick={() => pagar(conta.id)} title="Marcar como pago"
+                      className="p-1.5 rounded-lg text-emerald-500 hover:bg-emerald-500/10 transition-colors">
+                      <CheckCircle2 className="w-4 h-4" />
+                    </button>
+                  )}
+                  <button onClick={() => excluir(conta)} title="Excluir"
+                    className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Modal nova conta */}
+      <Dialog open={modalAberto} onOpenChange={(o) => { if (!o) setModalAberto(false) }}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+          <DialogHeader><DialogTitle>Nova Conta a Pagar</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Descrição *</Label>
+              <Input placeholder="Ex: Aluguel do salão" value={form.descricao} onChange={(e) => setForm((p) => ({ ...p, descricao: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Valor (R$) *</Label>
+                <Input type="number" step="0.01" min="0.01" placeholder="0,00" value={form.valor} onChange={(e) => setForm((p) => ({ ...p, valor: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Vencimento *</Label>
+                <Input type="date" value={form.data_vencimento} onChange={(e) => setForm((p) => ({ ...p, data_vencimento: e.target.value }))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Categoria</Label>
+                <Select value={form.categoria} onValueChange={(v) => setForm((p) => ({ ...p, categoria: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIAS_CONTA.map((c) => (
+                      <SelectItem key={c.value} value={c.value}>{c.emoji} {c.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Recorrência</Label>
+                <Select value={form.recorrencia} onValueChange={(v) => setForm((p) => ({ ...p, recorrencia: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="avulso">Avulso (uma vez)</SelectItem>
+                    <SelectItem value="mensal">Mensal (12 meses)</SelectItem>
+                    <SelectItem value="semanal">Semanal (52 semanas)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Observações</Label>
+              <Textarea placeholder="Opcional..." rows={2} value={form.observacoes} onChange={(e) => setForm((p) => ({ ...p, observacoes: e.target.value }))} />
+            </div>
+            {form.recorrencia !== "avulso" && (
+              <p className="text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2">
+                📅 Serão criadas {form.recorrencia === "mensal" ? "12 parcelas mensais" : "52 parcelas semanais"} a partir de {format(new Date(form.data_vencimento + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setModalAberto(false)}>Cancelar</Button>
+            <Button onClick={salvar} disabled={loading}>
+              {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Cadastrar conta
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+// ─── Aba Fluxo de Caixa ───────────────────────────────────────────────────
+
+function FluxoCaixaTab({
+  vendas,
+  contasPagar,
+  agendamentosFuturos,
+}: {
+  vendas: Venda[]
+  contasPagar: ContaPagar[]
+  agendamentosFuturos: { id: string; data_hora: string; status: string; produtos_servicos?: { preco: number; nome: string } | null }[]
+}) {
+  const [periodo, setPeriodo] = useState<"hoje" | "semana" | "mes">("mes")
+  const hoje = new Date()
+  hoje.setHours(0, 0, 0, 0)
+
+  const { inicio, fim } = (() => {
+    if (periodo === "hoje") return { inicio: hoje, fim: new Date(hoje.getTime() + 86399999) }
+    if (periodo === "semana") return { inicio: startOfWeek(hoje, { locale: ptBR }), fim: endOfWeek(hoje, { locale: ptBR }) }
+    return { inicio: startOfMonth(hoje), fim: endOfMonth(hoje) }
+  })()
+
+  const fmtDate = (d: Date) => d.toISOString().substring(0, 10)
+
+  // Receitas confirmadas (vendas já concluídas no período)
+  const receitasConfirmadas = vendas
+    .filter((v) => v.status === "concluida" && new Date(v.created_at) >= inicio && new Date(v.created_at) <= fim)
+    .reduce((s, v) => s + v.total, 0)
+
+  // Receitas previstas (agendamentos futuros no período com preço)
+  const receitasPrevistas = agendamentosFuturos
+    .filter((a) => {
+      const d = new Date(a.data_hora)
+      return d >= inicio && d <= fim && a.produtos_servicos?.preco
+    })
+    .reduce((s, a) => s + (a.produtos_servicos?.preco ?? 0), 0)
+
+  const totalReceitas = receitasConfirmadas + receitasPrevistas
+
+  // Despesas previstas (contas a pagar pendentes/atrasadas no período)
+  const despesasPrevistas = contasPagar
+    .filter((c) => {
+      const dv = c.data_vencimento
+      return (c.status === "pendente" || c.status === "atrasado") && dv >= fmtDate(inicio) && dv <= fmtDate(fim)
+    })
+    .reduce((s, c) => s + c.valor, 0)
+
+  const saldoProjetado = totalReceitas - despesasPrevistas
+
+  // Dados para gráfico (por dia na semana, por semana no mês)
+  const dadosGrafico: { label: string; receita: number; despesa: number }[] = []
+
+  if (periodo === "semana") {
+    for (let i = 0; i < 7; i++) {
+      const dia = addDays(inicio, i)
+      const diaStr = fmtDate(dia)
+      const rec = vendas.filter((v) => v.status === "concluida" && v.created_at.substring(0, 10) === diaStr).reduce((s, v) => s + v.total, 0)
+        + agendamentosFuturos.filter((a) => a.data_hora.substring(0, 10) === diaStr && a.produtos_servicos?.preco).reduce((s, a) => s + (a.produtos_servicos?.preco ?? 0), 0)
+      const desp = contasPagar.filter((c) => c.data_vencimento === diaStr && (c.status === "pendente" || c.status === "atrasado")).reduce((s, c) => s + c.valor, 0)
+      dadosGrafico.push({ label: format(dia, "EEE", { locale: ptBR }), receita: rec, despesa: desp })
+    }
+  } else if (periodo === "mes") {
+    for (let semana = 0; semana < 5; semana++) {
+      const iniSem = addDays(inicio, semana * 7)
+      const fimSem = addDays(iniSem, 6)
+      if (iniSem > fim) break
+      const rec = vendas.filter((v) => {
+        const d = new Date(v.created_at)
+        return v.status === "concluida" && d >= iniSem && d <= fimSem
+      }).reduce((s, v) => s + v.total, 0)
+        + agendamentosFuturos.filter((a) => {
+          const d = new Date(a.data_hora)
+          return d >= iniSem && d <= fimSem && a.produtos_servicos?.preco
+        }).reduce((s, a) => s + (a.produtos_servicos?.preco ?? 0), 0)
+      const desp = contasPagar.filter((c) => {
+        const dv = c.data_vencimento
+        return (c.status === "pendente" || c.status === "atrasado") && dv >= fmtDate(iniSem) && dv <= fmtDate(fimSem)
+      }).reduce((s, c) => s + c.valor, 0)
+      dadosGrafico.push({ label: `Sem ${semana + 1}`, receita: rec, despesa: desp })
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h2 className="text-base font-bold flex items-center gap-2">
+          <ArrowRightLeft className="w-4 h-4 text-primary" />
+          Fluxo de Caixa Projetado
+        </h2>
+        <div className="flex gap-1">
+          {(["hoje", "semana", "mes"] as const).map((p) => (
+            <button key={p} onClick={() => setPeriodo(p)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${periodo === p ? "bg-primary text-white" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
+              {p === "hoje" ? "Hoje" : p === "semana" ? "Esta semana" : "Este mês"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Cards de resumo */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          { label: "Receitas confirmadas", valor: receitasConfirmadas, cor: "text-emerald-500", bg: "bg-emerald-500/10", desc: "Vendas já realizadas" },
+          { label: "Receitas previstas", valor: receitasPrevistas, cor: "text-blue-500", bg: "bg-blue-500/10", desc: "Agendamentos futuros" },
+          { label: "Despesas previstas", valor: despesasPrevistas, cor: "text-red-500", bg: "bg-red-500/10", desc: "Contas a pagar" },
+          { label: "Saldo projetado", valor: saldoProjetado, cor: saldoProjetado >= 0 ? "text-emerald-500" : "text-red-500", bg: saldoProjetado >= 0 ? "bg-emerald-500/10" : "bg-red-500/10", desc: saldoProjetado >= 0 ? "Resultado positivo" : "Atenção: déficit" },
+        ].map(({ label, valor, cor, bg, desc }) => (
+          <Card key={label}>
+            <CardContent className="p-4">
+              <div className={`w-8 h-8 rounded-lg ${bg} flex items-center justify-center mb-2`}>
+                <DollarSign className={`w-4 h-4 ${cor}`} />
+              </div>
+              <p className="text-xs text-muted-foreground">{label}</p>
+              <p className={`text-xl font-black ${cor}`}>{formatarMoeda(valor)}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{desc}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Saldo visual */}
+      <div className={`rounded-2xl p-5 border ${saldoProjetado >= 0 ? "border-emerald-500/20 bg-emerald-500/5" : "border-red-500/20 bg-red-500/5"}`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-muted-foreground">Saldo projetado para o período</p>
+            <p className={`text-3xl font-black mt-1 ${saldoProjetado >= 0 ? "text-emerald-500" : "text-red-500"}`}>
+              {saldoProjetado >= 0 ? "+" : ""}{formatarMoeda(saldoProjetado)}
+            </p>
+          </div>
+          <div className={`text-4xl ${saldoProjetado >= 0 ? "" : "opacity-70"}`}>
+            {saldoProjetado >= 0 ? "📈" : "📉"}
+          </div>
+        </div>
+        {saldoProjetado < 0 && (
+          <p className="text-xs text-red-500 mt-2 font-medium">
+            ⚠ Suas despesas previstas superam as receitas. Considere rever os custos ou aumentar as vendas.
+          </p>
+        )}
+      </div>
+
+      {/* Gráfico */}
+      {periodo !== "hoje" && dadosGrafico.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">
+              Receitas vs Despesas — {periodo === "semana" ? "por dia" : "por semana"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={dadosGrafico} barGap={2}>
+                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${v}`} />
+                <Tooltip formatter={(v: number, name: string) => [formatarMoeda(v), name === "receita" ? "Receitas" : "Despesas"]} />
+                <Bar dataKey="receita" name="receita" fill="#10B981" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="despesa" name="despesa" fill="#EF4444" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+            <div className="flex items-center gap-4 justify-center mt-2">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <div className="w-3 h-3 rounded bg-emerald-500" />Receitas
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <div className="w-3 h-3 rounded bg-red-500" />Despesas
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
