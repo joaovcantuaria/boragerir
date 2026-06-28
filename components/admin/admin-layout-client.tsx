@@ -40,6 +40,21 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
   const [menuMobileAberto, setMenuMobileAberto] = useState(false)
   const [notifs, setNotifs] = useState<Notificacao[]>([])
   const [modoClaro, setModoClaro] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  // Ler preferência salva antes de renderizar para evitar flash
+  useEffect(() => {
+    const saved = localStorage.getItem("admin-tema")
+    if (saved === "claro") setModoClaro(true)
+    setMounted(true)
+  }, [])
+
+  // Salvar preferência e atualizar fundo
+  function toggleModoClaro() {
+    const novo = !modoClaro
+    setModoClaro(novo)
+    localStorage.setItem("admin-tema", novo ? "claro" : "escuro")
+  }
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -139,6 +154,15 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", backgroundColor: cores.pageBg, color: cores.textPrimary, colorScheme: modoClaro ? "light" : "dark" }}>
+      {/* Script bloqueante — roda antes do React, evita flash branco/escuro */}
+      <script dangerouslySetInnerHTML={{ __html: `
+        (function(){
+          var t = localStorage.getItem('admin-tema');
+          var bg = t === 'claro' ? '#f7f8fa' : '#0d0d0f';
+          document.documentElement.style.backgroundColor = bg;
+          document.body.style.backgroundColor = bg;
+        })();
+      `}} />
 
       {/* ── SIDEBAR DESKTOP ── */}
       <motion.aside
@@ -236,7 +260,7 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
 
           <div className="flex items-center gap-1">
             {/* Toggle tema */}
-            <button onClick={() => setModoClaro(!modoClaro)} title={modoClaro ? "Modo escuro" : "Modo claro"}
+            <button onClick={toggleModoClaro} title={modoClaro ? "Modo escuro" : "Modo claro"}
               className="p-2 rounded-xl transition-colors" style={{ color: cores.btnText }}
               onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = cores.btnHoverBg; e.currentTarget.style.color = cores.textPrimary }}
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = cores.btnText }}>

@@ -6,15 +6,5 @@ export const viewport: Viewport = {
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <>
-      <style>{`
-        /* Header escuro por padrão — o JS sobrescreve para branco quando modoClaro=true */
-        header[data-admin-header] {
-          background-color: #111113;
-        }
-      `}</style>
-      <AdminLayoutClient>{children}</AdminLayoutClient>
-    </>
-  )
+  return <AdminLayoutClient>{children}</AdminLayoutClient>
 }
