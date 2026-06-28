@@ -211,10 +211,13 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
       {/* ── CONTEÚDO ── */}
       <div className={cn("flex-1 min-h-screen transition-all duration-200 pb-16 md:pb-0", collapsed ? "md:ml-[64px]" : "md:ml-[220px]")}>
 
-        {/* Header */}
-        <header className="h-14 flex items-center justify-between px-4 md:px-6 sticky top-0 z-20"
+        {/* Header — bg-[#111113] via className garante fundo escuro no SSR/mobile
+            O style só adiciona borda e sombra, não sobrescreve o bg no modo claro via modoClaro */}
+        <header
+          data-admin-header="true"
+          className="h-14 flex items-center justify-between px-4 md:px-6 sticky top-0 z-20"
           style={{
-            backgroundColor: cores.headerBg,
+            backgroundColor: modoClaro ? "#ffffff" : "#111113",
             borderBottom: `1px solid ${cores.border}`,
             boxShadow: modoClaro ? "0 1px 4px rgba(0,0,0,0.06)" : "none",
           }}>
