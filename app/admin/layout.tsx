@@ -9,7 +9,6 @@ import {
   Settings, ChevronLeft, ChevronRight, LogOut, Shield,
   Tag, Users2, Bell, X, Bot, Sun, Moon,
 } from "lucide-react"
-import { useTheme } from "next-themes"
 import { cn } from "@/lib/utils"
 import { LogoIcon } from "@/components/ui/logo"
 import { createClient } from "@/lib/supabase/client"
@@ -35,13 +34,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [collapsed, setCollapsed] = useState(false)
   const [notifAberto, setNotifAberto] = useState(false)
   const [notifs, setNotifs] = useState<Notificacao[]>([])
-  const [mounted, setMounted] = useState(false)
+  const [modoClaro, setModoClaro] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
-  const { theme, setTheme } = useTheme()
-
-  useEffect(() => { setMounted(true) }, [])
 
   const naoLidas = notifs.filter((n) => !n.lida).length
 
@@ -80,27 +76,91 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     ticket_aberto: "🎫", cancelamento: "⚠️", erro: "❌",
   }
 
-  const isDark = theme === "dark"
+  // Cores baseadas no modo atual — independente do tema global do site
+  const cores = modoClaro ? {
+    pageBg:       "#f7f8fa",
+    sidebarBg:    "#ffffff",
+    headerBg:     "#ffffff",
+    border:       "rgba(0,0,0,0.07)",
+    mainBg:       "#f7f8fa",
+    textPrimary:  "#111113",
+    textSecond:   "#6b7280",
+    navInactive:  "#9ca3af",
+    navHoverBg:   "rgba(0,0,0,0.04)",
+    btnText:      "#6b7280",
+    btnHoverBg:   "rgba(0,0,0,0.05)",
+    notifBg:      "#ffffff",
+    notifBorder:  "rgba(0,0,0,0.07)",
+    notifHover:   "#f9fafb",
+    notifTitle:   "#111113",
+    notifBody:    "#6b7280",
+    notifEmpty:   "#d1d5db",
+    cardBg:       "#ffffff",
+    cardBorder:   "rgba(0,0,0,0.07)",
+    inputBg:      "#f3f4f6",
+    inputBorder:  "rgba(0,0,0,0.12)",
+    filterBtn:    "#f3f4f6",
+    filterText:   "#6b7280",
+  } : {
+    pageBg:       "#0d0d0f",
+    sidebarBg:    "#111113",
+    headerBg:     "#111113",
+    border:       "rgba(255,255,255,0.07)",
+    mainBg:       "#0d0d0f",
+    textPrimary:  "#f1f1f3",
+    textSecond:   "rgba(255,255,255,0.45)",
+    navInactive:  "rgba(255,255,255,0.38)",
+    navHoverBg:   "rgba(255,255,255,0.05)",
+    btnText:      "rgba(255,255,255,0.45)",
+    btnHoverBg:   "rgba(255,255,255,0.07)",
+    notifBg:      "#1c1c1f",
+    notifBorder:  "rgba(255,255,255,0.09)",
+    notifHover:   "rgba(255,255,255,0.03)",
+    notifTitle:   "#f1f1f3",
+    notifBody:    "rgba(255,255,255,0.45)",
+    notifEmpty:   "rgba(255,255,255,0.25)",
+    cardBg:       "#1a1a1a",
+    cardBorder:   "rgba(255,255,255,0.10)",
+    inputBg:      "#1a1a1a",
+    inputBorder:  "rgba(255,255,255,0.10)",
+    filterBtn:    "rgba(255,255,255,0.05)",
+    filterText:   "rgba(255,255,255,0.50)",
+  }
 
   return (
-    <div className="min-h-screen flex bg-white dark:bg-[#0d0d0f] text-gray-900 dark:text-white">
-
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        backgroundColor: cores.pageBg,
+        color: cores.textPrimary,
+        colorScheme: modoClaro ? "light" : "dark",
+      }}
+    >
       {/* ── SIDEBAR ── */}
       <motion.aside
         initial={false}
         animate={{ width: collapsed ? 64 : 220 }}
         transition={{ duration: 0.18, ease: "easeInOut" }}
-        className="hidden md:flex flex-col h-screen fixed left-0 top-0 z-30 overflow-hidden
-          bg-white dark:bg-[#111113]
-          border-r border-gray-100 dark:border-white/[0.07]"
+        style={{
+          backgroundColor: cores.sidebarBg,
+          borderRight: `1px solid ${cores.border}`,
+          boxShadow: modoClaro ? "1px 0 0 0 rgba(0,0,0,0.04)" : "none",
+        }}
+        className="hidden md:flex flex-col h-screen fixed left-0 top-0 z-30 overflow-hidden"
       >
         {/* Logo */}
-        <div className="flex items-center h-16 px-4 shrink-0 gap-2.5 border-b border-gray-100 dark:border-white/[0.07]">
+        <div
+          className="flex items-center h-16 px-4 shrink-0 gap-2.5"
+          style={{ borderBottom: `1px solid ${cores.border}` }}
+        >
           <LogoIcon size={32} />
           <AnimatePresence>
             {!collapsed && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <p className="font-black text-sm leading-none text-gray-900 dark:text-white">Bora Gerir</p>
+                <p style={{ color: cores.textPrimary }} className="font-black text-sm leading-none">
+                  Bora Gerir
+                </p>
                 <div className="flex items-center gap-1 mt-0.5">
                   <Shield className="w-3 h-3 text-[#F26E1D]" />
                   <p className="text-[10px] text-[#F26E1D] font-bold">Admin</p>
@@ -121,22 +181,34 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 href={item.href}
                 className={cn(
                   "flex items-center gap-3 rounded-xl transition-all duration-150 relative group",
-                  collapsed ? "h-10 w-10 justify-center mx-auto" : "px-3 py-2.5",
-                  isActive
-                    ? "text-gray-900 dark:text-white"
-                    : "text-gray-400 dark:text-white/40 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/[0.05]"
+                  collapsed ? "h-10 w-10 justify-center mx-auto" : "px-3 py-2.5"
                 )}
+                style={{ color: isActive ? cores.textPrimary : cores.navInactive }}
               >
-                {/* Fundo ativo — borda laranja igual ao painel cliente */}
+                {/* Fundo ativo — borda laranja */}
                 {isActive && (
-                  <span className="absolute inset-0 rounded-xl
-                    bg-[#F26E1D]/10 dark:bg-[#F26E1D]/15
-                    border border-[#F26E1D]/40 dark:border-[#F26E1D]/40" />
+                  <span
+                    className="absolute inset-0 rounded-xl"
+                    style={{
+                      background: modoClaro
+                        ? "rgba(242,110,29,0.08)"
+                        : "rgba(242,110,29,0.12)",
+                      border: "1.5px solid rgba(242,110,29,0.40)",
+                    }}
+                  />
+                )}
+
+                {/* Hover overlay */}
+                {!isActive && (
+                  <span
+                    className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"
+                    style={{ backgroundColor: cores.navHoverBg }}
+                  />
                 )}
 
                 <Icon
-                  className={cn("w-[18px] h-[18px] shrink-0 relative z-10",
-                    isActive ? "text-[#F26E1D]" : "")}
+                  className="w-[18px] h-[18px] shrink-0 relative z-10"
+                  style={{ color: isActive ? "#F26E1D" : undefined }}
                 />
 
                 <AnimatePresence>
@@ -152,8 +224,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
                 {/* Tooltip colapsado */}
                 {collapsed && (
-                  <div className="absolute left-full ml-3 px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-50 shadow-lg
-                    bg-gray-900 text-white dark:bg-white dark:text-gray-900">
+                  <div
+                    className="absolute left-full ml-3 px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-50 shadow-lg"
+                    style={{
+                      backgroundColor: modoClaro ? "#111113" : "#ffffff",
+                      color: modoClaro ? "#ffffff" : "#111113",
+                    }}
+                  >
                     {item.label}
                   </div>
                 )}
@@ -162,26 +239,39 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           })}
         </nav>
 
-        {/* Rodapé sidebar */}
-        <div className="p-2 shrink-0 space-y-1 border-t border-gray-100 dark:border-white/[0.07]">
+        {/* Rodapé */}
+        <div
+          className="p-2 shrink-0 space-y-1"
+          style={{ borderTop: `1px solid ${cores.border}` }}
+        >
           <button
             onClick={handleLogout}
+            style={{ color: cores.navInactive }}
             className={cn(
-              "flex items-center gap-3 w-full rounded-xl text-sm transition-all duration-150",
-              "text-gray-400 dark:text-white/40 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/[0.05]",
+              "flex items-center gap-3 w-full rounded-xl text-sm transition-all duration-150 group relative",
               collapsed ? "h-10 w-10 justify-center mx-auto" : "px-3 py-2.5"
             )}
           >
-            <LogOut className="w-[18px] h-[18px] shrink-0" />
-            {!collapsed && <span>Sair</span>}
+            <span
+              className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"
+              style={{ backgroundColor: cores.navHoverBg }}
+            />
+            <LogOut className="w-[18px] h-[18px] shrink-0 relative z-10" />
+            {!collapsed && <span className="relative z-10">Sair</span>}
           </button>
 
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="flex items-center justify-center w-full p-2 rounded-xl transition-all duration-150
-              text-gray-300 dark:text-white/20 hover:bg-gray-100 dark:hover:bg-white/[0.05] hover:text-gray-600 dark:hover:text-white"
+            style={{ color: cores.navInactive }}
+            className="flex items-center justify-center w-full p-2 rounded-xl transition-all duration-150 group relative"
           >
-            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+            <span
+              className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"
+              style={{ backgroundColor: cores.navHoverBg }}
+            />
+            <span className="relative z-10">
+              {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+            </span>
           </button>
         </div>
       </motion.aside>
@@ -190,15 +280,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div className={cn("flex-1 min-h-screen transition-all duration-200", collapsed ? "md:ml-[64px]" : "md:ml-[220px]")}>
 
         {/* Header */}
-        <header className="h-14 flex items-center justify-between px-6 sticky top-0 z-20
-          bg-white dark:bg-[#111113]
-          border-b border-gray-100 dark:border-white/[0.07]
-          shadow-[0_1px_3px_rgba(0,0,0,0.04)] dark:shadow-none"
+        <header
+          className="h-14 flex items-center justify-between px-6 sticky top-0 z-20"
+          style={{
+            backgroundColor: cores.headerBg,
+            borderBottom: `1px solid ${cores.border}`,
+            boxShadow: modoClaro ? "0 1px 4px rgba(0,0,0,0.06)" : "none",
+          }}
         >
           {/* Esquerda */}
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-[#F26E1D]" />
-            <span className="text-sm font-semibold text-gray-500 dark:text-white/60">
+            <span className="text-sm font-semibold" style={{ color: cores.textSecond }}>
               Painel Administrativo
             </span>
           </div>
@@ -207,30 +300,40 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="flex items-center gap-1">
 
             {/* Toggle tema */}
-            {mounted && (
-              <button
-                onClick={() => setTheme(isDark ? "light" : "dark")}
-                title={isDark ? "Modo claro" : "Modo escuro"}
-                className="p-2 rounded-xl transition-colors
-                  text-gray-400 dark:text-white/40
-                  hover:bg-gray-100 dark:hover:bg-white/[0.07]
-                  hover:text-gray-700 dark:hover:text-white"
-              >
-                {isDark
-                  ? <Sun className="w-[17px] h-[17px]" />
-                  : <Moon className="w-[17px] h-[17px]" />
-                }
-              </button>
-            )}
+            <button
+              onClick={() => setModoClaro(!modoClaro)}
+              title={modoClaro ? "Modo escuro" : "Modo claro"}
+              className="p-2 rounded-xl transition-colors"
+              style={{ color: cores.btnText }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = cores.btnHoverBg
+                e.currentTarget.style.color = cores.textPrimary
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "transparent"
+                e.currentTarget.style.color = cores.btnText
+              }}
+            >
+              {modoClaro
+                ? <Moon className="w-[17px] h-[17px]" />
+                : <Sun className="w-[17px] h-[17px]" />
+              }
+            </button>
 
             {/* Notificações */}
             <div className="relative">
               <button
                 onClick={() => setNotifAberto(!notifAberto)}
-                className="relative p-2 rounded-xl transition-colors
-                  text-gray-400 dark:text-white/40
-                  hover:bg-gray-100 dark:hover:bg-white/[0.07]
-                  hover:text-gray-700 dark:hover:text-white"
+                className="relative p-2 rounded-xl transition-colors"
+                style={{ color: cores.btnText }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = cores.btnHoverBg
+                  e.currentTarget.style.color = cores.textPrimary
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "transparent"
+                  e.currentTarget.style.color = cores.btnText
+                }}
               >
                 <Bell className="w-[18px] h-[18px]" />
                 {naoLidas > 0 && (
@@ -246,42 +349,56 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     initial={{ opacity: 0, y: 8, scale: 0.97 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 8, scale: 0.97 }}
-                    className="absolute right-0 top-full mt-2 w-80 rounded-2xl overflow-hidden z-50
-                      bg-white dark:bg-[#1c1c1f]
-                      border border-gray-100 dark:border-white/10
-                      shadow-xl dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+                    className="absolute right-0 top-full mt-2 w-80 rounded-2xl overflow-hidden z-50"
+                    style={{
+                      backgroundColor: cores.notifBg,
+                      border: `1px solid ${cores.notifBorder}`,
+                      boxShadow: modoClaro ? "0 8px 32px rgba(0,0,0,0.10)" : "0 8px 32px rgba(0,0,0,0.50)",
+                    }}
                   >
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-white/10">
-                      <p className="font-bold text-sm text-gray-900 dark:text-white">Notificações</p>
+                    <div
+                      className="flex items-center justify-between px-4 py-3"
+                      style={{ borderBottom: `1px solid ${cores.notifBorder}` }}
+                    >
+                      <p className="font-bold text-sm" style={{ color: cores.notifTitle }}>Notificações</p>
                       <div className="flex items-center gap-2">
                         {naoLidas > 0 && (
                           <button onClick={marcarTodasLidas} className="text-xs text-[#F26E1D] hover:underline font-semibold">
                             Marcar todas
                           </button>
                         )}
-                        <button onClick={() => setNotifAberto(false)} className="text-gray-400 dark:text-white/40 hover:text-gray-700 dark:hover:text-white">
+                        <button
+                          onClick={() => setNotifAberto(false)}
+                          style={{ color: cores.notifBody }}
+                        >
                           <X className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
                     <div className="max-h-72 overflow-y-auto">
                       {notifs.length > 0 ? notifs.map((n) => (
-                        <div key={n.id} className={cn(
-                          "px-4 py-3 border-b border-gray-50 dark:border-white/5 last:border-0 cursor-pointer",
-                          "hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-colors",
-                          !n.lida && "bg-[#F26E1D]/5"
-                        )}>
+                        <div
+                          key={n.id}
+                          className="cursor-pointer transition-colors"
+                          style={{
+                            padding: "12px 16px",
+                            borderBottom: `1px solid ${cores.notifBorder}`,
+                            backgroundColor: !n.lida ? "rgba(242,110,29,0.05)" : "transparent",
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = cores.notifHover }}
+                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = !n.lida ? "rgba(242,110,29,0.05)" : "transparent" }}
+                        >
                           <div className="flex items-start gap-2.5">
                             <span className="text-base mt-0.5">{tipoIcone[n.tipo] ?? "🔔"}</span>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-gray-900 dark:text-white">{n.titulo}</p>
-                              <p className="text-xs text-gray-500 dark:text-white/50 mt-0.5 truncate">{n.mensagem}</p>
+                              <p className="text-sm font-semibold" style={{ color: cores.notifTitle }}>{n.titulo}</p>
+                              <p className="text-xs mt-0.5 truncate" style={{ color: cores.notifBody }}>{n.mensagem}</p>
                             </div>
                             {!n.lida && <div className="w-2 h-2 rounded-full bg-[#F26E1D] shrink-0 mt-1.5" />}
                           </div>
                         </div>
                       )) : (
-                        <div className="py-8 text-center text-sm text-gray-300 dark:text-white/25">
+                        <div className="py-8 text-center text-sm" style={{ color: cores.notifEmpty }}>
                           Nenhuma notificação
                         </div>
                       )}
@@ -292,9 +409,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
 
             {/* Indicador online */}
-            <div className="flex items-center gap-2 ml-2 pl-3 border-l border-gray-100 dark:border-white/[0.07]">
+            <div
+              className="flex items-center gap-2 ml-2 pl-3"
+              style={{ borderLeft: `1px solid ${cores.border}` }}
+            >
               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-xs font-medium text-gray-500 dark:text-white/40">
+              <span className="text-xs font-medium" style={{ color: cores.textSecond }}>
                 contato@boragerir.com
               </span>
             </div>
@@ -302,7 +422,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </header>
 
         {/* Página */}
-        <main className="p-6 min-h-[calc(100vh-56px)] bg-gray-50 dark:bg-[#0d0d0f]">
+        <main
+          className="p-6"
+          style={{
+            minHeight: "calc(100vh - 56px)",
+            backgroundColor: cores.mainBg,
+          }}
+        >
           {children}
         </main>
       </div>

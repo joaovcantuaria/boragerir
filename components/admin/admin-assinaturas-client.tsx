@@ -59,8 +59,8 @@ export function AdminAssinaturasClient({ assinaturas, totais }: {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-black text-gray-900 dark:text-white">Assinaturas</h1>
-        <p className="text-gray-400 dark:text-white/40 text-sm">{assinaturas.length} assinaturas no total</p>
+        <h1 className="text-2xl font-black text-white">Assinaturas</h1>
+        <p className="text-white/40 text-sm">{assinaturas.length} assinaturas no total</p>
       </div>
 
       {/* Cards resumo */}
@@ -71,8 +71,8 @@ export function AdminAssinaturasClient({ assinaturas, totais }: {
           { label: "Canceladas", valor: totais.canceladas, cor: "text-red-400", bg: "bg-red-500/10" },
           { label: "Receita ativa", valor: formatarMoeda(totais.receitaTotal), cor: "text-primary", bg: "bg-primary/10" },
         ].map((c) => (
-          <div key={c.label} className="bg-white dark:bg-[#1a1a1a] border border-gray-100 dark:border-white/10 rounded-2xl p-4">
-            <p className="text-xs text-gray-400 dark:text-white/40">{c.label}</p>
+          <div key={c.label} className="bg-[#1a1a1a] border border-white/10 rounded-2xl p-4">
+            <p className="text-xs text-white/40">{c.label}</p>
             <p className={`text-xl font-black mt-1 ${c.cor}`}>{c.valor}</p>
           </div>
         ))}
@@ -81,7 +81,7 @@ export function AdminAssinaturasClient({ assinaturas, totais }: {
       {/* Filtros */}
       <div className="flex gap-3 flex-wrap">
         <input
-          className="bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/30 focus:outline-none focus:border-[#F26E1D] flex-1 min-w-52"
+          className="bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-primary flex-1 min-w-52"
           placeholder="Buscar por empresa..."
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
@@ -89,7 +89,7 @@ export function AdminAssinaturasClient({ assinaturas, totais }: {
         {["todos", "ativa", "pendente", "cancelada"].map((f) => (
           <button key={f} onClick={() => setFiltro(f)}
             className={`px-3 py-2 rounded-xl text-xs font-bold transition-all capitalize ${
-              filtro === f ? "bg-primary text-white" : "bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/50 hover:bg-gray-200 dark:hover:bg-white/10"
+              filtro === f ? "bg-primary text-white" : "bg-white/5 text-white/50 hover:bg-white/10"
             }`}>
             {f}
           </button>
@@ -97,8 +97,8 @@ export function AdminAssinaturasClient({ assinaturas, totais }: {
       </div>
 
       {/* Lista */}
-      <div className="bg-white dark:bg-[#1a1a1a] border border-gray-100 dark:border-white/10 rounded-2xl overflow-hidden">
-        <div className="grid grid-cols-[1fr_1fr_auto_auto_auto] gap-4 px-5 py-3 border-b border-gray-100 dark:border-white/10 text-xs font-bold text-gray-300 dark:text-white/30 uppercase tracking-wider">
+      <div className="bg-[#1a1a1a] border border-white/10 rounded-2xl overflow-hidden">
+        <div className="grid grid-cols-[1fr_1fr_auto_auto_auto] gap-4 px-5 py-3 border-b border-white/10 text-xs font-bold text-white/30 uppercase tracking-wider">
           <span>Empresa</span><span>Plano</span><span>Pagamento</span><span>Valor</span><span>Status</span>
         </div>
 
@@ -106,7 +106,7 @@ export function AdminAssinaturasClient({ assinaturas, totais }: {
           const badge = badgeStatus[a.status] ?? badgeStatus.pendente
           const Icon = badge.Icon
           return (
-            <div key={a.id} className="grid grid-cols-[1fr_1fr_auto_auto_auto] gap-4 px-5 py-4 border-b border-gray-50 dark:border-white/5 last:border-0 items-center hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors">
+            <div key={a.id} className="grid grid-cols-[1fr_1fr_auto_auto_auto] gap-4 px-5 py-4 border-b border-white/5 last:border-0 items-center hover:bg-white/[0.02] transition-colors">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center shrink-0 overflow-hidden">
                   {a.empresas?.logo_url
@@ -114,15 +114,15 @@ export function AdminAssinaturasClient({ assinaturas, totais }: {
                     : <span className="text-xs font-black text-primary">{(a.empresas?.nome ?? "?").charAt(0)}</span>}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{a.empresas?.nome ?? "—"}</p>
-                  <p className="text-xs text-gray-300 dark:text-white/30">{format(parseISO(a.created_at), "dd/MM/yyyy")}</p>
+                  <p className="text-sm font-semibold text-white truncate">{a.empresas?.nome ?? "—"}</p>
+                  <p className="text-xs text-white/30">{format(parseISO(a.created_at), "dd/MM/yyyy")}</p>
                 </div>
               </div>
               <div>
-                <p className="text-sm font-semibold text-gray-900 dark:text-white capitalize">{a.plano}</p>
-                <p className="text-xs text-gray-400 dark:text-white/40 capitalize">{a.periodicidade}</p>
+                <p className="text-sm font-semibold text-white capitalize">{a.plano}</p>
+                <p className="text-xs text-white/40 capitalize">{a.periodicidade}</p>
               </div>
-              <div className="flex items-center gap-1 text-gray-500 dark:text-white/50">
+              <div className="flex items-center gap-1 text-white/50">
                 {a.forma_pagamento === "pix"
                   ? <><QrCode className="w-3.5 h-3.5" /><span className="text-xs">Pix</span></>
                   : <><CreditCard className="w-3.5 h-3.5" /><span className="text-xs">Cartão</span></>
@@ -137,25 +137,25 @@ export function AdminAssinaturasClient({ assinaturas, totais }: {
               <div className="flex items-center gap-1">
                 {a.status === "ativa" && (
                   <button onClick={() => acaoAssinatura(a.id, "bloquear")} title="Bloquear"
-                    className="p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg text-yellow-400/60 hover:text-yellow-400 transition-colors">
+                    className="p-1 hover:bg-white/10 rounded-lg text-yellow-400/60 hover:text-yellow-400 transition-colors">
                     <Ban className="w-3.5 h-3.5" />
                   </button>
                 )}
                 {a.status === "pausada" && (
                   <button onClick={() => acaoAssinatura(a.id, "desbloquear")} title="Desbloquear"
-                    className="p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg text-emerald-400/60 hover:text-emerald-400 transition-colors">
+                    className="p-1 hover:bg-white/10 rounded-lg text-emerald-400/60 hover:text-emerald-400 transition-colors">
                     <Play className="w-3.5 h-3.5" />
                   </button>
                 )}
                 <button onClick={() => acaoAssinatura(a.id, "excluir")} title="Excluir"
-                  className="p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg text-red-400/60 hover:text-red-400 transition-colors">
+                  className="p-1 hover:bg-white/10 rounded-lg text-red-400/60 hover:text-red-400 transition-colors">
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
           )
         }) : (
-          <div className="py-12 text-center text-gray-300 dark:text-white/30">
+          <div className="py-12 text-center text-white/30">
             <CreditCard className="w-8 h-8 mx-auto mb-2 opacity-40" />
             <p>Nenhuma assinatura encontrada</p>
           </div>
