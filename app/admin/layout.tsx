@@ -1,5 +1,6 @@
 // Server Component wrapper — exporta viewport para controlar
 // a cor da barra de status mobile no painel admin
+// v2 - build fix
 import type { Viewport } from "next"
 import { AdminLayoutClient } from "@/components/admin/admin-layout-client"
 
