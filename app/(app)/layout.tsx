@@ -6,11 +6,15 @@ import { Header } from "@/components/layout/header"
 import { MobileNav } from "@/components/layout/mobile-nav"
 import { ChatIA } from "@/components/chat/chat-ia"
 import { useEmpresa } from "@/hooks/use-empresa"
+import { useRealtimeRefresh } from "@/hooks/use-realtime-refresh"
 import { cn } from "@/lib/utils"
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false)
   const { empresa } = useEmpresa()
+
+  // Atualização automática em tempo real — escuta todas as tabelas críticas
+  useRealtimeRefresh(empresa?.id)
 
   return (
     <div className="min-h-screen bg-background">
