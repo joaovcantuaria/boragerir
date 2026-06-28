@@ -91,44 +91,27 @@ export async function gerarRelatorioPDF({
   const M = 14
 
   // ══════════════════════════════════════════════════════
-  //  CABEÇALHO PREMIUM — novo design
-  //
-  //  Layout:
-  //  ┌─────────────────────────────────────────────────┐
-  //  │  [LOGO 18x18]  NOME DA EMPRESA         RELAT.  │  ← fundo escuro 32mm
-  //  │                Endereço · doc           LABEL  │
-  //  │                email · tel             período │
-  //  └─────────────────────────────────────────────────┘
-  //  Barra colorida fina (4mm) embaixo do header
+  //  CABEÇALHO LIMPO — fundo branco, texto preto
   // ══════════════════════════════════════════════════════
 
-  const HEADER_H = 30   // altura total do bloco escuro
-  const BAR_H    = 4    // espessura da barra colorida
+  const HEADER_H = 28
+  const BAR_H    = 3
 
-  // 1. Fundo escuro do header
-  doc.setFillColor(...cor.dark)
-  doc.rect(0, 0, W, HEADER_H, "F")
-
-  // 2. Barra colorida no rodapé do header
+  // Fundo branco (padrão, sem rect necessário)
+  // Barra colorida no topo
   doc.setFillColor(...cor.primary)
-  doc.rect(0, HEADER_H, W, BAR_H, "F")
+  doc.rect(0, 0, W, BAR_H, "F")
 
-  // 3. Detalhe: barra colorida MUITO fina no topo (2px visual)
-  doc.setFillColor(...cor.primary)
-  doc.rect(0, 0, W, 1, "F")
-
-  // 4. Logo — quadrado arredondado com borda colorida, fundo levemente clareado
+  // Logo — quadrado arredondado com borda colorida
   const LOGO_X = M
-  const LOGO_Y = 6
-  const LOGO_S = 18  // tamanho do quadrado
+  const LOGO_Y = BAR_H + 4
+  const LOGO_S = 18
 
-  // Fundo do quadrado da logo
   doc.setFillColor(255, 255, 255)
   doc.setDrawColor(...cor.primary)
   doc.setLineWidth(0.7)
   doc.roundedRect(LOGO_X, LOGO_Y, LOGO_S, LOGO_S, 2.5, 2.5, "FD")
 
-  // Imagem da logo dentro do quadrado
   let logoOk = false
   if (empresa.logo_url) {
     const imgData = await carregarImagem(empresa.logo_url)
@@ -139,7 +122,6 @@ export async function gerarRelatorioPDF({
     }
   }
   if (!logoOk) {
-    // Fallback: inicial com cor do tema
     doc.setFontSize(11)
     doc.setFont("helvetica", "bold")
     doc.setTextColor(...cor.primary)
@@ -151,86 +133,66 @@ export async function gerarRelatorioPDF({
     )
   }
 
-  // 5. Nome da empresa — grande, branco
-  const TX = LOGO_X + LOGO_S + 5  // x do texto
+  // Nome da empresa — preto, grande
+  const TX = LOGO_X + LOGO_S + 5
   doc.setFontSize(13)
   doc.setFont("helvetica", "bold")
-  doc.setTextColor(255, 255, 255)
-  doc.text(empresa.nome, TX, 13)
+  doc.setTextColor(20, 20, 20)
+  doc.text(empresa.nome, TX, LOGO_Y + 7)
 
-  // 6. Dados da empresa — menores, cinza claro
+  // Dados da empresa — cinza escuro
   doc.setFontSize(7)
   doc.setFont("helvetica", "normal")
-  doc.setTextColor(180, 185, 195)
+  doc.setTextColor(90, 90, 90)
   const docFormatado = empresa.tipo_documento === "cnpj"
     ? `CNPJ ${formatarCNPJ(empresa.documento)}`
     : `CPF ${formatarCPF(empresa.documento)}`
   doc.text(
-    `${empresa.endereco_rua}, ${empresa.endereco_numero} — ${empresa.endereco_bairro}, ${empresa.endereco_cidade}/${empresa.endereco_estado}  ·  ${docFormatado}`,
-    TX, 19.5
+    `${empresa.endereco_rua}, ${empresa.endereco_numero} — ${empresa.endereco_bairro}, ${empresa.endereco_cidade}/${empresa.endereco_estado}  |  ${docFormatado}`,
+    TX, LOGO_Y + 13
   )
-  doc.text(`${empresa.email}  ·  Tel: ${empresa.telefone}`, TX, 25)
+  doc.text(`${empresa.email}  |  Tel: ${empresa.telefone}`, TX, LOGO_Y + 18.5)
 
-  // 7. Bloco RELATÓRIO — alinhado à direita
-  //    "RELATÓRIO" em cor do tema + label + período
-
-  // Pílula/tag de cor no canto direito
-  const tagW = 50
-  const tagX = W - M - tagW
-  const tagY = 7
-
-  // Fundo da tag levemente claro
-  doc.setFillColor(...cor.primary)
-  doc.setGState && doc.setGState(new (doc as any).GState({ opacity: 0.18 }))
-  doc.roundedRect(tagX, tagY, tagW, HEADER_H - tagY - 2, 2, 2, "F")
-  doc.setGState && doc.setGState(new (doc as any).GState({ opacity: 1 }))
-
-  // Linha vertical colorida na borda esquerda da tag
-  doc.setFillColor(...cor.primary)
-  doc.roundedRect(tagX, tagY, 1.5, HEADER_H - tagY - 2, 0.5, 0.5, "F")
-
-  // Texto "RELATÓRIO"
-  doc.setFontSize(6.5)
+  // Bloco tipo relatório — direita, texto escuro
+  doc.setFontSize(7)
   doc.setFont("helvetica", "bold")
   doc.setTextColor(...cor.primary)
-  doc.text("RELATÓRIO", W - M, tagY + 5, { align: "right" })
+  doc.text("RELATORIO", W - M, LOGO_Y + 5, { align: "right" })
 
-  // Label do tipo
-  doc.setFontSize(8.5)
+  doc.setFontSize(9)
   doc.setFont("helvetica", "bold")
-  doc.setTextColor(255, 255, 255)
-  // Quebrar se muito longo
-  const labelLines = doc.splitTextToSize(label.toUpperCase(), tagW - 4)
-  doc.text(labelLines, W - M, tagY + 11.5, { align: "right" })
+  doc.setTextColor(20, 20, 20)
+  const labelLines = doc.splitTextToSize(label.toUpperCase(), 52)
+  doc.text(labelLines, W - M, LOGO_Y + 11, { align: "right" })
 
-  // Período
   doc.setFontSize(6.5)
   doc.setFont("helvetica", "normal")
-  doc.setTextColor(180, 185, 195)
-  doc.text(`${fmtData(dataInicio)} — ${fmtData(dataFim)}`, W - M, HEADER_H - 7, { align: "right" })
-  doc.text(`Emitido ${format(new Date(), "dd/MM/yyyy HH:mm", { locale: ptBR })}`, W - M, HEADER_H - 2.5, { align: "right" })
+  doc.setTextColor(90, 90, 90)
+  doc.text(`${fmtData(dataInicio)} — ${fmtData(dataFim)}`, W - M, LOGO_Y + 18, { align: "right" })
+  doc.text(`Emitido ${format(new Date(), "dd/MM/yyyy HH:mm", { locale: ptBR })}`, W - M, LOGO_Y + 22, { align: "right" })
 
-  // Cursor inicial — logo abaixo da barra colorida
-  let Y = HEADER_H + BAR_H + 8
+  // Linha divisória abaixo do header
+  doc.setDrawColor(...cor.primary)
+  doc.setLineWidth(0.6)
+  doc.line(0, BAR_H + HEADER_H, W, BAR_H + HEADER_H)
+
+  let Y = BAR_H + HEADER_H + 8
 
   // ══════════════════════════════════════════════════════
   //  FUNÇÕES INTERNAS
   // ══════════════════════════════════════════════════════
 
-  function secao(titulo: string, icone?: string) {
+  function secao(titulo: string) {
     if (Y > 262) { doc.addPage(); Y = 16 }
-    // Linha divisória levíssima
     doc.setDrawColor(225, 225, 225)
     doc.setLineWidth(0.2)
     doc.line(M, Y - 2, W - M, Y - 2)
-    // Barra colorida
     doc.setFillColor(...cor.primary)
     doc.rect(M, Y - 1, 2.5, 7, "F")
-    // Texto
     doc.setFontSize(8.5)
     doc.setFont("helvetica", "bold")
     doc.setTextColor(30, 30, 30)
-    doc.text(`${icone ? icone + "  " : ""}${titulo}`, M + 5, Y + 4.5)
+    doc.text(titulo, M + 5, Y + 4.5)
     Y += 10
   }
 
@@ -264,7 +226,7 @@ export async function gerarRelatorioPDF({
   // ══════════════════════════════════════════════════════
 
   if (["resumo-diario","resumo-semanal","resumo-mensal","completo"].includes(tipo)) {
-    secao("RESUMO FINANCEIRO", "💰")
+    secao("RESUMO FINANCEIRO")
 
     const metricas = [
       { label: "Total Recebido", valor: formatarMoeda(recebido), cor: [22,163,74]  as RGB },
@@ -310,7 +272,7 @@ export async function gerarRelatorioPDF({
   // ══════════════════════════════════════════════════════
 
   if (["vendas-detalhado","completo"].includes(tipo)) {
-    checkPage(40); secao("VENDAS DETALHADAS", "🛍️")
+    checkPage(40); secao("VENDAS DETALHADAS")
     if (!vendasOk.length) {
       doc.setFontSize(8); doc.setTextColor(150,150,150)
       doc.text("Nenhuma venda no período.", M, Y); Y += 10
@@ -342,7 +304,7 @@ export async function gerarRelatorioPDF({
   // ══════════════════════════════════════════════════════
 
   if (["formas-pagamento","completo"].includes(tipo)) {
-    checkPage(40); secao("POR FORMA DE PAGAMENTO", "💳")
+    checkPage(40); secao("POR FORMA DE PAGAMENTO")
     const pgto: Record<string,number> = {}
     vendasOk.forEach((v) => {
       const k = labelsFormaPagamento[v.forma_pagamento] ?? v.forma_pagamento
@@ -370,7 +332,7 @@ export async function gerarRelatorioPDF({
   // ══════════════════════════════════════════════════════
 
   if (["por-colaborador","completo"].includes(tipo)) {
-    checkPage(40); secao("DESEMPENHO POR COLABORADOR", "👤")
+    checkPage(40); secao("DESEMPENHO POR COLABORADOR")
     if (!funcionarios.length) {
       doc.setFontSize(8); doc.setTextColor(150,150,150)
       doc.text("Nenhum colaborador.", M, Y); Y += 10
@@ -394,7 +356,7 @@ export async function gerarRelatorioPDF({
   // ══════════════════════════════════════════════════════
 
   if (["debitos","completo"].includes(tipo)) {
-    checkPage(40); secao("DÉBITOS EM ABERTO", "⏳")
+    checkPage(40); secao("DEBITOS EM ABERTO")
     if (!debitos.length) {
       doc.setFontSize(8); doc.setTextColor(150,150,150)
       doc.text("Nenhum débito em aberto.", M, Y); Y += 10
@@ -424,7 +386,7 @@ export async function gerarRelatorioPDF({
   // ══════════════════════════════════════════════════════
 
   if (["despesas","completo"].includes(tipo)) {
-    checkPage(40); secao("DESPESAS E SAÍDAS DE CAIXA", "📉")
+    checkPage(40); secao("DESPESAS E SAIDAS DE CAIXA")
     const saidas = movsP.filter((m) => m.tipo === "saida")
     if (!saidas.length) {
       doc.setFontSize(8); doc.setTextColor(150,150,150)
