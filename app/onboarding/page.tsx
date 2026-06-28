@@ -80,14 +80,19 @@ export default function OnboardingPage() {
     // VERIFICAR SE JÁ TEM EMPRESA — evitar duplicatas no loop
     const { data: empresaExistente } = await supabase
       .from("empresas")
-      .select("id")
+      .select("id, plano")
       .eq("user_id", user.id)
       .single()
 
     if (empresaExistente) {
-      // Empresa já criada — ir direto para o dashboard
-      toast.success("Bem-vindo ao Bora Gerir! 🚀")
-      window.location.href = "/dashboard"
+      // Empresa já criada
+      if (planoSelecionado !== "gratuito") {
+        // Redirecionar para pagamento se plano pago
+        window.location.href = `/planos?plano=${planoSelecionado}&novo=1`
+      } else {
+        toast.success("Bem-vindo ao Bora Gerir! 🚀")
+        window.location.href = "/dashboard"
+      }
       return
     }
 
@@ -107,6 +112,9 @@ export default function OnboardingPage() {
       }
     }
 
+    // Se plano pago: criar empresa com plano_ativo: false (aguarda pagamento)
+    const planoPago = planoSelecionado !== "gratuito"
+
     const { error } = await supabase.from("empresas").insert({
       user_id: user.id,
       nome: dados.nome,
@@ -123,15 +131,20 @@ export default function OnboardingPage() {
       endereco_estado: dados.endereco_estado.toUpperCase(),
       endereco_cep: dados.endereco_cep,
       plano: planoSelecionado,
-      plano_ativo: true,
+      // Plano pago: aguarda pagamento para ativar. Gratuito: ativo imediatamente
+      plano_ativo: !planoPago,
       pontos_por_real: 1,
       pontos_para_desconto: 100,
     })
     if (error) {
-      // Se der erro de duplicata (unique constraint), empresa já existe
       if (error.code === "23505") {
-        toast.success("Cadastro já concluído! Redirecionando...")
-        window.location.href = "/dashboard"
+        // Empresa já existe, redirecionar
+        if (planoPago) {
+          window.location.href = `/planos?plano=${planoSelecionado}&novo=1`
+        } else {
+          toast.success("Cadastro já concluído! Redirecionando...")
+          window.location.href = "/dashboard"
+        }
         return
       }
       toast.error("Erro ao salvar dados. Tente novamente.")
@@ -139,9 +152,14 @@ export default function OnboardingPage() {
       return
     }
 
-    toast.success("Tudo pronto! Bem-vindo ao Bora Gerir 🚀")
-    // Usar window.location para garantir redirect completo sem loops
-    window.location.href = "/dashboard"
+    if (planoPago) {
+      toast.success("Dados salvos! Agora finalize seu plano.")
+      // Redirecionar para tela de planos/pagamento com o plano pré-selecionado
+      window.location.href = `/planos?plano=${planoSelecionado}&novo=1`
+    } else {
+      toast.success("Tudo pronto! Bem-vindo ao Bora Gerir 🚀")
+      window.location.href = "/dashboard"
+    }
   }
 
   const passos = [{ n: 1, label: "Seu negócio" }, { n: 2, label: "Plano" }]
@@ -342,14 +360,19 @@ export default function OnboardingPage() {
 
               {planoSelecionado !== "gratuito" && (
                 <p className="text-center text-xs text-muted-foreground mb-4">
-                  💳 Você poderá configurar o pagamento após o cadastro na aba <strong>Planos</strong>.
+                  💳 Você será direcionado para o pagamento seguro.
                 </p>
               )}
 
               <div className="flex gap-3">
                 <Button variant="outline" onClick={() => setPasso(1)} className="flex-1">← Voltar</Button>
                 <Button onClick={finalizarOnboarding} disabled={loading} className="flex-1 font-bold">
-                  {loading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Salvando...</> : "Começar agora 🚀"}
+                  {loading
+                    ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Salvando...</>
+                    : planoSelecionado !== "gratuito"
+                      ? "Ir para pagamento →"
+                      : "Começar agora 🚀"
+                  }
                 </Button>
               </div>
             </motion.div>

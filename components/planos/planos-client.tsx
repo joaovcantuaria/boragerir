@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
-import { Check, CreditCard, QrCode, Loader2, Copy, CheckCircle, Zap, Crown, Star } from "lucide-react"
+import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
+import { Check, CreditCard, QrCode, Loader2, Copy, CheckCircle, Zap, Crown, Star, Tag, X, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
 import { formatarMoeda, cn } from "@/lib/utils"
@@ -58,6 +59,10 @@ interface Props {
 }
 
 export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
+  const searchParams = useSearchParams()
+  const planoParam = searchParams.get("plano") as PlanoId | null
+  const isNovoCadastro = searchParams.get("novo") === "1"
+
   const [periodicidade, setPeriodicidade] = useState<Periodicidade>("mensal")
   const [planoSel, setPlanoSel] = useState<PlanoId | null>(null)
   const [formaPag, setFormaPag] = useState<FormaPag>("pix")
@@ -69,11 +74,67 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
   const [numeroCartao, setNumeroCartao] = useState("")
   const [validade, setValidade] = useState("")
   const [cvv, setCvv] = useState("")
+  // Cupom
+  const [cupomCodigo, setCupomCodigo] = useState("")
+  const [cupomInput, setCupomInput] = useState("")
+  const [cupomDados, setCupomDados] = useState<{ tipo: string; valor: number; descricao: string | null } | null>(null)
+  const [cupomErro, setCupomErro] = useState("")
+  const [cupomLoading, setCupomLoading] = useState(false)
+
+  // Pré-selecionar plano vindo do onboarding
+  useEffect(() => {
+    if (planoParam && (planoParam === "basico" || planoParam === "profissional")) {
+      setPlanoSel(planoParam)
+      setEtapa("pagamento")
+    }
+  }, [planoParam])
 
   const planoEscolhido = planos.find((p) => p.id === planoSel)
-  const valorEscolhido = planoSel
+  const valorBase = planoSel
     ? periodicidade === "anual" ? planos.find((p) => p.id === planoSel)!.anual : planos.find((p) => p.id === planoSel)!.mensal
     : 0
+
+  // Calcular valor com desconto de cupom
+  const valorComDesconto = cupomDados
+    ? cupomDados.tipo === "percentual"
+      ? Math.max(0.01, valorBase * (1 - cupomDados.valor / 100))
+      : Math.max(0.01, valorBase - cupomDados.valor)
+    : valorBase
+  const valorEscolhido = valorComDesconto
+  const descontoAplicado = valorBase - valorComDesconto
+
+  async function validarCupom() {
+    if (!cupomInput.trim()) return
+    setCupomLoading(true)
+    setCupomErro("")
+    setCupomDados(null)
+    setCupomCodigo("")
+    try {
+      const res = await fetch("/api/pagamentos/validar-cupom", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ codigo: cupomInput, plano: planoSel }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setCupomErro(data.erro ?? "Cupom inválido")
+      } else {
+        setCupomDados({ tipo: data.tipo, valor: data.valor, descricao: data.descricao })
+        setCupomCodigo(data.codigo)
+        toast.success(`Cupom aplicado: ${data.tipo === "percentual" ? `${data.valor}% de desconto` : `R$ ${data.valor} de desconto`}`)
+      }
+    } catch {
+      setCupomErro("Erro ao validar cupom")
+    }
+    setCupomLoading(false)
+  }
+
+  function removerCupom() {
+    setCupomDados(null)
+    setCupomCodigo("")
+    setCupomInput("")
+    setCupomErro("")
+  }
 
   function selecionarPlano(id: PlanoId) {
     if (empresa.plano === id && assinaturaAtiva?.status === "ativa") {
@@ -91,7 +152,7 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
       const res = await fetch("/api/pagamentos/criar-pix", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plano: planoSel, periodicidade }),
+        body: JSON.stringify({ plano: planoSel, periodicidade, cupom_codigo: cupomCodigo || undefined }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.erro)
@@ -192,28 +253,98 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
   // ── Pagamento ─────────────────────────────────────────────
   if (etapa === "pagamento" && planoEscolhido) return (
     <div className="max-w-md mx-auto space-y-5">
-      <div className="flex items-center gap-2">
-        <button onClick={() => setEtapa("planos")} className="text-muted-foreground hover:text-foreground text-sm">← Voltar</button>
-        <h2 className="text-xl font-black">Finalizar assinatura</h2>
-      </div>
+      {!isNovoCadastro && (
+        <div className="flex items-center gap-2">
+          <button onClick={() => setEtapa("planos")} className="text-muted-foreground hover:text-foreground text-sm">← Voltar</button>
+          <h2 className="text-xl font-black">Finalizar assinatura</h2>
+        </div>
+      )}
+      {isNovoCadastro && (
+        <div className="text-center space-y-1">
+          <h2 className="text-2xl font-black">Finalize sua assinatura</h2>
+          <p className="text-muted-foreground text-sm">Um último passo para ativar seu plano <strong>{planoEscolhido.nome}</strong></p>
+        </div>
+      )}
 
       {/* Resumo */}
       <div className={cn(
-        "rounded-2xl p-4 border flex items-center justify-between",
+        "rounded-2xl p-4 border",
         "bg-[#F26E1D]/5 border-[#F26E1D]/20"
       )}>
-        <div>
-          <p className="font-black text-base">{planoEscolhido.nome}</p>
-          <p className="text-sm text-muted-foreground capitalize">{periodicidade}</p>
+        <div className="flex items-center justify-between mb-1">
+          <div>
+            <p className="font-black text-base">{planoEscolhido.nome}</p>
+            <p className="text-sm text-muted-foreground capitalize">{periodicidade}</p>
+          </div>
+          <div className="text-right">
+            {cupomDados && (
+              <p className="text-xs line-through text-muted-foreground">{formatarMoeda(valorBase)}</p>
+            )}
+            <p className="text-2xl font-black text-[#F26E1D]">{formatarMoeda(valorEscolhido)}</p>
+            {periodicidade === "anual" && !cupomDados && (
+              <p className="text-xs text-emerald-600 font-semibold">
+                Economia de {formatarMoeda(planoEscolhido.economia)}
+              </p>
+            )}
+            {cupomDados && (
+              <p className="text-xs text-emerald-600 font-semibold">
+                Desconto: -{formatarMoeda(descontoAplicado)}
+              </p>
+            )}
+          </div>
         </div>
-        <div className="text-right">
-          <p className="text-2xl font-black text-[#F26E1D]">{formatarMoeda(valorEscolhido)}</p>
-          {periodicidade === "anual" && (
-            <p className="text-xs text-emerald-600 font-semibold">
-              Economia de {formatarMoeda(planoEscolhido.economia)}
-            </p>
-          )}
-        </div>
+      </div>
+
+      {/* Cupom de desconto */}
+      <div className="space-y-2">
+        <p className="text-sm font-semibold flex items-center gap-2">
+          <Tag className="w-4 h-4 text-[#F26E1D]" />Cupom de desconto
+        </p>
+        {!cupomDados ? (
+          <div className="flex gap-2">
+            <input
+              value={cupomInput}
+              onChange={(e) => { setCupomInput(e.target.value.toUpperCase()); setCupomErro("") }}
+              onKeyDown={(e) => e.key === "Enter" && validarCupom()}
+              placeholder="Tem um cupom? Digite aqui"
+              className={cn(
+                "flex-1 h-10 rounded-xl border px-3 text-sm font-mono tracking-widest",
+                "bg-white dark:bg-white/[0.03]",
+                cupomErro ? "border-red-400 focus:border-red-400" : "border-gray-200 dark:border-white/10 focus:border-[#F26E1D]",
+                "focus:outline-none focus:ring-2 focus:ring-[#F26E1D]/20"
+              )}
+            />
+            <button
+              onClick={validarCupom}
+              disabled={cupomLoading || !cupomInput.trim()}
+              className="px-4 rounded-xl bg-[#F26E1D] text-white text-sm font-bold hover:bg-[#e05e10] disabled:opacity-50 transition-colors flex items-center gap-2"
+            >
+              {cupomLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Aplicar"}
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-emerald-500" />
+              <div>
+                <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400 font-mono">{cupomCodigo}</p>
+                <p className="text-xs text-emerald-600 dark:text-emerald-500">
+                  {cupomDados.tipo === "percentual" ? `${cupomDados.valor}% de desconto` : `R$ ${cupomDados.valor} de desconto`}
+                  {cupomDados.descricao ? ` — ${cupomDados.descricao}` : ""}
+                </p>
+              </div>
+            </div>
+            <button onClick={removerCupom} className="text-emerald-600 hover:text-red-500 transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+        {cupomErro && (
+          <div className="flex items-center gap-2 text-xs text-red-500">
+            <AlertCircle className="w-3.5 h-3.5" />
+            {cupomErro}
+          </div>
+        )}
       </div>
 
       {/* Forma de pagamento */}

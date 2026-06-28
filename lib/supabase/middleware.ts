@@ -91,10 +91,21 @@ export async function updateSession(request: NextRequest) {
 
   if (user && !eRotaPublica && !eRotaAdmin && pathname !== "/onboarding") {
     const { data: empresa } = await supabase
-      .from("empresas").select("id").eq("user_id", user.id).single()
+      .from("empresas").select("id, plano, plano_ativo").eq("user_id", user.id).single()
     if (!empresa) {
       const redirectUrl = request.nextUrl.clone()
       redirectUrl.pathname = "/onboarding"
+      return NextResponse.redirect(redirectUrl)
+    }
+
+    // Se plano pago mas não ativo (aguardando pagamento) → forçar para tela de planos
+    // Exceção: a própria tela de planos e pagamento
+    const eRotaPlanos = pathname.startsWith("/planos")
+    if (!empresa.plano_ativo && empresa.plano !== "gratuito" && !eRotaPlanos) {
+      const redirectUrl = request.nextUrl.clone()
+      redirectUrl.pathname = "/planos"
+      redirectUrl.searchParams.set("plano", empresa.plano)
+      redirectUrl.searchParams.set("novo", "1")
       return NextResponse.redirect(redirectUrl)
     }
   }
