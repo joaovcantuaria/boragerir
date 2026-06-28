@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { cn } from "@/lib/utils"
+import { useAdminTema } from "@/components/admin/admin-tema-context"
 
 interface UsuarioAdmin {
   id: string
@@ -67,6 +69,7 @@ export function UsuariosAdminClient({ usuarios: init }: { usuarios: UsuarioAdmin
   const [email, setEmail] = useState("")
   const [perfil, setPerfil] = useState("atendimento")
   const [senha, setSenha] = useState("")
+  const t = useAdminTema()
 
   function abrirNovo() {
     setEditando(null)
@@ -122,8 +125,8 @@ export function UsuariosAdminClient({ usuarios: init }: { usuarios: UsuarioAdmin
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black text-white">Usuários Admin</h1>
-          <p className="text-white/40 text-sm">{usuarios.length} usuário(s) cadastrado(s)</p>
+          <h1 className={`text-2xl font-black ${t.text}`}>Usuários Admin</h1>
+          <p className={`${t.textMuted} text-sm`}>{usuarios.length} usuário(s) cadastrado(s)</p>
         </div>
         <Button onClick={abrirNovo} className="gap-2 bg-primary hover:bg-primary/90">
           <Plus className="w-4 h-4" />Novo Usuário
@@ -136,13 +139,13 @@ export function UsuariosAdminClient({ usuarios: init }: { usuarios: UsuarioAdmin
           const Icon = p.icon
           const count = usuarios.filter((u) => u.perfil === p.value && u.ativo).length
           return (
-            <div key={p.value} className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-4">
+            <div key={p.value} className={`${t.subBg2} border ${t.subBorder} rounded-2xl p-4`}>
               <div className="flex items-center gap-2 mb-2">
                 <Icon className="w-4 h-4 text-primary" />
-                <span className="text-sm font-bold text-white">{p.label}</span>
+                <span className={`text-sm font-bold ${t.text}`}>{p.label}</span>
               </div>
-              <p className="text-2xl font-black text-white">{count}</p>
-              <p className="text-xs text-white/30 mt-1">{p.descricao}</p>
+              <p className={`text-2xl font-black ${t.text}`}>{count}</p>
+              <p className={`text-xs ${t.textMuted2} mt-1`}>{p.descricao}</p>
             </div>
           )
         })}
@@ -154,37 +157,37 @@ export function UsuariosAdminClient({ usuarios: init }: { usuarios: UsuarioAdmin
           const info = perfilInfo(u.perfil)
           const perms = PERMISSOES_DESCRICAO[u.perfil] ?? []
           return (
-            <div key={u.id} className={`bg-white/[0.03] border border-white/[0.06] rounded-2xl p-4 flex items-center justify-between gap-4 ${!u.ativo ? "opacity-40" : ""}`}>
+            <div key={u.id} className={`${t.subBg2} border ${t.subBorder} rounded-2xl p-4 flex items-center justify-between gap-4 ${!u.ativo ? "opacity-40" : ""}`}>
               <div className="flex items-center gap-4 min-w-0">
                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-black text-sm shrink-0">
                   {u.nome.charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-bold text-white">{u.nome}</span>
+                    <span className={`text-sm font-bold ${t.text}`}>{u.nome}</span>
                     {info && (
                       <Badge className={`text-xs ${info.cor}`}>{info.label}</Badge>
                     )}
-                    {!u.ativo && <Badge className="text-xs bg-white/5 text-white/30">Inativo</Badge>}
+                    {!u.ativo && <Badge className={`text-xs ${t.subBg} ${t.textMuted2}`}>Inativo</Badge>}
                   </div>
-                  <p className="text-xs text-white/40 mt-0.5">{u.email}</p>
+                  <p className={`text-xs ${t.textMuted} mt-0.5`}>{u.email}</p>
                   <div className="flex flex-wrap gap-1 mt-1.5">
                     {perms.slice(0, 4).map((p) => (
-                      <span key={p} className="text-[10px] bg-white/[0.05] text-white/40 px-1.5 py-0.5 rounded-md">{p}</span>
+                      <span key={p} className={`text-[10px] ${t.subBg2} ${t.textMuted} px-1.5 py-0.5 rounded-md`}>{p}</span>
                     ))}
                     {perms.length > 4 && (
-                      <span className="text-[10px] text-white/30">+{perms.length - 4}</span>
+                      <span className={`text-[10px] ${t.textMuted2}`}>+{perms.length - 4}</span>
                     )}
                   </div>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <button onClick={() => toggleAtivo(u)} title={u.ativo ? "Desativar" : "Ativar"}
-                  className="p-2 rounded-xl text-white/30 hover:text-white hover:bg-white/[0.05] transition-colors">
+                  className={`p-2 rounded-xl ${t.textMuted2} hover:text-white ${t.hoverBg} transition-colors`}>
                   {u.ativo ? <ToggleRight className="w-5 h-5 text-emerald-400" /> : <ToggleLeft className="w-5 h-5" />}
                 </button>
                 <button onClick={() => abrirEditar(u)}
-                  className="p-2 rounded-xl text-white/30 hover:text-white hover:bg-white/[0.05] transition-colors">
+                  className={`p-2 rounded-xl ${t.textMuted2} hover:text-white ${t.hoverBg} transition-colors`}>
                   <Edit className="w-4 h-4" />
                 </button>
               </div>
@@ -192,7 +195,7 @@ export function UsuariosAdminClient({ usuarios: init }: { usuarios: UsuarioAdmin
           )
         })}
         {usuarios.length === 0 && (
-          <div className="py-16 text-center text-white/30">
+          <div className={`py-16 text-center ${t.textMuted2}`}>
             <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
             <p>Nenhum usuário cadastrado</p>
           </div>
@@ -201,45 +204,45 @@ export function UsuariosAdminClient({ usuarios: init }: { usuarios: UsuarioAdmin
 
       {/* Modal */}
       <Dialog open={modalAberto} onOpenChange={(open) => { if (!open) setModalAberto(false) }}>
-        <DialogContent onInteractOutside={(e) => e.preventDefault()} className="bg-[#1a1a1a] border-white/10 text-white">
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} className={cn(`${t.cardBg} ${t.border} ${t.text}`)}>
           <DialogHeader>
-            <DialogTitle className="text-white">{editando ? "Editar Usuário" : "Novo Usuário Admin"}</DialogTitle>
+            <DialogTitle className={t.text}>{editando ? "Editar Usuário" : "Novo Usuário Admin"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-white/70">Nome *</Label>
+              <Label className={t.textMuted6}>Nome *</Label>
               <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome completo"
-                className="bg-white/[0.05] border-white/10 text-white placeholder:text-white/30" />
+                className={`${t.subBg} ${t.border} ${t.text} placeholder:${t.textMuted2}`} />
             </div>
             <div className="space-y-2">
-              <Label className="text-white/70">E-mail *</Label>
+              <Label className={t.textMuted6}>E-mail *</Label>
               <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@exemplo.com"
                 disabled={!!editando}
-                className="bg-white/[0.05] border-white/10 text-white placeholder:text-white/30 disabled:opacity-50" />
+                className={`${t.subBg} ${t.border} ${t.text} placeholder:${t.textMuted2} disabled:opacity-50`} />
             </div>
             {!editando && (
               <div className="space-y-2">
-                <Label className="text-white/70">Senha inicial *</Label>
+                <Label className={t.textMuted6}>Senha inicial *</Label>
                 <Input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Mínimo 8 caracteres"
-                  className="bg-white/[0.05] border-white/10 text-white placeholder:text-white/30" />
+                  className={`${t.subBg} ${t.border} ${t.text} placeholder:${t.textMuted2}`} />
               </div>
             )}
             <div className="space-y-2">
-              <Label className="text-white/70">Perfil de acesso *</Label>
+              <Label className={t.textMuted6}>Perfil de acesso *</Label>
               <div className="space-y-2">
                 {PERFIS.map((p) => (
                   <button key={p.value} type="button" onClick={() => setPerfil(p.value)}
                     className={`w-full text-left p-3 rounded-xl border transition-all ${
-                      perfil === p.value ? "border-primary bg-primary/10" : "border-white/10 hover:border-white/20"
+                      perfil === p.value ? "border-primary bg-primary/10" : `${t.border} hover:border-white/20`
                     }`}>
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-white">{p.label}</p>
+                      <p className={`text-sm font-semibold ${t.text}`}>{p.label}</p>
                       {perfil === p.value && <div className="w-2 h-2 rounded-full bg-primary ml-auto" />}
                     </div>
-                    <p className="text-xs text-white/40 mt-0.5">{p.descricao}</p>
+                    <p className={`text-xs ${t.textMuted} mt-0.5`}>{p.descricao}</p>
                     <div className="flex flex-wrap gap-1 mt-1.5">
                       {(PERMISSOES_DESCRICAO[p.value] ?? []).map((perm) => (
-                        <span key={perm} className="text-[10px] bg-white/[0.05] text-white/40 px-1.5 py-0.5 rounded-md">{perm}</span>
+                        <span key={perm} className={`text-[10px] ${t.subBg2} ${t.textMuted} px-1.5 py-0.5 rounded-md`}>{perm}</span>
                       ))}
                     </div>
                   </button>
@@ -248,7 +251,7 @@ export function UsuariosAdminClient({ usuarios: init }: { usuarios: UsuarioAdmin
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setModalAberto(false)} className="border-white/10 text-white/60 hover:text-white">Cancelar</Button>
+            <Button variant="outline" onClick={() => setModalAberto(false)} className={`${t.border} ${t.textMuted4} hover:text-white`}>Cancelar</Button>
             <Button onClick={salvar} disabled={loading} className="bg-primary hover:bg-primary/90">
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               {editando ? "Salvar" : "Criar usuário"}

@@ -4,7 +4,7 @@ import { useState } from "react"
 import { format, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { Bot, Hash, ChevronDown, ChevronUp, MessageSquare, Building2 } from "lucide-react"
-import { createAdminClient } from "@/lib/supabase/admin"
+import { useAdminTema } from "@/components/admin/admin-tema-context"
 
 interface Atendimento {
   id: string
@@ -32,6 +32,7 @@ export function AdminAtendimentosIAClient({ atendimentos: init }: { atendimentos
   const [mensagens, setMensagens] = useState<Record<string, { role: string; conteudo: string; created_at: string }[]>>({})
   const [carregando, setCarregando] = useState<string | null>(null)
   const [filtro, setFiltro] = useState("todos")
+  const t = useAdminTema()
 
   const filtrados = atendimentos.filter((a) => filtro === "todos" || a.status === filtro)
 
@@ -56,22 +57,22 @@ export function AdminAtendimentosIAClient({ atendimentos: init }: { atendimentos
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-black text-white flex items-center gap-2">
+        <h1 className={`text-2xl font-black ${t.text} flex items-center gap-2`}>
           <span className="text-2xl">🌟</span> Atendimentos da Mel
         </h1>
-        <p className="text-white/40 text-sm">{atendimentos.length} atendimento(s) registrado(s)</p>
+        <p className={`${t.textMuted} text-sm`}>{atendimentos.length} atendimento(s) registrado(s)</p>
       </div>
 
       {/* Cards resumo */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Total", valor: atendimentos.length, cor: "text-white", bg: "bg-white/5" },
+          { label: "Total", valor: atendimentos.length, cor: t.text, bg: t.subBg },
           { label: "Resolvidos pela Mel", valor: totalResolvidos, cor: "text-emerald-400", bg: "bg-emerald-500/10" },
           { label: "Encaminhados", valor: totalEncaminhados, cor: "text-blue-400", bg: "bg-blue-500/10" },
           { label: "Taxa resolução IA", valor: `${taxaResolucao}%`, cor: "text-primary", bg: "bg-primary/10" },
         ].map((c) => (
-          <div key={c.label} className={`${c.bg} border border-white/10 rounded-2xl p-4`}>
-            <p className="text-xs text-white/40">{c.label}</p>
+          <div key={c.label} className={`${c.bg} border ${t.border} rounded-2xl p-4`}>
+            <p className={`text-xs ${t.textMuted}`}>{c.label}</p>
             <p className={`text-xl font-black mt-1 ${c.cor}`}>{c.valor}</p>
           </div>
         ))}
@@ -82,7 +83,7 @@ export function AdminAtendimentosIAClient({ atendimentos: init }: { atendimentos
         {["todos", "aberto", "resolvido", "encaminhado"].map((f) => (
           <button key={f} onClick={() => setFiltro(f)}
             className={`px-3 py-2 rounded-xl text-xs font-bold transition-all capitalize ${
-              filtro === f ? "bg-primary text-white" : "bg-white/5 text-white/50 hover:bg-white/10"
+              filtro === f ? "bg-primary text-white" : t.filterInativo
             }`}>
             {f === "todos" ? "Todos" : corStatus[f]?.label ?? f}
           </button>
@@ -98,10 +99,10 @@ export function AdminAtendimentosIAClient({ atendimentos: init }: { atendimentos
             const msgs = mensagens[a.id] ?? []
 
             return (
-              <div key={a.id} className="bg-[#1a1a1a] border border-white/10 rounded-2xl overflow-hidden">
+              <div key={a.id} className={`${t.cardBg} border ${t.border} rounded-2xl overflow-hidden`}>
                 {/* Header do atendimento */}
                 <button
-                  className="w-full text-left px-5 py-4 hover:bg-white/[0.02] transition-colors"
+                  className={`w-full text-left px-5 py-4 ${t.rowHover} transition-colors`}
                   onClick={() => carregarMensagens(a.id)}
                 >
                   <div className="flex items-center justify-between gap-3">
@@ -114,14 +115,14 @@ export function AdminAtendimentosIAClient({ atendimentos: init }: { atendimentos
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-semibold text-white truncate">
+                          <p className={`text-sm font-semibold ${t.text} truncate`}>
                             {a.titulo || "Atendimento"}
                           </p>
                           <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${status.bg} ${status.text}`}>
                             {status.label}
                           </span>
                         </div>
-                        <div className="flex items-center gap-3 mt-0.5 text-xs text-white/40">
+                        <div className={`flex items-center gap-3 mt-0.5 text-xs ${t.textMuted}`}>
                           <span className="flex items-center gap-1">
                             <Hash className="w-3 h-3" />{a.protocolo}
                           </span>
@@ -139,9 +140,9 @@ export function AdminAtendimentosIAClient({ atendimentos: init }: { atendimentos
                       {carregando === a.id ? (
                         <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                       ) : isExpanded ? (
-                        <ChevronUp className="w-4 h-4 text-white/30" />
+                        <ChevronUp className={`w-4 h-4 ${t.textMuted2}`} />
                       ) : (
-                        <ChevronDown className="w-4 h-4 text-white/30" />
+                        <ChevronDown className={`w-4 h-4 ${t.textMuted2}`} />
                       )}
                     </div>
                   </div>
@@ -149,18 +150,18 @@ export function AdminAtendimentosIAClient({ atendimentos: init }: { atendimentos
 
                 {/* Mensagens expandidas */}
                 {isExpanded && msgs.length > 0 && (
-                  <div className="border-t border-white/10 px-5 py-4 space-y-3 bg-white/[0.01]">
+                  <div className={`border-t ${t.border} px-5 py-4 space-y-3 ${t.subBg2}`}>
                     {msgs.map((msg, i) => (
                       <div key={i} className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
                         <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-xs ${
-                          msg.role === "assistant" ? "bg-primary" : "bg-white/10"
+                          msg.role === "assistant" ? "bg-primary" : t.hoverBgBtn
                         }`}>
                           {msg.role === "assistant" ? "🌟" : "👤"}
                         </div>
                         <div className={`max-w-[75%] rounded-xl px-3 py-2 text-xs ${
                           msg.role === "user"
                             ? "bg-primary/20 text-primary"
-                            : "bg-white/5 text-white/80"
+                            : `${t.subBg} ${t.textMuted6}`
                         }`}>
                           {msg.conteudo}
                         </div>
@@ -170,7 +171,7 @@ export function AdminAtendimentosIAClient({ atendimentos: init }: { atendimentos
                 )}
 
                 {isExpanded && msgs.length === 0 && !carregando && (
-                  <div className="border-t border-white/10 px-5 py-3 text-xs text-white/30 text-center">
+                  <div className={`border-t ${t.border} px-5 py-3 text-xs ${t.textMuted2} text-center`}>
                     Sem mensagens registradas
                   </div>
                 )}
@@ -179,7 +180,7 @@ export function AdminAtendimentosIAClient({ atendimentos: init }: { atendimentos
           })}
         </div>
       ) : (
-        <div className="py-16 text-center text-white/30 bg-[#1a1a1a] border border-white/10 rounded-2xl">
+        <div className={`py-16 text-center ${t.textMuted2} ${t.cardBg} border ${t.border} rounded-2xl`}>
           <Bot className="w-10 h-10 mx-auto mb-3 opacity-40" />
           <p className="font-semibold">Nenhum atendimento ainda</p>
           <p className="text-xs mt-1">Os atendimentos da Mel aparecerão aqui</p>

@@ -6,6 +6,7 @@ import { format, parseISO } from "date-fns"
 import { Search, Building2, Eye, Shield, ShieldOff, Trash2, Bell } from "lucide-react"
 import { toast } from "sonner"
 import { formatarCNPJ, formatarCPF, formatarTelefone } from "@/lib/utils"
+import { useAdminTema } from "@/components/admin/admin-tema-context"
 
 interface Empresa {
   id: string; nome: string; email: string; telefone: string; area_atuacao: string
@@ -25,6 +26,7 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
   const [busca, setBusca] = useState("")
   const [filtroPlano, setFiltroPlano] = useState("todos")
   const router = useRouter()
+  const t = useAdminTema()
 
   const filtradas = empresas.filter((e) => {
     const bate = e.nome.toLowerCase().includes(busca.toLowerCase()) ||
@@ -87,16 +89,16 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-black text-white">Empresas</h1>
-        <p className="text-white/40 text-sm">{empresas.length} empresas cadastradas</p>
+        <h1 className={`text-2xl font-black ${t.text}`}>Empresas</h1>
+        <p className={`${t.textMuted} text-sm`}>{empresas.length} empresas cadastradas</p>
       </div>
 
       {/* Filtros */}
       <div className="flex gap-3 flex-wrap">
         <div className="relative flex-1 min-w-60">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+          <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${t.textMuted2}`} />
           <input
-            className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-primary"
+            className={`w-full ${t.inputBg} border ${t.inputBorder} rounded-xl pl-9 pr-4 py-2.5 text-sm ${t.inputText} focus:outline-none`}
             placeholder="Buscar por nome, e-mail ou documento..."
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
@@ -106,7 +108,7 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
           {["todos", "gratuito", "basico", "profissional"].map((p) => (
             <button key={p} onClick={() => setFiltroPlano(p)}
               className={`px-3 py-2 rounded-xl text-xs font-bold transition-all capitalize ${
-                filtroPlano === p ? "bg-primary text-white" : "bg-white/5 text-white/50 hover:bg-white/10"
+                filtroPlano === p ? "bg-primary text-white" : t.filterInativo
               }`}>
               {p}
             </button>
@@ -115,8 +117,8 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
       </div>
 
       {/* Tabela */}
-      <div className="bg-[#1a1a1a] border border-white/10 rounded-2xl overflow-hidden">
-        <div className="grid grid-cols-[1fr_1fr_1fr_auto_auto] gap-4 px-5 py-3 border-b border-white/10 text-xs font-bold text-white/30 uppercase tracking-wider">
+      <div className={`${t.cardBg} border ${t.border} rounded-2xl overflow-hidden`}>
+        <div className={`grid grid-cols-[1fr_1fr_1fr_auto_auto] gap-4 px-5 py-3 border-b ${t.border} text-xs font-bold ${t.textMuted2} uppercase tracking-wider`}>
           <span>Empresa</span><span>Contato</span><span>Área</span><span>Plano</span><span>Ações</span>
         </div>
 
@@ -127,7 +129,7 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
           const assinaturaAtiva = e.assinaturas?.find((a) => a.status === "ativa")
 
           return (
-            <div key={e.id} className="grid grid-cols-[1fr_1fr_1fr_auto_auto] gap-4 px-5 py-4 border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors items-center">
+            <div key={e.id} className={`grid grid-cols-[1fr_1fr_1fr_auto_auto] gap-4 px-5 py-4 border-b ${t.borderLight} last:border-0 ${t.rowHover} transition-colors items-center`}>
               {/* Empresa */}
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center shrink-0 overflow-hidden">
@@ -137,20 +139,20 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
                   }
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-white truncate">{e.nome}</p>
-                  <p className="text-xs text-white/30">{docFormatado}</p>
-                  <p className="text-xs text-white/20">{format(parseISO(e.created_at), "dd/MM/yyyy")}</p>
+                  <p className={`text-sm font-semibold ${t.text} truncate`}>{e.nome}</p>
+                  <p className={`text-xs ${t.textMuted2}`}>{docFormatado}</p>
+                  <p className={`text-xs ${t.textMuted5}`}>{format(parseISO(e.created_at), "dd/MM/yyyy")}</p>
                 </div>
               </div>
 
               {/* Contato */}
               <div className="min-w-0">
-                <p className="text-xs text-white/60 truncate">{e.email}</p>
-                <p className="text-xs text-white/30">{formatarTelefone(e.telefone)}</p>
+                <p className={`text-xs ${t.textMuted4} truncate`}>{e.email}</p>
+                <p className={`text-xs ${t.textMuted2}`}>{formatarTelefone(e.telefone)}</p>
               </div>
 
               {/* Área */}
-              <p className="text-xs text-white/50 truncate">{e.area_atuacao}</p>
+              <p className={`text-xs ${t.textMuted3} truncate`}>{e.area_atuacao}</p>
 
               {/* Plano */}
               <div className="flex flex-col gap-1">
@@ -169,28 +171,28 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => router.push(`/admin/empresas/${e.id}`)}
-                  className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors"
+                  className={`p-1.5 rounded-lg ${t.hoverBgBtn} ${t.textMuted} hover:text-white transition-colors`}
                   title="Ver detalhes"
                 >
                   <Eye className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={() => enviarAlertaVencimento(e)}
-                  className="p-1.5 rounded-lg hover:bg-white/10 text-yellow-400/60 hover:text-yellow-400 transition-colors"
+                  className={`p-1.5 rounded-lg ${t.hoverBgBtn} text-yellow-400/60 hover:text-yellow-400 transition-colors`}
                   title="Enviar alerta de vencimento"
                 >
                   <Bell className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={() => toggleAtivo(e)}
-                  className={`p-1.5 rounded-lg hover:bg-white/10 transition-colors ${e.plano_ativo ? "text-emerald-400 hover:text-red-400" : "text-red-400 hover:text-emerald-400"}`}
+                  className={`p-1.5 rounded-lg ${t.hoverBgBtn} transition-colors ${e.plano_ativo ? "text-emerald-400 hover:text-red-400" : "text-red-400 hover:text-emerald-400"}`}
                   title={e.plano_ativo ? "Desativar" : "Reativar"}
                 >
                   {e.plano_ativo ? <Shield className="w-3.5 h-3.5" /> : <ShieldOff className="w-3.5 h-3.5" />}
                 </button>
                 <button
                   onClick={() => excluirEmpresa(e)}
-                  className="p-1.5 rounded-lg hover:bg-white/10 text-red-400/60 hover:text-red-400 transition-colors"
+                  className={`p-1.5 rounded-lg ${t.hoverBgBtn} text-red-400/60 hover:text-red-400 transition-colors`}
                   title="Excluir empresa"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -199,7 +201,7 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
             </div>
           )
         }) : (
-          <div className="py-12 text-center text-white/30">
+          <div className={`py-12 text-center ${t.textMuted2}`}>
             <Building2 className="w-8 h-8 mx-auto mb-2 opacity-40" />
             <p>Nenhuma empresa encontrada</p>
           </div>

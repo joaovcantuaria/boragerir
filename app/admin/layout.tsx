@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils"
 import { LogoIcon } from "@/components/ui/logo"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
+import { AdminTemaProvider } from "@/components/admin/admin-tema-context"
 
 const navItems = [
   { href: "/admin",                  icon: LayoutDashboard, label: "Dashboard" },
@@ -429,7 +430,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             backgroundColor: cores.mainBg,
           }}
         >
-          {children}
+          <AdminTemaProvider modoClaro={modoClaro}>
+            {children}
+          </AdminTemaProvider>
         </main>
       </div>
     </div>
