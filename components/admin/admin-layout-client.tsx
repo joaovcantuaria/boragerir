@@ -40,21 +40,6 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
   const [menuMobileAberto, setMenuMobileAberto] = useState(false)
   const [notifs, setNotifs] = useState<Notificacao[]>([])
   const [modoClaro, setModoClaro] = useState(false)
-  const [mounted, setMounted] = useState(false)
-
-  // Ler preferência salva antes de renderizar para evitar flash
-  useEffect(() => {
-    const saved = localStorage.getItem("admin-tema")
-    if (saved === "claro") setModoClaro(true)
-    setMounted(true)
-  }, [])
-
-  // Salvar preferência e atualizar fundo
-  function toggleModoClaro() {
-    const novo = !modoClaro
-    setModoClaro(novo)
-    localStorage.setItem("admin-tema", novo ? "claro" : "escuro")
-  }
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -120,7 +105,7 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
     textSecond:  "#6b7280",
     navInactive: "#9ca3af",
     navHoverBg:  "rgba(0,0,0,0.04)",
-    btnText:     "#374151",        // cinza escuro — visível no fundo branco
+    btnText:     "#6b7280",
     btnHoverBg:  "rgba(0,0,0,0.05)",
     notifBg:     "#ffffff",
     notifBorder: "rgba(0,0,0,0.07)",
@@ -133,15 +118,15 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
   } : {
     pageBg:      "#0d0d0f",
     sidebarBg:   "#111113",
-    headerBg:    "#111113",       // escuro no mobile dark
+    headerBg:    "#111113",
     border:      "rgba(255,255,255,0.07)",
     mainBg:      "#0d0d0f",
     textPrimary: "#f1f1f3",
-    textSecond:  "rgba(255,255,255,0.80)",   // "Admin" bem visível
+    textSecond:  "rgba(255,255,255,0.45)",
     navInactive: "rgba(255,255,255,0.38)",
     navHoverBg:  "rgba(255,255,255,0.05)",
-    btnText:     "#ffffff",                  // ícones brancos — visíveis no fundo escuro
-    btnHoverBg:  "rgba(255,255,255,0.12)",
+    btnText:     "rgba(255,255,255,0.45)",
+    btnHoverBg:  "rgba(255,255,255,0.07)",
     notifBg:     "#1c1c1f",
     notifBorder: "rgba(255,255,255,0.09)",
     notifHover:  "rgba(255,255,255,0.03)",
@@ -149,20 +134,11 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
     notifBody:   "rgba(255,255,255,0.45)",
     notifEmpty:  "rgba(255,255,255,0.25)",
     mobileNav:   "#111113",
-    mobileText:  "rgba(255,255,255,0.50)",
+    mobileText:  "rgba(255,255,255,0.40)",
   }
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", backgroundColor: cores.pageBg, color: cores.textPrimary, colorScheme: modoClaro ? "light" : "dark" }}>
-      {/* Script bloqueante — roda antes do React, evita flash branco/escuro */}
-      <script dangerouslySetInnerHTML={{ __html: `
-        (function(){
-          var t = localStorage.getItem('admin-tema');
-          var bg = t === 'claro' ? '#f7f8fa' : '#0d0d0f';
-          document.documentElement.style.backgroundColor = bg;
-          document.body.style.backgroundColor = bg;
-        })();
-      `}} />
 
       {/* ── SIDEBAR DESKTOP ── */}
       <motion.aside
@@ -235,16 +211,9 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
       {/* ── CONTEÚDO ── */}
       <div className={cn("flex-1 min-h-screen transition-all duration-200 pb-16 md:pb-0", collapsed ? "md:ml-[64px]" : "md:ml-[220px]")}>
 
-        {/* Header — bg-[#111113] via className garante fundo escuro no SSR/mobile
-            O style só adiciona borda e sombra, não sobrescreve o bg no modo claro via modoClaro */}
-        <header
-          data-admin-header="true"
-          className="h-14 flex items-center justify-between px-4 md:px-6 sticky top-0 z-20"
-          style={{
-            backgroundColor: modoClaro ? "#ffffff" : "#111113",
-            borderBottom: `1px solid ${cores.border}`,
-            boxShadow: modoClaro ? "0 1px 4px rgba(0,0,0,0.06)" : "none",
-          }}>
+        {/* Header */}
+        <header className="h-14 flex items-center justify-between px-4 md:px-6 sticky top-0 z-20"
+          style={{ backgroundColor: cores.headerBg, borderBottom: `1px solid ${cores.border}`, boxShadow: modoClaro ? "0 1px 4px rgba(0,0,0,0.06)" : "none" }}>
 
           {/* Mobile: logo + titulo */}
           <div className="flex items-center gap-2.5 md:gap-2">
@@ -252,7 +221,7 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
               <LogoIcon size={28} />
             </div>
             <Shield className="hidden md:block w-4 h-4 text-[#F26E1D]" />
-            <span className="text-sm font-semibold" style={{ color: modoClaro ? cores.textSecond : "#ffffff" }}>
+            <span className="text-sm font-semibold" style={{ color: cores.textSecond }}>
               <span className="md:hidden">Admin</span>
               <span className="hidden md:inline">Painel Administrativo</span>
             </span>
@@ -260,7 +229,7 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
 
           <div className="flex items-center gap-1">
             {/* Toggle tema */}
-            <button onClick={toggleModoClaro} title={modoClaro ? "Modo escuro" : "Modo claro"}
+            <button onClick={() => setModoClaro(!modoClaro)} title={modoClaro ? "Modo escuro" : "Modo claro"}
               className="p-2 rounded-xl transition-colors" style={{ color: cores.btnText }}
               onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = cores.btnHoverBg; e.currentTarget.style.color = cores.textPrimary }}
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = cores.btnText }}>

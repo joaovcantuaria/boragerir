@@ -1,6 +1,11 @@
+// Server Component wrapper — exporta viewport para controlar
+// a cor da barra de status mobile no painel admin
+// v2 - build fix
 import type { Viewport } from "next"
 import { AdminLayoutClient } from "@/components/admin/admin-layout-client"
 
+// Força a barra de status do Android/iOS para escuro no admin
+// Isso é renderizado no servidor ANTES do JS chegar no browser
 export const viewport: Viewport = {
   themeColor: "#111113",
 }
