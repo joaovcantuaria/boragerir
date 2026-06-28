@@ -1,15 +1,29 @@
-// Server Component wrapper — exporta viewport para controlar
-// a cor da barra de status mobile no painel admin
-// v2 - build fix
+// Server Component — renderizado no servidor, HTML chega ao browser já com estilos corretos
 import type { Viewport } from "next"
 import { AdminLayoutClient } from "@/components/admin/admin-layout-client"
 
-// Força a barra de status do Android/iOS para escuro no admin
-// Isso é renderizado no servidor ANTES do JS chegar no browser
+// theme-color controla a cor da barra de status do Android
 export const viewport: Viewport = {
   themeColor: "#111113",
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  return <AdminLayoutClient>{children}</AdminLayoutClient>
+  return (
+    <>
+      {/*
+        Este <style> é injetado diretamente no HTML pelo servidor.
+        Ele roda ANTES de qualquer JS, garantindo que html e body
+        tenham fundo escuro desde o primeiro byte — eliminando o flash branco
+        na área superior do mobile (safe-area / status bar area).
+        Só afeta rotas /admin.
+      */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        html, body {
+          background-color: #111113 !important;
+          color-scheme: dark;
+        }
+      `}} />
+      <AdminLayoutClient>{children}</AdminLayoutClient>
+    </>
+  )
 }
