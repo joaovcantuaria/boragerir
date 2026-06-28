@@ -371,7 +371,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
 
         {/* ── ABA RELATÓRIOS ── */}
         <TabsContent value="relatorios" className="mt-4">
-          <RelatoriosTab vendas={vendas} movimentacoes={movimentacoes} funcionarios={funcionarios} debitos={debitos} />
+          <RelatoriosTab vendas={vendas} movimentacoes={movimentacoes} funcionarios={funcionarios} debitos={debitos} empresaId={empresaId} />
         </TabsContent>
       </Tabs>
 
@@ -431,6 +431,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
 // ─── Componente de Relatórios ───────────────────────────────────────────────
 
 type RelatoriosProps = {
+  empresaId: string
   vendas: Venda[]
   movimentacoes: { id: string; tipo: string; categoria: string; descricao: string; valor: number; created_at: string }[]
   funcionarios: { id: string; nome: string }[]
@@ -597,18 +598,19 @@ function gerarConteudoRelatorio(
   }
 
   linhas.push(sep)
-  linhas.push("  Relatório gerado pelo BeautyFlow — sistema de gestão")
+  linhas.push("  Relatório gerado pelo Bora Gerir — app.boragerir.com")
   linhas.push(sep)
 
   return linhas.join("\n")
 }
 
-function RelatoriosTab({ vendas, movimentacoes, funcionarios, debitos }: RelatoriosProps) {
+function RelatoriosTab({ vendas, movimentacoes, funcionarios, debitos, empresaId }: RelatoriosProps) {
   const [tipoSelecionado, setTipoSelecionado] = useState<TipoRelatorio>("resumo-mensal")
   const [tipoPeriodo, setTipoPeriodo] = useState<"hoje" | "semana" | "mes" | "personalizado">("mes")
   const [dataInicio, setDataInicio] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"))
   const [dataFim, setDataFim] = useState(format(endOfMonth(new Date()), "yyyy-MM-dd"))
   const [gerando, setGerando] = useState(false)
+  const supabase = createClient()
 
   function aplicarPeriodoPre(tipo: "hoje" | "semana" | "mes" | "personalizado") {
     setTipoPeriodo(tipo)
@@ -629,25 +631,24 @@ function RelatoriosTab({ vendas, movimentacoes, funcionarios, debitos }: Relator
     try {
       const inicio = new Date(dataInicio + "T00:00:00")
       const fim = new Date(dataFim + "T23:59:59")
-      const conteudo = gerarConteudoRelatorio(tipoSelecionado, vendas, movimentacoes, funcionarios, debitos, { inicio, fim })
-      const blob = new Blob([conteudo], { type: "text/plain;charset=utf-8" })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      const nomeArq = `relatorio-${tipoSelecionado}-${dataInicio}-${dataFim}.txt`
-      a.download = nomeArq
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-      toast.success("Relatório baixado com sucesso!")
-    } catch {
+      await gerarRelatorioPDF({
+        empresa,
+        tipo: tipoSelecionado,
+        label: relInfo?.label ?? tipoSelecionado,
+        dataInicio: inicio,
+        dataFim: fim,
+        vendas,
+        movimentacoes,
+        funcionarios,
+        debitos,
+      })
+      toast.success("Relatório PDF gerado com sucesso!")
+    } catch (err) {
+      console.error(err)
       toast.error("Erro ao gerar relatório.")
     }
     setGerando(false)
   }
-
-  const categorias = [...new Set(RELATORIOS.map((r) => r.categoria))]
 
   return (
     <div className="space-y-6">
@@ -743,11 +744,11 @@ function RelatoriosTab({ vendas, movimentacoes, funcionarios, debitos }: Relator
               ? <Loader2 className="w-4 h-4 animate-spin" />
               : <Download className="w-4 h-4" />
             }
-            Baixar relatório
+            Gerar PDF
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          O arquivo será baixado em formato <strong>.txt</strong>, compatível com qualquer editor de texto.
+          O relatório será gerado em <strong>PDF</strong> com os dados da sua empresa.
         </p>
       </div>
     </div>
