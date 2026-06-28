@@ -33,7 +33,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#141414" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0b0f" },
   ],
   width: "device-width", initialScale: 1, maximumScale: 1,
 }
@@ -45,6 +45,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="icon" href="/logo-icon.png" type="image/png" />
         <link rel="apple-touch-icon" href="/logo-icon.png" />
+        {/* theme-color para barra de status mobile — dark mode escuro, light mode branco */}
+        <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#0a0b0f" media="(prefers-color-scheme: dark)" />
         <script src="https://sdk.mercadopago.com/js/v2" async></script>
       </head>
       <body className={`${inter.variable} font-sans antialiased`} suppressHydrationWarning>

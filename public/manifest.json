@@ -4,8 +4,8 @@
   "description": "Gestão simples. Resultado de verdade.",
   "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#F26E1D",
+  "background_color": "#0a0b0f",
+  "theme_color": "#0a0b0f",
   "orientation": "portrait-primary",
   "lang": "pt-BR",
   "icons": [
