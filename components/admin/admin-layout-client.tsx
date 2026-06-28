@@ -122,11 +122,11 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
     border:      "rgba(255,255,255,0.07)",
     mainBg:      "#0d0d0f",
     textPrimary: "#f1f1f3",
-    textSecond:  "rgba(255,255,255,0.45)",
+    textSecond:  "rgba(255,255,255,0.80)",   // "Admin" bem visível
     navInactive: "rgba(255,255,255,0.38)",
     navHoverBg:  "rgba(255,255,255,0.05)",
-    btnText:     "rgba(255,255,255,0.80)",   // mais brilhante — visível no fundo escuro
-    btnHoverBg:  "rgba(255,255,255,0.10)",
+    btnText:     "#ffffff",                  // ícones brancos — visíveis no fundo escuro
+    btnHoverBg:  "rgba(255,255,255,0.12)",
     notifBg:     "#1c1c1f",
     notifBorder: "rgba(255,255,255,0.09)",
     notifHover:  "rgba(255,255,255,0.03)",
@@ -225,7 +225,7 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
               <LogoIcon size={28} />
             </div>
             <Shield className="hidden md:block w-4 h-4 text-[#F26E1D]" />
-            <span className="text-sm font-semibold" style={{ color: cores.textSecond }}>
+            <span className="text-sm font-semibold" style={{ color: modoClaro ? cores.textSecond : "#ffffff" }}>
               <span className="md:hidden">Admin</span>
               <span className="hidden md:inline">Painel Administrativo</span>
             </span>
