@@ -13,7 +13,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </div>
 
         {/* Logo — versão branca para fundo escuro */}
-        <div className="relative">
+        <div className="relative flex justify-center">
           <LogoBranca />
         </div>
 
@@ -72,12 +72,12 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 // v2 — usa logo-full-branca.png
 function LogoBranca() {
   return (
-    <div className="relative" style={{ width: 340, height: 78 }}>
+    <div className="relative" style={{ width: 420, height: 96 }}>
       <Image
         src="/logo-full-branca.png"
         alt="BoraGerir"
         fill
-        className="object-contain object-left"
+        className="object-contain"
         priority
       />
     </div>
