@@ -69,27 +69,56 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 }
 
 // ── Logo branca para o painel escuro ─────────────────────────
-// Tenta usar logo-full-branca.png; se não existir, usa versão SVG inline
 function LogoBranca() {
   return (
-    <div className="flex items-center gap-3">
-      {/* Ícone laranja */}
-      <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" width={52} height={52}>
-        <rect width="40" height="40" rx="10" fill="#F26E1D" />
-        <text
-          x="20" y="28"
-          textAnchor="middle"
-          fontFamily="Arial, sans-serif"
-          fontWeight="900"
-          fontSize="24"
-          fill="white"
-        >B</text>
-      </svg>
-      {/* Texto branco */}
-      <div className="flex items-baseline gap-1">
-        <span className="font-black text-4xl text-white leading-none">Bora</span>
-        <span className="font-black text-4xl text-[#F26E1D] leading-none">Gerir</span>
-      </div>
-    </div>
+    <svg
+      viewBox="0 0 520 120"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      width="340"
+      height="78"
+      aria-label="BoraGerir"
+    >
+      {/* ── Ícone BG ── */}
+      {/* Letra D / arco externo laranja */}
+      <path
+        d="M10 15 L10 105 L48 105 C75 105 92 88 92 60 C92 32 75 15 48 15 Z"
+        fill="#F26E1D"
+      />
+      {/* Corte interno branco para formar o D */}
+      <path
+        d="M26 30 L26 90 L46 90 C64 90 75 77 75 60 C75 43 64 30 46 30 Z"
+        fill="#1A1A1A"
+      />
+      {/* Barras de gráfico brancas dentro do ícone */}
+      <rect x="32" y="72" width="7" height="14" rx="1.5" fill="white" />
+      <rect x="42" y="63" width="7" height="23" rx="1.5" fill="white" />
+      <rect x="52" y="55" width="7" height="31" rx="1.5" fill="white" />
+      {/* Seta diagonal laranja */}
+      <line x1="42" y1="44" x2="68" y2="22" stroke="#F26E1D" strokeWidth="5" strokeLinecap="round" />
+      <polyline points="55,20 70,20 70,35" fill="none" stroke="#F26E1D" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+
+      {/* ── Texto "Bora" em laranja ── */}
+      <text
+        x="108"
+        y="84"
+        fontFamily="Arial Black, Arial, sans-serif"
+        fontWeight="900"
+        fontSize="72"
+        fill="#F26E1D"
+        letterSpacing="-1"
+      >Bora</text>
+
+      {/* ── Texto "Gerir" em branco ── */}
+      <text
+        x="306"
+        y="84"
+        fontFamily="Arial Black, Arial, sans-serif"
+        fontWeight="900"
+        fontSize="72"
+        fill="white"
+        letterSpacing="-1"
+      >Gerir</text>
+    </svg>
   )
 }
