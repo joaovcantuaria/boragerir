@@ -7,8 +7,9 @@ import { motion, AnimatePresence } from "framer-motion"
 import {
   LayoutDashboard, Building2, CreditCard, HeadphonesIcon,
   Settings, ChevronLeft, ChevronRight, LogOut, Shield,
-  Tag, Users2, Bell, X, Bot,
+  Tag, Users2, Bell, X, Bot, Sun, Moon,
 } from "lucide-react"
+import { useTheme } from "next-themes"
 import { cn } from "@/lib/utils"
 import { LogoIcon } from "@/components/ui/logo"
 import { createClient } from "@/lib/supabase/client"
@@ -34,9 +35,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [collapsed, setCollapsed] = useState(false)
   const [notifAberto, setNotifAberto] = useState(false)
   const [notifs, setNotifs] = useState<Notificacao[]>([])
+  const [adminTema, setAdminTema] = useState<"dark" | "light">("dark")
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
+  const { theme, setTheme } = useTheme()
+
+  function toggleTema() {
+    const novo = adminTema === "dark" ? "light" : "dark"
+    setAdminTema(novo)
+    setTheme(novo)
+  }
 
   const naoLidas = notifs.filter((n) => !n.lida).length
 
@@ -87,22 +96,30 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white flex">
+    <div className={cn(adminTema, "min-h-screen text-white flex")}
+      style={{ backgroundColor: adminTema === "dark" ? "#0a0a0a" : "#f4f4f5", color: adminTema === "dark" ? "white" : "#18181b", colorScheme: adminTema }}
+    >
       {/* Sidebar */}
       <motion.aside
         initial={false}
         animate={{ width: collapsed ? 64 : 220 }}
         transition={{ duration: 0.18, ease: "easeInOut" }}
-        style={{ backgroundColor: "#111111", borderRight: "1px solid rgba(255,255,255,0.07)" }}
+        style={{
+          backgroundColor: adminTema === "dark" ? "#111111" : "#ffffff",
+          borderRight: adminTema === "dark" ? "1px solid rgba(255,255,255,0.07)" : "1px solid rgba(0,0,0,0.08)"
+        }}
         className="hidden md:flex flex-col h-screen fixed left-0 top-0 z-30 overflow-hidden"
       >
         {/* Logo */}
-        <div className="flex items-center h-16 px-4 border-b border-white/[0.07] shrink-0 gap-2.5">
+        <div
+          className="flex items-center h-16 px-4 shrink-0 gap-2.5"
+          style={{ borderBottom: adminTema === "dark" ? "1px solid rgba(255,255,255,0.07)" : "1px solid rgba(0,0,0,0.08)" }}
+        >
           <LogoIcon size={32} />
           <AnimatePresence>
             {!collapsed && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <p className="font-black text-sm text-white leading-none">Bora Gerir</p>
+                <p className={cn("font-black text-sm leading-none", adminTema === "dark" ? "text-white" : "text-gray-900")}>Bora Gerir</p>
                 <div className="flex items-center gap-1 mt-0.5">
                   <Shield className="w-3 h-3 text-primary" />
                   <p className="text-[10px] text-primary font-bold">Admin</p>
@@ -124,7 +141,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   collapsed ? "h-10 w-10 justify-center mx-auto" : "px-3 py-2.5",
                   isActive
                     ? "bg-primary text-white"
-                    : "text-white/40 hover:bg-white/[0.05] hover:text-white"
+                    : adminTema === "dark"
+                      ? "text-white/40 hover:bg-white/[0.05] hover:text-white"
+                      : "text-gray-400 hover:bg-gray-100 hover:text-gray-900"
                 )}>
                 <Icon className="w-[18px] h-[18px] shrink-0" />
                 <AnimatePresence>
@@ -146,15 +165,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
 
         {/* Rodapé */}
-        <div className="p-2 border-t border-white/[0.07] shrink-0 space-y-1">
+        <div
+          className="p-2 shrink-0 space-y-1"
+          style={{ borderTop: adminTema === "dark" ? "1px solid rgba(255,255,255,0.07)" : "1px solid rgba(0,0,0,0.08)" }}
+        >
           <button onClick={handleLogout}
-            className={cn("flex items-center gap-3 w-full rounded-xl text-sm text-white/40 hover:bg-white/[0.05] hover:text-white transition-all",
+            className={cn("flex items-center gap-3 w-full rounded-xl text-sm transition-all",
+              adminTema === "dark"
+                ? "text-white/40 hover:bg-white/[0.05] hover:text-white"
+                : "text-gray-400 hover:bg-gray-100 hover:text-gray-900",
               collapsed ? "h-10 w-10 justify-center mx-auto" : "px-3 py-2.5")}>
             <LogOut className="w-[18px] h-[18px] shrink-0" />
             {!collapsed && <span>Sair</span>}
           </button>
           <button onClick={() => setCollapsed(!collapsed)}
-            className="flex items-center justify-center w-full p-2 rounded-xl text-white/20 hover:bg-white/[0.05] hover:text-white transition-all">
+            className={cn("flex items-center justify-center w-full p-2 rounded-xl transition-all",
+              adminTema === "dark"
+                ? "text-white/20 hover:bg-white/[0.05] hover:text-white"
+                : "text-gray-300 hover:bg-gray-100 hover:text-gray-900"
+            )}>
             {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
           </button>
         </div>
@@ -164,14 +193,31 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div className={cn("flex-1 min-h-screen transition-all duration-200", collapsed ? "md:ml-[64px]" : "md:ml-[220px]")}>
         {/* Header */}
         <header
-          style={{ backgroundColor: "#111111", borderBottom: "1px solid rgba(255,255,255,0.07)" }}
+          style={{
+            backgroundColor: adminTema === "dark" ? "#111111" : "#ffffff",
+            borderBottom: adminTema === "dark" ? "1px solid rgba(255,255,255,0.07)" : "1px solid rgba(0,0,0,0.08)"
+          }}
           className="h-14 flex items-center justify-between px-6 sticky top-0 z-20"
         >
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-primary" />
-            <span className="text-sm font-bold text-white/60">Painel Administrativo</span>
+            <span className={cn("text-sm font-bold", adminTema === "dark" ? "text-white/60" : "text-gray-400")}>
+              Painel Administrativo
+            </span>
           </div>
           <div className="flex items-center gap-3">
+            {/* Toggle de tema */}
+            <button
+              onClick={toggleTema}
+              title={adminTema === "dark" ? "Modo claro" : "Modo escuro"}
+              className="p-2 rounded-xl text-white/40 hover:bg-white/[0.05] hover:text-white transition-colors"
+            >
+              {adminTema === "dark"
+                ? <Sun className="w-[17px] h-[17px]" />
+                : <Moon className="w-[17px] h-[17px]" />
+              }
+            </button>
+
             {/* Notificações */}
             <div className="relative">
               <button onClick={() => setNotifAberto(!notifAberto)}
@@ -233,12 +279,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-xs text-white/40">contato@boragerir.com</span>
+              <span className={cn("text-xs", adminTema === "dark" ? "text-white/40" : "text-gray-400")}>
+                contato@boragerir.com
+              </span>
             </div>
           </div>
         </header>
 
-        <main className="p-6">{children}</main>
+        <main
+          className="p-6"
+          style={{ backgroundColor: adminTema === "dark" ? "#0a0a0a" : "#f4f4f5" }}
+        >{children}</main>
       </div>
     </div>
   )
