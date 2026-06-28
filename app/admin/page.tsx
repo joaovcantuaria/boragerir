@@ -82,11 +82,11 @@ export default async function AdminPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center space-y-4">
-          <p className="text-2xl font-black text-white">Erro ao carregar painel</p>
-          <p className="text-white/50 text-sm">
+          <p className="text-2xl font-black text-gray-900 dark:text-white">Erro ao carregar painel</p>
+          <p className="text-gray-500 dark:text-white/50 text-sm">
             Verifique se a variável <code className="text-primary">SUPABASE_SERVICE_ROLE_KEY</code> está configurada no Vercel.
           </p>
-          <p className="text-white/30 text-xs font-mono">
+          <p className="text-gray-400 dark:text-white/30 text-xs font-mono">
             {error instanceof Error ? error.message : String(error)}
           </p>
         </div>

@@ -86,7 +86,7 @@ export function AdminEmpresaDetalhe({ empresa, assinaturas, notas: notasInit, ti
     <div className="space-y-6 max-w-5xl">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <button onClick={() => router.back()} className="p-2 hover:bg-white/5 rounded-xl transition-colors text-white/40 hover:text-white">
+        <button onClick={() => router.back()} className="p-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl transition-colors text-gray-400 dark:text-white/40 hover:text-gray-900 dark:hover:text-white">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div className="flex items-center gap-3">
@@ -96,8 +96,8 @@ export function AdminEmpresaDetalhe({ empresa, assinaturas, notas: notasInit, ti
               : <span className="text-lg font-black text-primary">{empresa.nome.charAt(0)}</span>}
           </div>
           <div>
-            <h1 className="text-xl font-black text-white">{empresa.nome}</h1>
-            <p className="text-white/40 text-sm">{empresa.area_atuacao} · cadastro em {format(parseISO(empresa.created_at), "dd/MM/yyyy")}</p>
+            <h1 className="text-xl font-black text-gray-900 dark:text-white">{empresa.nome}</h1>
+            <p className="text-gray-400 dark:text-white/40 text-sm">{empresa.area_atuacao} · cadastro em {format(parseISO(empresa.created_at), "dd/MM/yyyy")}</p>
           </div>
         </div>
       </div>
@@ -105,8 +105,8 @@ export function AdminEmpresaDetalhe({ empresa, assinaturas, notas: notasInit, ti
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Dados da empresa */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="bg-[#1a1a1a] border border-white/10 rounded-2xl p-5">
-            <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+          <div className="bg-white dark:bg-[#1a1a1a] border border-gray-100 dark:border-white/10 rounded-2xl p-5">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
               <Building2 className="w-4 h-4 text-primary" />Dados da empresa
             </h3>
             <div className="grid grid-cols-2 gap-3 text-sm">
@@ -119,25 +119,25 @@ export function AdminEmpresaDetalhe({ empresa, assinaturas, notas: notasInit, ti
                 { label: "CEP", valor: empresa.endereco_cep },
               ].map((f) => (
                 <div key={f.label}>
-                  <p className="text-white/30 text-xs">{f.label}</p>
-                  <p className="text-white font-medium">{f.valor}</p>
+                  <p className="text-gray-300 dark:text-white/30 text-xs">{f.label}</p>
+                  <p className="text-gray-900 dark:text-white font-medium">{f.valor}</p>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Assinaturas */}
-          <div className="bg-[#1a1a1a] border border-white/10 rounded-2xl p-5">
-            <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+          <div className="bg-white dark:bg-[#1a1a1a] border border-gray-100 dark:border-white/10 rounded-2xl p-5">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
               <CreditCard className="w-4 h-4 text-primary" />Assinaturas
             </h3>
             {assinaturas.length > 0 ? (
               <div className="space-y-2">
                 {assinaturas.map((a) => (
-                  <div key={a.id} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+                  <div key={a.id} className="flex items-center justify-between py-2 border-b border-gray-50 dark:border-white/5 last:border-0">
                     <div>
-                      <p className="text-sm font-semibold text-white capitalize">{a.plano} — {a.periodicidade}</p>
-                      <p className="text-xs text-white/40">{a.forma_pagamento ?? "—"} · {format(parseISO(a.created_at), "dd/MM/yyyy")}</p>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white capitalize">{a.plano} — {a.periodicidade}</p>
+                      <p className="text-xs text-gray-400 dark:text-white/40">{a.forma_pagamento ?? "—"} · {format(parseISO(a.created_at), "dd/MM/yyyy")}</p>
                     </div>
                     <div className="text-right">
                       <span className={`text-xs px-2 py-0.5 rounded-full border ${badgeStatus[a.status] ?? ""}`}>{a.status}</span>
@@ -146,22 +146,22 @@ export function AdminEmpresaDetalhe({ empresa, assinaturas, notas: notasInit, ti
                   </div>
                 ))}
               </div>
-            ) : <p className="text-white/30 text-sm">Nenhuma assinatura.</p>}
+            ) : <p className="text-gray-300 dark:text-white/30 text-sm">Nenhuma assinatura.</p>}
           </div>
 
           {/* Enviar e-mail */}
-          <div className="bg-[#1a1a1a] border border-white/10 rounded-2xl p-5">
-            <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+          <div className="bg-white dark:bg-[#1a1a1a] border border-gray-100 dark:border-white/10 rounded-2xl p-5">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
               <Mail className="w-4 h-4 text-primary" />Enviar e-mail para {empresa.email}
             </h3>
             <div className="space-y-3">
               <input value={emailAssunto} onChange={(e) => setEmailAssunto(e.target.value)}
                 placeholder="Assunto"
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-primary" />
+                className="w-full bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/30 focus:outline-none focus:border-[#F26E1D]" />
               <textarea value={emailMensagem} onChange={(e) => setEmailMensagem(e.target.value)}
                 placeholder="Mensagem..."
                 rows={4}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-primary resize-none" />
+                className="w-full bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/30 focus:outline-none focus:border-[#F26E1D] resize-none" />
               <button onClick={enviarEmail} disabled={loading}
                 className="flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-primary/90 transition-colors disabled:opacity-50">
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
@@ -174,11 +174,11 @@ export function AdminEmpresaDetalhe({ empresa, assinaturas, notas: notasInit, ti
         {/* Coluna direita */}
         <div className="space-y-4">
           {/* Alterar plano */}
-          <div className="bg-[#1a1a1a] border border-white/10 rounded-2xl p-5">
-            <h3 className="text-sm font-bold text-white mb-3">Gerenciar plano</h3>
-            <p className="text-xs text-white/40 mb-2">Plano atual: <strong className="text-white">{empresa.plano}</strong></p>
+          <div className="bg-white dark:bg-[#1a1a1a] border border-gray-100 dark:border-white/10 rounded-2xl p-5">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-3">Gerenciar plano</h3>
+            <p className="text-xs text-gray-400 dark:text-white/40 mb-2">Plano atual: <strong className="text-gray-900 dark:text-white">{empresa.plano}</strong></p>
             <select value={planoSelecionado} onChange={(e) => setPlanoSelecionado(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-primary mb-3">
+              className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary mb-3">
               <option value="gratuito">Gratuito</option>
               <option value="basico">Básico</option>
               <option value="profissional">Profissional</option>
@@ -190,15 +190,15 @@ export function AdminEmpresaDetalhe({ empresa, assinaturas, notas: notasInit, ti
           </div>
 
           {/* Notas internas */}
-          <div className="bg-[#1a1a1a] border border-white/10 rounded-2xl p-5">
-            <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+          <div className="bg-white dark:bg-[#1a1a1a] border border-gray-100 dark:border-white/10 rounded-2xl p-5">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-primary" />Notas internas
             </h3>
             <div className="flex gap-2 mb-3">
               <input value={novaNota} onChange={(e) => setNovaNota(e.target.value)}
                 placeholder="Adicionar nota..."
                 onKeyDown={(e) => e.key === "Enter" && salvarNota()}
-                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-primary" />
+                className="flex-1 bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/30 focus:outline-none focus:border-[#F26E1D]" />
               <button onClick={salvarNota}
                 className="p-2 bg-primary rounded-xl hover:bg-primary/90 transition-colors">
                 <Plus className="w-4 h-4 text-white" />
@@ -206,12 +206,12 @@ export function AdminEmpresaDetalhe({ empresa, assinaturas, notas: notasInit, ti
             </div>
             <div className="space-y-2 max-h-60 overflow-y-auto">
               {notas.map((n) => (
-                <div key={n.id} className="bg-white/5 rounded-xl p-3">
-                  <p className="text-sm text-white/80">{n.nota}</p>
-                  <p className="text-xs text-white/30 mt-1">{format(parseISO(n.created_at), "dd/MM/yyyy HH:mm")}</p>
+                <div key={n.id} className="bg-gray-50 dark:bg-white/5 rounded-xl p-3">
+                  <p className="text-sm text-gray-700 dark:text-white/80">{n.nota}</p>
+                  <p className="text-xs text-gray-300 dark:text-white/30 mt-1">{format(parseISO(n.created_at), "dd/MM/yyyy HH:mm")}</p>
                 </div>
               ))}
-              {notas.length === 0 && <p className="text-white/30 text-xs text-center py-2">Sem notas</p>}
+              {notas.length === 0 && <p className="text-gray-300 dark:text-white/30 text-xs text-center py-2">Sem notas</p>}
             </div>
           </div>
         </div>
