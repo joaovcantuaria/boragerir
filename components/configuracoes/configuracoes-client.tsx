@@ -22,6 +22,7 @@ import {
   formatarTelefone, formatarCEP, areasAtuacao,
   formatarCPF, formatarCNPJ, validarCPF, validarCNPJ
 } from "@/lib/utils"
+import { AreaAtuacaoSelect } from "@/components/ui/area-atuacao-select"
 import { planosInfo } from "@/types"
 import type { Empresa, Categoria } from "@/types"
 
@@ -323,12 +324,11 @@ export function ConfiguracoesClient({
 
                   <div className="sm:col-span-2 space-y-1.5">
                     <Label>Área de atuação</Label>
-                    <Select defaultValue={empresa.area_atuacao} onValueChange={(v) => setValue("area_atuacao", v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {areasAtuacao.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <AreaAtuacaoSelect
+                      value={watch("area_atuacao")}
+                      onChange={(v) => setValue("area_atuacao", v)}
+                      placeholder="Selecione ou busque sua área..."
+                    />
                   </div>
 
                   <div className="space-y-1.5">

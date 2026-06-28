@@ -17,6 +17,7 @@ import {
   areasAtuacao, formatarTelefone, formatarCEP,
   formatarCPF, formatarCNPJ, validarCPF, validarCNPJ
 } from "@/lib/utils"
+import { AreaAtuacaoSelect } from "@/components/ui/area-atuacao-select"
 import { planosInfo, type Plano } from "@/types"
 import { LogoFull } from "@/components/ui/logo"
 
@@ -267,12 +268,11 @@ export default function OnboardingPage() {
 
                   <div className="sm:col-span-2 space-y-1.5">
                     <Label>Área de atuação *</Label>
-                    <Select onValueChange={(v) => setValue("area_atuacao", v)}>
-                      <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                      <SelectContent>
-                        {areasAtuacao.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <AreaAtuacaoSelect
+                      value={watch("area_atuacao")}
+                      onChange={(v) => setValue("area_atuacao", v)}
+                      placeholder="Selecione ou busque sua área..."
+                    />
                     {errors.area_atuacao && <p className="text-destructive text-xs">{errors.area_atuacao.message}</p>}
                   </div>
 
