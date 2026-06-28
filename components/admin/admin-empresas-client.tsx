@@ -116,8 +116,8 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
         </div>
       </div>
 
-      {/* Tabela */}
-      <div className={`${t.cardBg} border ${t.border} rounded-2xl overflow-hidden`}>
+      {/* Tabela — desktop */}
+      <div className={`hidden md:block ${t.cardBg} border ${t.border} rounded-2xl overflow-hidden`}>
         <div className={`grid grid-cols-[1fr_1fr_1fr_auto_auto] gap-4 px-5 py-3 border-b ${t.border} text-xs font-bold ${t.textMuted2} uppercase tracking-wider`}>
           <span>Empresa</span><span>Contato</span><span>Área</span><span>Plano</span><span>Ações</span>
         </div>
@@ -130,7 +130,6 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
 
           return (
             <div key={e.id} className={`grid grid-cols-[1fr_1fr_1fr_auto_auto] gap-4 px-5 py-4 border-b ${t.borderLight} last:border-0 ${t.rowHover} transition-colors items-center`}>
-              {/* Empresa */}
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center shrink-0 overflow-hidden">
                   {e.logo_url
@@ -144,58 +143,84 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
                   <p className={`text-xs ${t.textMuted5}`}>{format(parseISO(e.created_at), "dd/MM/yyyy")}</p>
                 </div>
               </div>
-
-              {/* Contato */}
               <div className="min-w-0">
                 <p className={`text-xs ${t.textMuted4} truncate`}>{e.email}</p>
                 <p className={`text-xs ${t.textMuted2}`}>{formatarTelefone(e.telefone)}</p>
               </div>
-
-              {/* Área */}
               <p className={`text-xs ${t.textMuted3} truncate`}>{e.area_atuacao}</p>
-
-              {/* Plano */}
               <div className="flex flex-col gap-1">
-                <span className={`text-xs px-2 py-0.5 rounded-full border capitalize ${badgePlano[e.plano] ?? ""}`}>
-                  {e.plano}
-                </span>
-                {assinaturaAtiva && (
-                  <span className="text-xs text-emerald-400">✓ ativa</span>
-                )}
-                {!e.plano_ativo && (
-                  <span className="text-xs text-red-400">⛔ inativa</span>
-                )}
+                <span className={`text-xs px-2 py-0.5 rounded-full border capitalize ${badgePlano[e.plano] ?? ""}`}>{e.plano}</span>
+                {assinaturaAtiva && <span className="text-xs text-emerald-400">✓ ativa</span>}
+                {!e.plano_ativo && <span className="text-xs text-red-400">⛔ inativa</span>}
+              </div>
+              <div className="flex items-center gap-1">
+                <button onClick={() => router.push(`/admin/empresas/${e.id}`)} className={`p-1.5 rounded-lg ${t.hoverBgBtn} ${t.textMuted} hover:text-white transition-colors`} title="Ver detalhes"><Eye className="w-3.5 h-3.5" /></button>
+                <button onClick={() => enviarAlertaVencimento(e)} className={`p-1.5 rounded-lg ${t.hoverBgBtn} text-yellow-400/60 hover:text-yellow-400 transition-colors`} title="Alerta"><Bell className="w-3.5 h-3.5" /></button>
+                <button onClick={() => toggleAtivo(e)} className={`p-1.5 rounded-lg ${t.hoverBgBtn} transition-colors ${e.plano_ativo ? "text-emerald-400 hover:text-red-400" : "text-red-400 hover:text-emerald-400"}`} title={e.plano_ativo ? "Desativar" : "Reativar"}>{e.plano_ativo ? <Shield className="w-3.5 h-3.5" /> : <ShieldOff className="w-3.5 h-3.5" />}</button>
+                <button onClick={() => excluirEmpresa(e)} className={`p-1.5 rounded-lg ${t.hoverBgBtn} text-red-400/60 hover:text-red-400 transition-colors`} title="Excluir"><Trash2 className="w-3.5 h-3.5" /></button>
+              </div>
+            </div>
+          )
+        }) : (
+          <div className={`py-12 text-center ${t.textMuted2}`}>
+            <Building2 className="w-8 h-8 mx-auto mb-2 opacity-40" />
+            <p>Nenhuma empresa encontrada</p>
+          </div>
+        )}
+      </div>
+
+      {/* Cards — mobile */}
+      <div className={`md:hidden ${t.cardBg} border ${t.border} rounded-2xl overflow-hidden`}>
+        {filtradas.length > 0 ? filtradas.map((e, idx) => {
+          const docFormatado = e.tipo_documento === "cnpj"
+            ? formatarCNPJ(e.documento ?? "")
+            : formatarCPF(e.documento ?? "")
+          const assinaturaAtiva = e.assinaturas?.find((a) => a.status === "ativa")
+          return (
+            <div key={e.id} className={`p-4 ${idx > 0 ? `border-t ${t.borderLight}` : ""}`}>
+              {/* Linha 1: logo + nome + plano + ações */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center shrink-0 overflow-hidden">
+                  {e.logo_url
+                    ? <img src={e.logo_url} alt="" className="w-full h-full object-cover" />
+                    : <span className="text-sm font-black text-primary">{e.nome.charAt(0)}</span>
+                  }
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-bold ${t.text} truncate`}>{e.nome}</p>
+                  <p className={`text-xs ${t.textMuted2} truncate`}>{docFormatado}</p>
+                </div>
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  <span className={`text-xs px-2 py-0.5 rounded-full border capitalize ${badgePlano[e.plano] ?? ""}`}>{e.plano}</span>
+                  {assinaturaAtiva && <span className="text-[10px] text-emerald-400 font-semibold">✓ ativa</span>}
+                  {!e.plano_ativo && <span className="text-[10px] text-red-400 font-semibold">inativa</span>}
+                </div>
               </div>
 
-              {/* Ações */}
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => router.push(`/admin/empresas/${e.id}`)}
-                  className={`p-1.5 rounded-lg ${t.hoverBgBtn} ${t.textMuted} hover:text-white transition-colors`}
-                  title="Ver detalhes"
-                >
-                  <Eye className="w-3.5 h-3.5" />
+              {/* Linha 2: email + telefone + área */}
+              <div className={`mt-2.5 pt-2.5 border-t ${t.borderLight} grid grid-cols-2 gap-1`}>
+                <p className={`text-xs ${t.textMuted3} truncate`}>{e.email}</p>
+                <p className={`text-xs ${t.textMuted3} text-right`}>{formatarTelefone(e.telefone)}</p>
+                <p className={`text-xs ${t.textMuted2} truncate col-span-2`}>{e.area_atuacao}</p>
+              </div>
+
+              {/* Linha 3: ações */}
+              <div className={`mt-2.5 pt-2.5 border-t ${t.borderLight} flex items-center gap-2`}>
+                <button onClick={() => router.push(`/admin/empresas/${e.id}`)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold ${t.subBg} ${t.textMuted4} border ${t.border}`}>
+                  <Eye className="w-3.5 h-3.5" />Ver detalhes
                 </button>
-                <button
-                  onClick={() => enviarAlertaVencimento(e)}
-                  className={`p-1.5 rounded-lg ${t.hoverBgBtn} text-yellow-400/60 hover:text-yellow-400 transition-colors`}
-                  title="Enviar alerta de vencimento"
-                >
-                  <Bell className="w-3.5 h-3.5" />
+                <button onClick={() => enviarAlertaVencimento(e)}
+                  className={`p-2 rounded-xl ${t.subBg} border ${t.border} text-yellow-400`} title="Alerta">
+                  <Bell className="w-4 h-4" />
                 </button>
-                <button
-                  onClick={() => toggleAtivo(e)}
-                  className={`p-1.5 rounded-lg ${t.hoverBgBtn} transition-colors ${e.plano_ativo ? "text-emerald-400 hover:text-red-400" : "text-red-400 hover:text-emerald-400"}`}
-                  title={e.plano_ativo ? "Desativar" : "Reativar"}
-                >
-                  {e.plano_ativo ? <Shield className="w-3.5 h-3.5" /> : <ShieldOff className="w-3.5 h-3.5" />}
+                <button onClick={() => toggleAtivo(e)}
+                  className={`p-2 rounded-xl ${t.subBg} border ${t.border} ${e.plano_ativo ? "text-emerald-400" : "text-red-400"}`}>
+                  {e.plano_ativo ? <Shield className="w-4 h-4" /> : <ShieldOff className="w-4 h-4" />}
                 </button>
-                <button
-                  onClick={() => excluirEmpresa(e)}
-                  className={`p-1.5 rounded-lg ${t.hoverBgBtn} text-red-400/60 hover:text-red-400 transition-colors`}
-                  title="Excluir empresa"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
+                <button onClick={() => excluirEmpresa(e)}
+                  className={`p-2 rounded-xl ${t.subBg} border ${t.border} text-red-400`}>
+                  <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </div>

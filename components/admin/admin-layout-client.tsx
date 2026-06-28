@@ -105,7 +105,7 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
     textSecond:  "#6b7280",
     navInactive: "#9ca3af",
     navHoverBg:  "rgba(0,0,0,0.04)",
-    btnText:     "#6b7280",
+    btnText:     "#374151",        // cinza escuro — visível no fundo branco
     btnHoverBg:  "rgba(0,0,0,0.05)",
     notifBg:     "#ffffff",
     notifBorder: "rgba(0,0,0,0.07)",
@@ -118,15 +118,15 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
   } : {
     pageBg:      "#0d0d0f",
     sidebarBg:   "#111113",
-    headerBg:    "#111113",
+    headerBg:    "#111113",       // escuro no mobile dark
     border:      "rgba(255,255,255,0.07)",
     mainBg:      "#0d0d0f",
     textPrimary: "#f1f1f3",
     textSecond:  "rgba(255,255,255,0.45)",
     navInactive: "rgba(255,255,255,0.38)",
     navHoverBg:  "rgba(255,255,255,0.05)",
-    btnText:     "rgba(255,255,255,0.45)",
-    btnHoverBg:  "rgba(255,255,255,0.07)",
+    btnText:     "rgba(255,255,255,0.80)",   // mais brilhante — visível no fundo escuro
+    btnHoverBg:  "rgba(255,255,255,0.10)",
     notifBg:     "#1c1c1f",
     notifBorder: "rgba(255,255,255,0.09)",
     notifHover:  "rgba(255,255,255,0.03)",
@@ -134,7 +134,7 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
     notifBody:   "rgba(255,255,255,0.45)",
     notifEmpty:  "rgba(255,255,255,0.25)",
     mobileNav:   "#111113",
-    mobileText:  "rgba(255,255,255,0.40)",
+    mobileText:  "rgba(255,255,255,0.50)",
   }
 
   return (
@@ -213,7 +213,11 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
 
         {/* Header */}
         <header className="h-14 flex items-center justify-between px-4 md:px-6 sticky top-0 z-20"
-          style={{ backgroundColor: cores.headerBg, borderBottom: `1px solid ${cores.border}`, boxShadow: modoClaro ? "0 1px 4px rgba(0,0,0,0.06)" : "none" }}>
+          style={{
+            backgroundColor: cores.headerBg,
+            borderBottom: `1px solid ${cores.border}`,
+            boxShadow: modoClaro ? "0 1px 4px rgba(0,0,0,0.06)" : "none",
+          }}>
 
           {/* Mobile: logo + titulo */}
           <div className="flex items-center gap-2.5 md:gap-2">
