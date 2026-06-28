@@ -69,6 +69,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 }
 
 // ── Logo branca para o painel escuro ─────────────────────────
+// v2 — usa logo-full-branca.png
 function LogoBranca() {
   return (
     <div className="relative" style={{ width: 340, height: 78 }}>
