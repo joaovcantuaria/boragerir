@@ -1,12 +1,12 @@
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
-import { format, parseISO } from "date-fns"
+import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { formatarMoeda, formatarCPF, formatarCNPJ, labelsFormaPagamento } from "@/lib/utils"
 
-// ── Tipagem ──────────────────────────────────────────────────────────────────
+// ─── Tipos ────────────────────────────────────────────────────────────────────
 
-interface EmpresaRelatorio {
+export interface EmpresaRelatorio {
   nome: string
   email: string
   telefone: string
@@ -20,40 +20,7 @@ interface EmpresaRelatorio {
   logo_url?: string | null
 }
 
-interface Venda {
-  id: string
-  numero_venda: number
-  total: number
-  subtotal: number
-  desconto: number
-  forma_pagamento: string
-  status: string
-  created_at: string
-  clientes?: { nome_completo: string } | null
-}
-
-interface Movimentacao {
-  id: string
-  tipo: string
-  categoria: string
-  descricao: string
-  valor: number
-  created_at: string
-}
-
-interface Funcionario {
-  id: string
-  nome: string
-}
-
-interface Debito {
-  id: string
-  valor_aberto: number
-  valor_pago: number
-  descricao: string | null
-  created_at: string
-  clientes?: { nome_completo: string } | null
-}
+export type TemaRelatorio = "laranja" | "azul" | "verde" | "roxo" | "grafite"
 
 export interface RelatorioParams {
   empresa: EmpresaRelatorio
@@ -61,13 +28,40 @@ export interface RelatorioParams {
   label: string
   dataInicio: Date
   dataFim: Date
+  tema?: TemaRelatorio
   vendas: Venda[]
   movimentacoes: Movimentacao[]
   funcionarios: Funcionario[]
   debitos: Debito[]
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+interface Venda {
+  id: string; numero_venda: number; total: number; subtotal: number; desconto: number
+  forma_pagamento: string; status: string; created_at: string
+  clientes?: { nome_completo: string } | null
+}
+interface Movimentacao {
+  id: string; tipo: string; categoria: string; descricao: string; valor: number; created_at: string
+}
+interface Funcionario { id: string; nome: string }
+interface Debito {
+  id: string; valor_aberto: number; valor_pago: number; descricao: string | null; created_at: string
+  clientes?: { nome_completo: string } | null
+}
+
+// ─── Paleta de temas ──────────────────────────────────────────────────────────
+
+type RGB = [number, number, number]
+
+const TEMAS: Record<TemaRelatorio, { primary: RGB; dark: RGB; light: RGB; accent: RGB }> = {
+  laranja: { primary: [242, 110, 29],  dark: [26, 26, 26],    light: [255, 248, 242], accent: [255, 220, 190] },
+  azul:    { primary: [37, 99, 235],   dark: [15, 23, 42],    light: [239, 246, 255], accent: [191, 219, 254] },
+  verde:   { primary: [22, 163, 74],   dark: [10, 30, 15],    light: [240, 253, 244], accent: [187, 247, 208] },
+  roxo:    { primary: [124, 58, 237],  dark: [30, 20, 50],    light: [245, 243, 255], accent: [221, 214, 254] },
+  grafite: { primary: [55, 65, 81],    dark: [17, 24, 39],    light: [249, 250, 251], accent: [209, 213, 219] },
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 async function carregarImagem(url: string): Promise<string | null> {
   try {
@@ -84,330 +78,381 @@ async function carregarImagem(url: string): Promise<string | null> {
 function fmtData(d: Date) { return format(d, "dd/MM/yyyy", { locale: ptBR }) }
 function fmtHora(s: string) { return format(new Date(s), "dd/MM/yyyy HH:mm", { locale: ptBR }) }
 
-const COR_PRIMARY: [number, number, number] = [242, 110, 29]   // #F26E1D
-const COR_DARK: [number, number, number]    = [26,  26,  26]
-const COR_GRAY: [number, number, number]    = [100, 100, 100]
-const COR_LIGHT: [number, number, number]   = [245, 245, 245]
+// Desenha um círculo preenchido
+function drawCircle(doc: jsPDF, cx: number, cy: number, r: number, fillColor: RGB) {
+  doc.setFillColor(...fillColor)
+  doc.circle(cx, cy, r, "F")
+}
 
-// ── Gerador principal ─────────────────────────────────────────────────────────
+// ─── Gerador principal ────────────────────────────────────────────────────────
 
 export async function gerarRelatorioPDF({
-  empresa,
-  tipo,
-  label,
-  dataInicio,
-  dataFim,
-  vendas,
-  movimentacoes,
-  funcionarios,
-  debitos,
+  empresa, tipo, label, dataInicio, dataFim,
+  tema = "laranja", vendas, movimentacoes, funcionarios, debitos,
 }: RelatorioParams): Promise<void> {
+
+  const cor = TEMAS[tema]
   const doc = new jsPDF({ unit: "mm", format: "a4" })
-  const pageW = 210
-  const margin = 14
+  const W = 210
+  const M = 14  // margem
 
-  // ── HEADER com gradiente visual ──────────────────────────────────────────
-  // Faixa laranja
-  doc.setFillColor(...COR_PRIMARY)
-  doc.rect(0, 0, pageW, 44, "F")
+  // ══════════════════════════════════════════════════════
+  // CABEÇALHO PREMIUM
+  // ══════════════════════════════════════════════════════
 
-  // Faixa escura estreita no topo
-  doc.setFillColor(20, 20, 20)
-  doc.rect(0, 0, pageW, 6, "F")
+  // Bloco de fundo principal — cor do tema
+  doc.setFillColor(...cor.primary)
+  doc.rect(0, 0, W, 52, "F")
 
-  // Logo da empresa
-  let xInicioTexto = margin
+  // Detalhe decorativo: retângulo escuro no topo (barra fina)
+  doc.setFillColor(...cor.dark)
+  doc.rect(0, 0, W, 5, "F")
+
+  // Detalhe decorativo: círculo grande transparente no canto direito (watermark elegante)
+  doc.setFillColor(255, 255, 255)
+  doc.setGState(new (doc as any).GState({ opacity: 0.06 }))
+  doc.circle(W + 8, 26, 48, "F")
+  doc.circle(W - 10, -10, 32, "F")
+  doc.setGState(new (doc as any).GState({ opacity: 1 }))
+
+  // ── LOGO dentro de círculo branco ──────────────────────
+  const logoX = M + 15   // centro X do círculo
+  const logoY = 28        // centro Y do círculo
+  const logoR = 14        // raio do círculo branco
+
+  // Sombra suave do círculo
+  doc.setFillColor(0, 0, 0)
+  doc.setGState(new (doc as any).GState({ opacity: 0.15 }))
+  doc.circle(logoX + 0.5, logoY + 0.8, logoR + 0.5, "F")
+  doc.setGState(new (doc as any).GState({ opacity: 1 }))
+
+  // Círculo branco
+  drawCircle(doc, logoX, logoY, logoR, [255, 255, 255])
+
+  // Imagem da logo dentro do círculo (se houver)
+  let logoCarregada = false
   if (empresa.logo_url) {
-    const img = await carregarImagem(empresa.logo_url)
-    if (img) {
-      doc.addImage(img, "PNG", margin, 10, 24, 24)
-      xInicioTexto = margin + 28
+    const imgData = await carregarImagem(empresa.logo_url)
+    if (imgData) {
+      // Clip circular usando o quadrado interno
+      const imgSize = logoR * 1.5
+      const imgXY = logoR * 0.75
+      doc.addImage(imgData, "PNG", logoX - imgXY, logoY - imgXY, imgSize, imgSize)
+      logoCarregada = true
     }
   }
 
-  // Nome da empresa
-  doc.setFontSize(17)
+  // Fallback: inicial do nome da empresa no círculo
+  if (!logoCarregada) {
+    doc.setFontSize(16)
+    doc.setFont("helvetica", "bold")
+    doc.setTextColor(...cor.primary)
+    const inicial = empresa.nome.charAt(0).toUpperCase()
+    doc.text(inicial, logoX, logoY + 1.5, { align: "center", baseline: "middle" } as any)
+  }
+
+  // ── Dados da empresa (ao lado da logo) ────────────────
+  const xTexto = M + 33
+  doc.setFontSize(15)
   doc.setFont("helvetica", "bold")
   doc.setTextColor(255, 255, 255)
-  doc.text(empresa.nome, xInicioTexto, 20)
+  doc.text(empresa.nome, xTexto, 17)
 
-  // Dados da empresa (endereço, contato, doc)
   doc.setFontSize(7.5)
   doc.setFont("helvetica", "normal")
-  doc.setTextColor(255, 220, 190)
-
+  doc.setTextColor(...cor.accent)
   const docFormatado = empresa.tipo_documento === "cnpj"
     ? `CNPJ: ${formatarCNPJ(empresa.documento)}`
     : `CPF: ${formatarCPF(empresa.documento)}`
+  doc.text(`${empresa.endereco_rua}, ${empresa.endereco_numero} — ${empresa.endereco_bairro}, ${empresa.endereco_cidade}/${empresa.endereco_estado}`, xTexto, 24)
+  doc.text(`${empresa.email}  ·  Tel: ${empresa.telefone}  ·  ${docFormatado}`, xTexto, 30)
 
-  doc.text(`${empresa.endereco_rua}, ${empresa.endereco_numero} — ${empresa.endereco_bairro}`, xInicioTexto, 27)
-  doc.text(`${empresa.endereco_cidade}/${empresa.endereco_estado}`, xInicioTexto, 32)
-  doc.text(`${empresa.email}  |  Tel: ${empresa.telefone}  |  ${docFormatado}`, xInicioTexto, 37)
+  // ── Bloco do tipo de relatório (canto direito) ─────────
+  // Pílula branca com transparência
+  const pX = W - M - 48
+  doc.setFillColor(255, 255, 255)
+  doc.setGState(new (doc as any).GState({ opacity: 0.15 }))
+  doc.roundedRect(pX, 10, 48, 32, 3, 3, "F")
+  doc.setGState(new (doc as any).GState({ opacity: 1 }))
 
-  // Tipo de relatório (canto direito)
-  doc.setFontSize(13)
+  doc.setFontSize(7)
   doc.setFont("helvetica", "bold")
   doc.setTextColor(255, 255, 255)
-  doc.text("RELATÓRIO", pageW - margin, 18, { align: "right" })
+  doc.setGState(new (doc as any).GState({ opacity: 0.7 }))
+  doc.text("RELATÓRIO", W - M - 2, 17, { align: "right" })
+  doc.setGState(new (doc as any).GState({ opacity: 1 }))
 
-  doc.setFontSize(9)
+  doc.setFontSize(9.5)
+  doc.setFont("helvetica", "bold")
+  doc.setTextColor(255, 255, 255)
+  doc.text(label.toUpperCase(), W - M - 2, 24, { align: "right" })
+
+  doc.setFontSize(7)
   doc.setFont("helvetica", "normal")
-  doc.setTextColor(255, 220, 190)
-  doc.text(label.toUpperCase(), pageW - margin, 25, { align: "right" })
-  doc.text(`${fmtData(dataInicio)} a ${fmtData(dataFim)}`, pageW - margin, 31, { align: "right" })
-  doc.text(`Emitido em: ${format(new Date(), "dd/MM/yyyy HH:mm", { locale: ptBR })}`, pageW - margin, 37, { align: "right" })
+  doc.setTextColor(...cor.accent)
+  doc.text(`${fmtData(dataInicio)} a ${fmtData(dataFim)}`, W - M - 2, 30, { align: "right" })
+  doc.text(`Emitido: ${format(new Date(), "dd/MM/yy HH:mm", { locale: ptBR })}`, W - M - 2, 36, { align: "right" })
 
-  let cursorY = 52
+  // Linha divisória abaixo do header
+  doc.setDrawColor(...cor.primary)
+  doc.setLineWidth(0.8)
+  doc.line(0, 52, W, 52)
 
-  // ── Função auxiliar para seções ────────────────────────────────────────────
-  function secao(titulo: string) {
-    doc.setFontSize(10)
+  let Y = 62
+
+  // ══════════════════════════════════════════════════════
+  // FUNÇÕES AUXILIARES
+  // ══════════════════════════════════════════════════════
+
+  function secao(titulo: string, icone?: string) {
+    if (Y > 262) { doc.addPage(); Y = 20 }
+    // Fundo da seção
+    doc.setFillColor(...cor.light)
+    doc.roundedRect(M, Y - 5.5, W - M * 2, 9, 1.5, 1.5, "F")
+    // Barra colorida esquerda
+    doc.setFillColor(...cor.primary)
+    doc.roundedRect(M, Y - 5.5, 3, 9, 1, 1, "F")
+    // Texto
+    doc.setFontSize(9)
     doc.setFont("helvetica", "bold")
-    doc.setTextColor(...COR_DARK)
-    doc.setFillColor(...COR_LIGHT)
-    doc.rect(margin, cursorY - 5, pageW - margin * 2, 8, "F")
-    doc.setDrawColor(...COR_PRIMARY)
-    doc.setLineWidth(0.5)
-    doc.rect(margin, cursorY - 5, 2, 8, "F")
-    doc.setTextColor(...COR_DARK)
-    doc.text(titulo, margin + 4, cursorY)
-    cursorY += 8
+    doc.setTextColor(...cor.dark)
+    doc.text((icone ? `${icone}  ` : "") + titulo, M + 6, Y)
+    Y += 9
   }
 
-  function addTableAndUpdateY(config: Parameters<typeof autoTable>[1]) {
-    autoTable(doc, { ...config, startY: cursorY })
-    cursorY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8
+  function addTable(config: Parameters<typeof autoTable>[1]) {
+    autoTable(doc, { ...config, startY: Y })
+    Y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6
   }
 
-  function checkNewPage(needed = 30) {
-    if (cursorY > 265 - needed) {
-      doc.addPage()
-      cursorY = 20
-    }
+  function checkPage(needed = 35) {
+    if (Y > 277 - needed) { doc.addPage(); Y = 20 }
   }
 
-  // ── Filtrar dados pelo período ──────────────────────────────────────────────
-  const vendasPeriodo = vendas.filter((v) => {
-    const d = new Date(v.created_at)
-    return d >= dataInicio && d <= dataFim
-  })
-  const vendasConcluidas = vendasPeriodo.filter((v) => v.status === "concluida")
-  const movsPeriodo = movimentacoes.filter((m) => {
-    const d = new Date(m.created_at)
-    return d >= dataInicio && d <= dataFim
-  })
-  const totalRecebido = movsPeriodo.filter((m) => m.tipo === "entrada" && m.categoria === "venda").reduce((s, m) => s + m.valor, 0)
-  const totalDespesas = movsPeriodo.filter((m) => m.tipo === "saida" && m.categoria === "despesa").reduce((s, m) => s + m.valor, 0)
-  const lucro = totalRecebido - totalDespesas
-  const ticketMedio = vendasConcluidas.length > 0 ? totalRecebido / vendasConcluidas.length : 0
+  // ══════════════════════════════════════════════════════
+  // PROCESSAR DADOS
+  // ══════════════════════════════════════════════════════
 
-  // ── RESUMO FINANCEIRO ────────────────────────────────────────────────────────
-  const tiposComResumo = ["resumo-diario", "resumo-semanal", "resumo-mensal", "completo"]
-  if (tiposComResumo.includes(tipo)) {
-    secao("RESUMO FINANCEIRO")
+  const vendasPeriodo = vendas.filter((v) => new Date(v.created_at) >= dataInicio && new Date(v.created_at) <= dataFim)
+  const vendasOk = vendasPeriodo.filter((v) => v.status === "concluida")
+  const movsP = movimentacoes.filter((m) => new Date(m.created_at) >= dataInicio && new Date(m.created_at) <= dataFim)
+  const recebido = movsP.filter((m) => m.tipo === "entrada" && m.categoria === "venda").reduce((s, m) => s + m.valor, 0)
+  const despesas = movsP.filter((m) => m.tipo === "saida" && m.categoria === "despesa").reduce((s, m) => s + m.valor, 0)
+  const lucro = recebido - despesas
+  const ticket = vendasOk.length > 0 ? recebido / vendasOk.length : 0
 
-    // Cards de métricas
+  const headStyle = { fillColor: cor.primary, textColor: [255, 255, 255] as RGB, fontStyle: "bold" as const, fontSize: 8 }
+  const rowAlt = { fillColor: cor.light }
+
+  // ══════════════════════════════════════════════════════
+  // SEÇÃO 1 — RESUMO
+  // ══════════════════════════════════════════════════════
+
+  if (["resumo-diario","resumo-semanal","resumo-mensal","completo"].includes(tipo)) {
+    secao("RESUMO FINANCEIRO", "💰")
+
     const metricas = [
-      { label: "Total recebido", valor: formatarMoeda(totalRecebido), cor: [22, 163, 74] as [number,number,number] },
-      { label: "Total despesas", valor: formatarMoeda(totalDespesas), cor: [220, 38, 38] as [number,number,number] },
-      { label: "Lucro líquido", valor: formatarMoeda(lucro), cor: lucro >= 0 ? [22, 163, 74] as [number,number,number] : [220, 38, 38] as [number,number,number] },
-      { label: "Ticket médio", valor: formatarMoeda(ticketMedio), cor: [59, 130, 246] as [number,number,number] },
-      { label: "Qtd. vendas", valor: vendasConcluidas.length.toString(), cor: COR_DARK },
+      { label: "Total Recebido", valor: formatarMoeda(recebido), cor: [22,163,74] as RGB },
+      { label: "Despesas", valor: formatarMoeda(despesas), cor: [220,38,38] as RGB },
+      { label: "Lucro Líquido", valor: formatarMoeda(lucro), cor: lucro >= 0 ? [22,163,74] as RGB : [220,38,38] as RGB },
+      { label: "Ticket Médio", valor: formatarMoeda(ticket), cor: [59,130,246] as RGB },
+      { label: "Qtd. Vendas", valor: String(vendasOk.length), cor: cor.dark },
     ]
 
-    const cardW = (pageW - margin * 2 - 4 * 3) / 5
+    const cW = (W - M * 2 - 8) / 5
     metricas.forEach((m, i) => {
-      const x = margin + i * (cardW + 3)
-      doc.setFillColor(250, 250, 250)
-      doc.setDrawColor(230, 230, 230)
-      doc.roundedRect(x, cursorY, cardW, 16, 1.5, 1.5, "FD")
-      doc.setFontSize(7)
-      doc.setTextColor(...COR_GRAY)
+      const x = M + i * (cW + 2)
+      // Card com borda sutil
+      doc.setFillColor(255, 255, 255)
+      doc.setDrawColor(...cor.primary)
+      doc.setLineWidth(0.3)
+      doc.roundedRect(x, Y, cW, 20, 2, 2, "FD")
+      // Barra de cor no topo do card
+      doc.setFillColor(...m.cor)
+      doc.roundedRect(x, Y, cW, 3, 2, 2, "F")
+      doc.rect(x, Y + 1.5, cW, 1.5, "F")
+      // Label
+      doc.setFontSize(6)
       doc.setFont("helvetica", "normal")
-      doc.text(m.label, x + cardW / 2, cursorY + 5, { align: "center" })
-      doc.setFontSize(9)
+      doc.setTextColor(130, 130, 130)
+      doc.text(m.label, x + cW / 2, Y + 8, { align: "center" })
+      // Valor
+      doc.setFontSize(8.5)
       doc.setFont("helvetica", "bold")
       doc.setTextColor(...m.cor)
-      doc.text(m.valor, x + cardW / 2, cursorY + 12, { align: "center" })
+      doc.text(m.valor, x + cW / 2, Y + 15, { align: "center" })
     })
-    cursorY += 22
+    Y += 26
   }
 
-  // ── VENDAS DETALHADAS ────────────────────────────────────────────────────────
-  const tiposComVendas = ["vendas-detalhado", "completo"]
-  if (tiposComVendas.includes(tipo)) {
-    checkNewPage(40)
-    secao("VENDAS DETALHADAS")
-    if (vendasConcluidas.length === 0) {
-      doc.setFontSize(9); doc.setTextColor(...COR_GRAY)
-      doc.text("Nenhuma venda no período.", margin, cursorY); cursorY += 10
+  // ══════════════════════════════════════════════════════
+  // SEÇÃO 2 — VENDAS
+  // ══════════════════════════════════════════════════════
+
+  if (["vendas-detalhado","completo"].includes(tipo)) {
+    checkPage(40)
+    secao("VENDAS DETALHADAS", "🛍️")
+    if (vendasOk.length === 0) {
+      doc.setFontSize(8); doc.setTextColor(150, 150, 150)
+      doc.text("Nenhuma venda no período.", M, Y); Y += 10
     } else {
-      addTableAndUpdateY({
-        head: [["#", "Data/Hora", "Cliente", "Pagamento", "Total"]],
-        body: vendasConcluidas.map((v) => [
+      addTable({
+        head: [["Nº", "Data/Hora", "Cliente", "Pagamento", "Total"]],
+        body: vendasOk.map((v) => [
           String(v.numero_venda).padStart(4, "0"),
           fmtHora(v.created_at),
           v.clientes?.nome_completo ?? "Consumidor final",
           labelsFormaPagamento[v.forma_pagamento] ?? v.forma_pagamento,
           formatarMoeda(v.total),
         ]),
-        headStyles: { fillColor: COR_PRIMARY, textColor: [255,255,255], fontStyle: "bold", fontSize: 8 },
-        bodyStyles: { fontSize: 8, textColor: COR_DARK },
-        alternateRowStyles: { fillColor: [253, 248, 245] },
-        columnStyles: {
-          0: { cellWidth: 12, halign: "center" },
-          1: { cellWidth: 36 },
-          3: { cellWidth: 32 },
-          4: { halign: "right", cellWidth: 28 },
-        },
-        margin: { left: margin, right: margin },
-        theme: "grid",
+        headStyles: headStyle,
+        bodyStyles: { fontSize: 7.5, textColor: cor.dark },
+        alternateRowStyles: rowAlt,
+        columnStyles: { 0: { cellWidth: 12, halign: "center" }, 1: { cellWidth: 35 }, 3: { cellWidth: 30 }, 4: { halign: "right", cellWidth: 26 } },
+        margin: { left: M, right: M }, theme: "striped",
       })
     }
   }
 
-  // ── POR FORMA DE PAGAMENTO ────────────────────────────────────────────────────
-  if (["formas-pagamento", "completo"].includes(tipo)) {
-    checkNewPage(40)
-    secao("POR FORMA DE PAGAMENTO")
+  // ══════════════════════════════════════════════════════
+  // SEÇÃO 3 — FORMAS DE PAGAMENTO
+  // ══════════════════════════════════════════════════════
+
+  if (["formas-pagamento","completo"].includes(tipo)) {
+    checkPage(40)
+    secao("POR FORMA DE PAGAMENTO", "💳")
     const porPgto: Record<string, number> = {}
-    vendasConcluidas.forEach((v) => {
+    vendasOk.forEach((v) => {
       const k = labelsFormaPagamento[v.forma_pagamento] ?? v.forma_pagamento
       porPgto[k] = (porPgto[k] ?? 0) + v.total
     })
-    if (Object.keys(porPgto).length === 0) {
-      doc.setFontSize(9); doc.setTextColor(...COR_GRAY)
-      doc.text("Nenhum dado disponível.", margin, cursorY); cursorY += 10
+    if (!Object.keys(porPgto).length) {
+      doc.setFontSize(8); doc.setTextColor(150,150,150)
+      doc.text("Nenhum dado.", M, Y); Y += 10
     } else {
-      addTableAndUpdateY({
-        head: [["Forma de pagamento", "Total", "% do total"]],
-        body: Object.entries(porPgto).sort((a, b) => b[1] - a[1]).map(([k, v]) => [
-          k,
-          formatarMoeda(v),
-          totalRecebido > 0 ? `${((v / totalRecebido) * 100).toFixed(1)}%` : "—",
+      addTable({
+        head: [["Forma de Pagamento", "Total (R$)", "Participação"]],
+        body: Object.entries(porPgto).sort((a,b)=>b[1]-a[1]).map(([k,v]) => [
+          k, formatarMoeda(v),
+          recebido > 0 ? `${((v/recebido)*100).toFixed(1)}%` : "—",
         ]),
-        headStyles: { fillColor: COR_PRIMARY, textColor: [255,255,255], fontStyle: "bold", fontSize: 8 },
-        bodyStyles: { fontSize: 8, textColor: COR_DARK },
-        alternateRowStyles: { fillColor: [253, 248, 245] },
+        headStyles: headStyle,
+        bodyStyles: { fontSize: 8, textColor: cor.dark },
+        alternateRowStyles: rowAlt,
         columnStyles: { 1: { halign: "right" }, 2: { halign: "right" } },
-        margin: { left: margin, right: margin },
-        theme: "grid",
+        margin: { left: M, right: M }, theme: "striped",
       })
     }
   }
 
-  // ── POR COLABORADOR ────────────────────────────────────────────────────────
-  if (["por-colaborador", "completo"].includes(tipo)) {
-    checkNewPage(40)
-    secao("DESEMPENHO POR COLABORADOR")
-    if (funcionarios.length === 0) {
-      doc.setFontSize(9); doc.setTextColor(...COR_GRAY)
-      doc.text("Nenhum colaborador cadastrado.", margin, cursorY); cursorY += 10
+  // ══════════════════════════════════════════════════════
+  // SEÇÃO 4 — COLABORADORES
+  // ══════════════════════════════════════════════════════
+
+  if (["por-colaborador","completo"].includes(tipo)) {
+    checkPage(40)
+    secao("DESEMPENHO POR COLABORADOR", "👤")
+    if (!funcionarios.length) {
+      doc.setFontSize(8); doc.setTextColor(150,150,150)
+      doc.text("Nenhum colaborador.", M, Y); Y += 10
     } else {
-      addTableAndUpdateY({
-        head: [["Colaborador", "Qtd. vendas", "Total vendido"]],
+      addTable({
+        head: [["Colaborador", "Qtd. Vendas", "Total Vendido"]],
         body: funcionarios.map((f) => {
-          const vf = vendasConcluidas.filter((v) => {
-            const itens = (v as any).itens_venda ?? []
-            return itens.some((i: any) => i.funcionario_id === f.id)
-          })
-          return [f.nome, vf.length.toString(), formatarMoeda(vf.reduce((s, v) => s + v.total, 0))]
+          const vf = vendasOk.filter((v) => (v as any).itens_venda?.some((i: any) => i.funcionario_id === f.id))
+          return [f.nome, String(vf.length), formatarMoeda(vf.reduce((s,v)=>s+v.total,0))]
         }),
-        headStyles: { fillColor: COR_PRIMARY, textColor: [255,255,255], fontStyle: "bold", fontSize: 8 },
-        bodyStyles: { fontSize: 8, textColor: COR_DARK },
-        alternateRowStyles: { fillColor: [253, 248, 245] },
+        headStyles: headStyle,
+        bodyStyles: { fontSize: 8, textColor: cor.dark },
+        alternateRowStyles: rowAlt,
         columnStyles: { 1: { halign: "center" }, 2: { halign: "right" } },
-        margin: { left: margin, right: margin },
-        theme: "grid",
+        margin: { left: M, right: M }, theme: "striped",
       })
     }
   }
 
-  // ── DÉBITOS EM ABERTO ────────────────────────────────────────────────────────
-  if (["debitos", "completo"].includes(tipo)) {
-    checkNewPage(40)
-    secao("DÉBITOS EM ABERTO")
-    if (debitos.length === 0) {
-      doc.setFontSize(9); doc.setTextColor(...COR_GRAY)
-      doc.text("Nenhum débito em aberto.", margin, cursorY); cursorY += 10
+  // ══════════════════════════════════════════════════════
+  // SEÇÃO 5 — DÉBITOS
+  // ══════════════════════════════════════════════════════
+
+  if (["debitos","completo"].includes(tipo)) {
+    checkPage(40)
+    secao("DÉBITOS EM ABERTO", "⏳")
+    if (!debitos.length) {
+      doc.setFontSize(8); doc.setTextColor(150,150,150)
+      doc.text("Nenhum débito em aberto.", M, Y); Y += 10
     } else {
-      addTableAndUpdateY({
-        head: [["Cliente", "Descrição", "Valor pago", "Em aberto"]],
+      addTable({
+        head: [["Cliente", "Descrição", "Valor Pago", "Em Aberto"]],
         body: debitos.map((d) => [
           d.clientes?.nome_completo ?? "—",
           d.descricao ?? "Venda",
           formatarMoeda(d.valor_pago),
           formatarMoeda(d.valor_aberto),
         ]),
-        headStyles: { fillColor: [245, 158, 11], textColor: [255,255,255], fontStyle: "bold", fontSize: 8 },
-        bodyStyles: { fontSize: 8, textColor: COR_DARK },
-        alternateRowStyles: { fillColor: [255, 251, 235] },
-        columnStyles: { 2: { halign: "right" }, 3: { halign: "right", textColor: [245, 158, 11] } },
-        margin: { left: margin, right: margin },
-        theme: "grid",
+        headStyles: { fillColor: [245,158,11], textColor: [255,255,255], fontStyle: "bold", fontSize: 8 },
+        bodyStyles: { fontSize: 7.5, textColor: cor.dark },
+        alternateRowStyles: { fillColor: [255,251,235] },
+        columnStyles: { 2: { halign: "right" }, 3: { halign: "right", textColor: [245,158,11] } },
+        margin: { left: M, right: M }, theme: "striped",
       })
-      // Total
-      const totalAberto = debitos.reduce((s, d) => s + d.valor_aberto, 0)
-      doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(...COR_DARK)
-      doc.text(`Total em aberto: ${formatarMoeda(totalAberto)}`, pageW - margin, cursorY, { align: "right" })
-      cursorY += 8
+      const totalAberto = debitos.reduce((s,d)=>s+d.valor_aberto, 0)
+      doc.setFontSize(8); doc.setFont("helvetica","bold"); doc.setTextColor(245,158,11)
+      doc.text(`Total em aberto: ${formatarMoeda(totalAberto)}`, W - M, Y, { align: "right" })
+      Y += 8
     }
   }
 
-  // ── DESPESAS E SAÍDAS ─────────────────────────────────────────────────────────
-  if (["despesas", "completo"].includes(tipo)) {
-    checkNewPage(40)
-    secao("DESPESAS E SAÍDAS DE CAIXA")
-    const saidas = movsPeriodo.filter((m) => m.tipo === "saida")
-    if (saidas.length === 0) {
-      doc.setFontSize(9); doc.setTextColor(...COR_GRAY)
-      doc.text("Nenhuma saída no período.", margin, cursorY); cursorY += 10
+  // ══════════════════════════════════════════════════════
+  // SEÇÃO 6 — DESPESAS
+  // ══════════════════════════════════════════════════════
+
+  if (["despesas","completo"].includes(tipo)) {
+    checkPage(40)
+    secao("DESPESAS E SAÍDAS DE CAIXA", "📉")
+    const saidas = movsP.filter((m) => m.tipo === "saida")
+    if (!saidas.length) {
+      doc.setFontSize(8); doc.setTextColor(150,150,150)
+      doc.text("Nenhuma saída.", M, Y); Y += 10
     } else {
-      addTableAndUpdateY({
+      addTable({
         head: [["Data/Hora", "Categoria", "Descrição", "Valor"]],
-        body: saidas.map((m) => [
-          fmtHora(m.created_at),
-          m.categoria,
-          m.descricao,
-          formatarMoeda(m.valor),
-        ]),
-        headStyles: { fillColor: [220, 38, 38], textColor: [255,255,255], fontStyle: "bold", fontSize: 8 },
-        bodyStyles: { fontSize: 8, textColor: COR_DARK },
-        alternateRowStyles: { fillColor: [255, 245, 245] },
-        columnStyles: { 3: { halign: "right", textColor: [220, 38, 38] } },
-        margin: { left: margin, right: margin },
-        theme: "grid",
+        body: saidas.map((m) => [fmtHora(m.created_at), m.categoria, m.descricao, formatarMoeda(m.valor)]),
+        headStyles: { fillColor: [220,38,38], textColor: [255,255,255], fontStyle: "bold", fontSize: 8 },
+        bodyStyles: { fontSize: 7.5, textColor: cor.dark },
+        alternateRowStyles: { fillColor: [255,245,245] },
+        columnStyles: { 3: { halign: "right", textColor: [220,38,38] } },
+        margin: { left: M, right: M }, theme: "striped",
       })
-      const totalSaidas = saidas.reduce((s, m) => s + m.valor, 0)
-      doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor([220, 38, 38][0], [220, 38, 38][1], [220, 38, 38][2])
-      doc.text(`Total saídas: ${formatarMoeda(totalSaidas)}`, pageW - margin, cursorY, { align: "right" })
-      cursorY += 8
+      const totalS = saidas.reduce((s,m)=>s+m.valor,0)
+      doc.setFontSize(8); doc.setFont("helvetica","bold"); doc.setTextColor(220,38,38)
+      doc.text(`Total saídas: ${formatarMoeda(totalS)}`, W - M, Y, { align: "right" })
+      Y += 8
     }
   }
 
-  // ── RODAPÉ em todas as páginas ────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════
+  // RODAPÉ EM TODAS AS PÁGINAS
+  // ══════════════════════════════════════════════════════
+
   const totalPages = doc.getNumberOfPages()
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p)
 
-    // Linha divisória
-    doc.setDrawColor(220, 220, 220)
-    doc.setLineWidth(0.3)
-    doc.line(margin, 285, pageW - margin, 285)
+    // Faixa de rodapé
+    doc.setFillColor(...cor.light)
+    doc.rect(0, 284, W, 13, "F")
+    doc.setDrawColor(...cor.primary)
+    doc.setLineWidth(0.4)
+    doc.line(0, 284, W, 284)
 
-    // Texto rodapé esquerdo
-    doc.setFontSize(7)
+    doc.setFontSize(6.5)
     doc.setFont("helvetica", "normal")
-    doc.setTextColor(170, 170, 170)
-    doc.text("Bora Gerir — app.boragerir.com", margin, 290)
-
-    // Numeração direita
-    doc.text(`Página ${p} de ${totalPages}`, pageW - margin, 290, { align: "right" })
-
-    // Centro
-    doc.text(`${empresa.nome} · Relatório ${label}`, pageW / 2, 290, { align: "center" })
+    doc.setTextColor(140, 140, 140)
+    doc.text("Bora Gerir — app.boragerir.com", M, 290)
+    doc.text(`${empresa.nome}  ·  Relatório: ${label}`, W / 2, 290, { align: "center" })
+    doc.text(`Pág. ${p} / ${totalPages}`, W - M, 290, { align: "right" })
   }
 
-  const nomeArquivo = `relatorio-${tipo}-${format(dataInicio, "yyyy-MM-dd")}-${format(dataFim, "yyyy-MM-dd")}.pdf`
-  doc.save(nomeArquivo)
+  doc.save(`relatorio-${tipo}-${format(dataInicio,"yyyy-MM-dd")}-${format(dataFim,"yyyy-MM-dd")}.pdf`)
 }

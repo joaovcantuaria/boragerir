@@ -610,6 +610,7 @@ function RelatoriosTab({ vendas, movimentacoes, funcionarios, debitos, empresaId
   const [dataInicio, setDataInicio] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"))
   const [dataFim, setDataFim] = useState(format(endOfMonth(new Date()), "yyyy-MM-dd"))
   const [gerando, setGerando] = useState(false)
+  const [temaRelatorio, setTemaRelatorio] = useState<"laranja" | "azul" | "verde" | "roxo" | "grafite">("laranja")
   const supabase = createClient()
 
   function aplicarPeriodoPre(tipo: "hoje" | "semana" | "mes" | "personalizado") {
@@ -643,6 +644,7 @@ function RelatoriosTab({ vendas, movimentacoes, funcionarios, debitos, empresaId
         label: relInfo?.label ?? tipoSelecionado,
         dataInicio: inicio,
         dataFim: fim,
+        tema: temaRelatorio,
         vendas,
         movimentacoes,
         funcionarios,
@@ -726,6 +728,39 @@ function RelatoriosTab({ vendas, movimentacoes, funcionarios, debitos, empresaId
             <Label>Data fim</Label>
             <Input type="date" value={dataFim} onChange={(e) => { setDataFim(e.target.value); setTipoPeriodo("personalizado") }} />
           </div>
+        </div>
+      </div>
+
+      {/* Tema do relatório */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="w-1 h-5 rounded-full bg-primary" />
+          <h3 className="font-bold text-sm">Tema do relatório</h3>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {([
+            { id: "laranja", label: "Laranja", cor: "#F26E1D" },
+            { id: "azul",    label: "Azul",    cor: "#2563EB" },
+            { id: "verde",   label: "Verde",   cor: "#16A34A" },
+            { id: "roxo",    label: "Roxo",    cor: "#7C3AED" },
+            { id: "grafite", label: "Grafite", cor: "#374151" },
+          ] as const).map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTemaRelatorio(t.id)}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-semibold border transition-all ${
+                temaRelatorio === t.id
+                  ? "border-[#F26E1D] bg-[#F26E1D]/8 text-foreground"
+                  : "border-border hover:border-border/80 text-muted-foreground"
+              }`}
+            >
+              <span
+                className="w-4 h-4 rounded-full shrink-0 ring-2 ring-white shadow-sm"
+                style={{ backgroundColor: t.cor, outline: temaRelatorio === t.id ? `2px solid ${t.cor}` : "none", outlineOffset: "2px" }}
+              />
+              {t.label}
+            </button>
+          ))}
         </div>
       </div>
 
