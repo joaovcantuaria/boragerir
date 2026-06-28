@@ -626,11 +626,17 @@ function RelatoriosTab({ vendas, movimentacoes, funcionarios, debitos, empresaId
     }
   }
 
-  function baixarRelatorio() {
+  async function baixarRelatorio() {
     setGerando(true)
     try {
+      const { data: empresa } = await supabase.from("empresas").select("*").eq("id", empresaId).single()
+      if (!empresa) { toast.error("Erro ao carregar dados da empresa."); setGerando(false); return }
+
+      const { gerarRelatorioPDF } = await import("@/lib/pdf/relatorio")
       const inicio = new Date(dataInicio + "T00:00:00")
       const fim = new Date(dataFim + "T23:59:59")
+      const relInfo = RELATORIOS.find((r) => r.id === tipoSelecionado)
+
       await gerarRelatorioPDF({
         empresa,
         tipo: tipoSelecionado,
@@ -649,6 +655,8 @@ function RelatoriosTab({ vendas, movimentacoes, funcionarios, debitos, empresaId
     }
     setGerando(false)
   }
+
+  const categorias = [...new Set(RELATORIOS.map((r) => r.categoria))]
 
   return (
     <div className="space-y-6">
