@@ -41,19 +41,21 @@ export function normalizarTelefoneDDI(telefone: string): string {
  * Nunca lança exceção — erros são logados silenciosamente.
  */
 export async function dispararWebhook(payload: WebhookPayload): Promise<void> {
+  console.log("[webhook] Iniciando disparo:", JSON.stringify(payload))
   try {
     const res = await fetch(WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
-      // Timeout de 8 segundos para não segurar a resposta da API
       signal: AbortSignal.timeout(8000),
     })
     if (!res.ok) {
-      console.warn(`[webhook] Resposta não-ok: ${res.status}`)
+      const body = await res.text().catch(() => "")
+      console.warn(`[webhook] Resposta não-ok: ${res.status} — ${body}`)
+    } else {
+      console.log(`[webhook] Disparo bem-sucedido: ${res.status}`)
     }
   } catch (err) {
-    // Timeout, rede indisponível ou qualquer outro erro — apenas loga
-    console.warn("[webhook] Falha silenciosa ao disparar webhook:", err)
+    console.warn("[webhook] Erro ao disparar webhook:", err)
   }
 }

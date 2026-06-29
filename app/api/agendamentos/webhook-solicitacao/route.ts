@@ -11,11 +11,16 @@ export async function POST(req: NextRequest) {
   try {
     const { nome, telefone, data_hora, servico } = await req.json()
 
+    console.log("[webhook-solicitacao] Recebido:", { nome, telefone, data_hora, servico })
+
     if (!nome || !telefone || !data_hora || !servico) {
+      console.warn("[webhook-solicitacao] Dados insuficientes")
       return NextResponse.json({ erro: "Dados insuficientes" }, { status: 400 })
     }
 
     const dataISO = parseISO(data_hora)
+
+    console.log("[webhook-solicitacao] Disparando webhook para n8n...")
 
     // Fire-and-forget — não aguarda para não atrasar a resposta
     dispararWebhook({
@@ -27,10 +32,11 @@ export async function POST(req: NextRequest) {
       servico,
     })
 
+    console.log("[webhook-solicitacao] Webhook enfileirado com sucesso")
+
     return NextResponse.json({ sucesso: true })
   } catch (err) {
     console.error("[webhook-solicitacao] Erro:", err)
-    // Retorna sucesso mesmo assim — o webhook nunca deve bloquear o fluxo
     return NextResponse.json({ sucesso: false })
   }
 }
