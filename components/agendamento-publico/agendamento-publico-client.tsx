@@ -130,6 +130,7 @@ export function AgendamentoPublicoClient({ empresa, servicos, funcionarios }: {
         telefone: dados.telefone,
         data_hora: dataHora.toISOString(),
         servico: servicoSel.nome,
+        empresa: empresa.nome,
       }),
     }).catch(() => {}) // silencioso — nunca bloqueia o fluxo
 

@@ -9,9 +9,9 @@ import { ptBR } from "date-fns/locale"
  */
 export async function POST(req: NextRequest) {
   try {
-    const { nome, telefone, data_hora, servico } = await req.json()
+    const { nome, telefone, data_hora, servico, empresa } = await req.json()
 
-    console.log("[webhook-solicitacao] Recebido:", { nome, telefone, data_hora, servico })
+    console.log("[webhook-solicitacao] Recebido:", { nome, telefone, data_hora, servico, empresa })
 
     if (!nome || !telefone || !data_hora || !servico) {
       console.warn("[webhook-solicitacao] Dados insuficientes")
@@ -22,9 +22,9 @@ export async function POST(req: NextRequest) {
 
     console.log("[webhook-solicitacao] Disparando webhook para n8n...")
 
-    // Fire-and-forget — não aguarda para não atrasar a resposta
     dispararWebhook({
       evento: "solicitacao_criada",
+      empresa: empresa ?? "",
       nome,
       telefone: normalizarTelefoneDDI(telefone),
       data: format(dataISO, "dd/MM/yyyy", { locale: ptBR }),

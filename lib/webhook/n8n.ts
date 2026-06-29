@@ -8,6 +8,7 @@ const WEBHOOK_URL =
 
 export type WebhookSolicitacaoCriada = {
   evento: "solicitacao_criada"
+  empresa: string
   nome: string
   telefone: string   // com DDI, ex: 5511999999999
   data: string       // ex: "28/06/2026"
@@ -17,6 +18,7 @@ export type WebhookSolicitacaoCriada = {
 
 export type WebhookStatusAtualizado = {
   evento: "status_atualizado"
+  empresa: string
   status: "confirmado" | "em_espera"
   nome: string
   telefone: string   // com DDI

@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
 
       dispararWebhook({
         evento: "status_atualizado",
+        empresa: empresa?.nome ?? "",
         status: acao === "confirmar" ? "confirmado" : "em_espera",
         nome: nomeCliente,
         telefone: normalizarTelefoneDDI(telefone),
