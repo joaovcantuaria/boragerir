@@ -121,6 +121,18 @@ export function AgendamentoPublicoClient({ empresa, servicos, funcionarios }: {
       }),
     }).catch(() => {})
 
+    // Webhook n8n — Momento 1: solicitação criada
+    fetch("/api/agendamentos/webhook-solicitacao", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nome: dados.nome,
+        telefone: dados.telefone,
+        data_hora: dataHora.toISOString(),
+        servico: servicoSel.nome,
+      }),
+    }).catch(() => {}) // silencioso — nunca bloqueia o fluxo
+
     // Disparar e-mail de confirmação de solicitação para o cliente
     if (dados.email) {
       fetch("/api/agendamentos/notificar-solicitacao", {

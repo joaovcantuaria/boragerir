@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { enviarEmail, templateBase } from "@/lib/email/brevo"
+import { dispararWebhook, normalizarTelefoneDDI } from "@/lib/webhook/n8n"
 import { format, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
@@ -33,6 +34,23 @@ export async function POST(req: NextRequest) {
       .eq("id", agendamento_id)
 
     if (error) return NextResponse.json({ erro: error.message }, { status: 500 })
+
+    // ── Webhook n8n — Momento 2: status atualizado ────────────
+    if (acao === "confirmar" || acao === "espera") {
+      const telefone = agendamento.telefone_cliente_avulso ?? ""
+      const nomeCliente = agendamento.nome_cliente_avulso ?? "Cliente"
+      const dataISO = parseISO(agendamento.data_hora)
+
+      dispararWebhook({
+        evento: "status_atualizado",
+        status: acao === "confirmar" ? "confirmado" : "em_espera",
+        nome: nomeCliente,
+        telefone: normalizarTelefoneDDI(telefone),
+        data: format(dataISO, "dd/MM/yyyy", { locale: ptBR }),
+        horario: format(dataISO, "HH:mm"),
+      })
+    }
+    // ─────────────────────────────────────────────────────────
 
     // Enviar e-mail se tiver e-mail do cliente
     const emailCliente = agendamento.email_cliente
