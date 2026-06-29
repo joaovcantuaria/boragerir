@@ -2,17 +2,35 @@
 
 import { useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
-import { Check, CreditCard, QrCode, Loader2, Copy, CheckCircle, Zap, Crown, Star, Tag, X, AlertCircle } from "lucide-react"
+import { Check, CreditCard, QrCode, Loader2, Copy, CheckCircle, Zap, Crown, Star, Tag, X, AlertCircle, Calendar } from "lucide-react"
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
 import { formatarMoeda, cn } from "@/lib/utils"
 import type { Empresa } from "@/types"
 
-type PlanoId = "basico" | "profissional"
+type PlanoId = "agenda" | "basico" | "profissional"
 type Periodicidade = "mensal" | "anual"
 type FormaPag = "cartao" | "pix"
 
 const planos = [
+  {
+    id: "agenda" as PlanoId,
+    nome: "Agendamento Online",
+    icon: Calendar,
+    mensal: 29,
+    anual: 290,
+    economia: 58,
+    popular: false,
+    destaque: "Para salões e estúdios",
+    recursos: [
+      "Link de agendamento online",
+      "Gestão de agenda completa",
+      "Até 5 colaboradores",
+      "Configuração de horários",
+      "QR Code para clientes",
+      "Notificações de agendamento",
+    ],
+  },
   {
     id: "basico" as PlanoId,
     nome: "Básico",
@@ -21,6 +39,7 @@ const planos = [
     anual: 490,
     economia: 98,
     popular: false,
+    destaque: null,
     recursos: [
       "Até 200 clientes",
       "Produtos e serviços ilimitados",
@@ -39,6 +58,7 @@ const planos = [
     anual: 990,
     economia: 198,
     popular: true,
+    destaque: null,
     recursos: [
       "Clientes ilimitados",
       "Produtos e serviços ilimitados",
@@ -83,7 +103,7 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
 
   // Pré-selecionar plano vindo do onboarding
   useEffect(() => {
-    if (planoParam && (planoParam === "basico" || planoParam === "profissional")) {
+    if (planoParam && (planoParam === "agenda" || planoParam === "basico" || planoParam === "profissional")) {
       setPlanoSel(planoParam)
       setEtapa("pagamento")
     }
@@ -455,7 +475,73 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
       </div>
 
       {/* Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+        {/* Agendamento Online — card especial */}
+        {(() => {
+          const p = planos.find((x) => x.id === "agenda")!
+          const ativo = empresa.plano === "agenda" && assinaturaAtiva?.status === "ativa"
+          const valor = periodicidade === "anual" ? p.anual : p.mensal
+          const Icon = p.icon
+          return (
+            <div className={cn(
+              "rounded-2xl p-6 border flex flex-col relative",
+              "bg-gradient-to-br from-violet-50 to-indigo-50 border-violet-200",
+              "dark:from-violet-950/40 dark:to-indigo-950/40 dark:border-violet-500/30"
+            )}>
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <span className="bg-violet-600 text-white text-[10px] font-black px-3 py-1 rounded-full whitespace-nowrap">
+                  SÓ AGENDA
+                </span>
+              </div>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-500/20 flex items-center justify-center">
+                  <Icon className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                </div>
+                <div>
+                  <p className="font-bold text-sm">{p.nome}</p>
+                  {ativo
+                    ? <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400">✓ Ativo</span>
+                    : <span className="text-[10px] text-violet-500 dark:text-violet-400 font-medium">{p.destaque}</span>
+                  }
+                </div>
+              </div>
+
+              <div className="mb-1">
+                <span className="text-3xl font-black text-violet-700 dark:text-violet-300">{formatarMoeda(valor)}</span>
+                <span className="text-sm text-violet-500 dark:text-violet-400">/{periodicidade === "anual" ? "ano" : "mês"}</span>
+              </div>
+              {periodicidade === "anual" && (
+                <p className="text-xs font-semibold mb-4 text-emerald-600">
+                  Economize {formatarMoeda(p.economia)} — 2 meses grátis
+                </p>
+              )}
+              {periodicidade === "mensal" && (
+                <p className="text-xs mb-4 text-violet-400">ou {formatarMoeda(p.anual)}/ano</p>
+              )}
+
+              <ul className="space-y-2 flex-1 mb-5">
+                {p.recursos.map((r) => (
+                  <li key={r} className="flex items-center gap-2 text-sm text-violet-700 dark:text-violet-300">
+                    <Check className="w-3.5 h-3.5 shrink-0 text-violet-500" />{r}
+                  </li>
+                ))}
+              </ul>
+
+              <button
+                onClick={() => selecionarPlano("agenda")}
+                disabled={ativo}
+                className={cn(
+                  "w-full py-2.5 rounded-xl font-bold text-sm transition-all",
+                  ativo
+                    ? "bg-violet-100 dark:bg-violet-500/20 text-violet-400 cursor-default"
+                    : "bg-violet-600 text-white hover:bg-violet-700"
+                )}>
+                {ativo ? "Plano ativo ✓" : "Assinar Agendamento"}
+              </button>
+            </div>
+          )
+        })()}
+
         {/* Gratuito */}
         <div className={cn(
           "rounded-2xl p-6 border flex flex-col",
@@ -491,8 +577,8 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
           </button>
         </div>
 
-        {/* Planos pagos */}
-        {planos.map((p) => {
+        {/* Básico e Profissional */}
+        {planos.filter((p) => p.id !== "agenda").map((p) => {
           const ativo = empresa.plano === p.id && assinaturaAtiva?.status === "ativa"
           const valor = periodicidade === "anual" ? p.anual : p.mensal
           const Icon = p.icon

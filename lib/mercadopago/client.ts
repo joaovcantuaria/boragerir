@@ -10,6 +10,11 @@ export function getMPClient() {
 
 // Planos e preços
 export const PLANOS_MP = {
+  agenda: {
+    nome: "Bora Gerir — Agendamento Online",
+    mensal: 29.00,
+    anual: 290.00,   // 10x R$29 (2 meses grátis)
+  },
   basico: {
     nome: "Bora Gerir — Plano Básico",
     mensal: 49.00,
