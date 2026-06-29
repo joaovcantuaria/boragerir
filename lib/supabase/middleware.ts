@@ -90,6 +90,23 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (user && !eRotaPublica && !eRotaAdmin && pathname !== "/onboarding") {
+    // Verificar se é usuário admin acessando rota normal — redirecionar para /admin
+    if (serviceKey) {
+      const { createClient } = await import("@supabase/supabase-js")
+      const adminClient = createClient(url, serviceKey, { auth: { persistSession: false } })
+      const { data: usuarioAdmin } = await adminClient
+        .from("usuarios_admin")
+        .select("ativo")
+        .eq("email", user.email ?? "")
+        .maybeSingle()
+
+      if (usuarioAdmin?.ativo) {
+        const redirectUrl = request.nextUrl.clone()
+        redirectUrl.pathname = "/admin"
+        return NextResponse.redirect(redirectUrl)
+      }
+    }
+
     const { data: empresa } = await supabase
       .from("empresas").select("id, plano, plano_ativo").eq("user_id", user.id).single()
     if (!empresa) {

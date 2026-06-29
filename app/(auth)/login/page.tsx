@@ -54,6 +54,20 @@ export default function LoginPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
+        // Verificar se é usuário admin primeiro
+        const { data: usuarioAdmin } = await supabase
+          .from("usuarios_admin")
+          .select("perfil, ativo")
+          .eq("email", user.email ?? "")
+          .maybeSingle()
+
+        if (usuarioAdmin?.ativo) {
+          toast.success("Bem-vindo ao painel admin!")
+          router.push("/admin")
+          router.refresh()
+          return
+        }
+
         const { data: empresa } = await supabase
           .from("empresas")
           .select("plano, plano_ativo")
