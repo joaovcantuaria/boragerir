@@ -19,7 +19,7 @@ import {
 } from "@/lib/utils"
 import { AreaAtuacaoSelect } from "@/components/ui/area-atuacao-select"
 import { planosInfo, type Plano } from "@/types"
-import { LogoFull } from "@/components/ui/logo"
+import { LogoFull, LogoIcon } from "@/components/ui/logo"
 
 export const dynamic = "force-dynamic"
 
