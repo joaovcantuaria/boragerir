@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 // Rota de setup inicial do admin — só funciona uma vez
-// Acesse: POST /api/admin/setup com { email, password }
+// Acesse: POST /api/admin/setup com { email, password, secret }
 export async function POST(req: NextRequest) {
   const { email, password, secret } = await req.json()
 
-  // Chave secreta para autorizar o setup
-  if (secret !== "boragerir-setup-2025") {
+  // Chave secreta via variável de ambiente — nunca hardcoded
+  const setupSecret = process.env.ADMIN_SETUP_SECRET
+  if (!setupSecret) {
+    return NextResponse.json({ erro: "Setup não configurado" }, { status: 403 })
+  }
+  if (secret !== setupSecret) {
     return NextResponse.json({ erro: "Não autorizado" }, { status: 403 })
   }
 
@@ -17,15 +21,13 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient()
 
-  // Criar usuário admin diretamente via service role (sem confirmação de e-mail)
   const { data, error } = await admin.auth.admin.createUser({
     email,
     password,
-    email_confirm: true, // já confirma automaticamente
+    email_confirm: true,
   })
 
   if (error) {
-    // Se usuário já existe, retornar sucesso mesmo assim
     if (error.message.includes("already been registered")) {
       return NextResponse.json({ sucesso: true, mensagem: "Usuário já existe." })
     }

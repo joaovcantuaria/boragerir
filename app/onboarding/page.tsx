@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Loader2, Check, ChevronRight, Upload, Building2, User } from "lucide-react"
+import { Loader2, Check, ChevronRight, Upload, Building2, User, Zap, Crown, Star, Calendar } from "lucide-react"
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -334,91 +334,130 @@ export default function OnboardingPage() {
                 <p className="text-muted-foreground text-sm">Comece grátis. Faça upgrade quando precisar.</p>
               </div>
 
-              {/* Cards — scroll horizontal no mobile */}
-              <div className="flex gap-3 overflow-x-auto pb-2 mb-6 snap-x snap-mandatory">
-                {(Object.entries(planosInfo) as [Plano, typeof planosInfo.gratuito][]).map(([plano, info]) => {
-                  const sel = planoSelecionado === plano
-                  const isAgenda = plano === "agenda"
-                  const isPro = plano === "profissional"
-                  const isFree = plano === "gratuito"
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
 
-                  return (
-                    <div
-                      key={plano}
-                      onClick={() => setPlanoSelecionado(plano)}
-                      className={`
-                        relative flex-shrink-0 w-[200px] sm:flex-1 snap-start
-                        rounded-2xl p-5 cursor-pointer flex flex-col gap-4
-                        transition-all duration-200 border-2
-                        ${sel
-                          ? isAgenda
-                            ? "border-violet-500 bg-violet-50 dark:bg-violet-950/30"
-                            : "border-[#F26E1D] bg-orange-50/60 dark:bg-orange-950/20"
-                          : "border-border bg-white dark:bg-card hover:border-muted-foreground/30"
-                        }
-                      `}
-                    >
-                      {/* Badge topo */}
-                      {(isPro || isAgenda) && (
-                        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                          <span className={`text-[10px] font-black px-3 py-1 rounded-full text-white whitespace-nowrap ${isAgenda ? "bg-violet-600" : "bg-[#F26E1D]"}`}>
-                            {isAgenda ? "SÓ AGENDA" : "POPULAR"}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Nome + seletor */}
-                      <div className="flex items-center justify-between mt-1">
-                        <span className={`text-xs font-bold uppercase tracking-widest ${isAgenda ? "text-violet-500" : isFree ? "text-muted-foreground" : "text-[#F26E1D]"}`}>
-                          {info.nome}
-                        </span>
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${sel ? isAgenda ? "bg-violet-500 border-violet-500" : "bg-[#F26E1D] border-[#F26E1D]" : "border-border"}`}>
-                          {sel && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-                        </div>
-                      </div>
-
-                      {/* Preço */}
-                      <div>
-                        {isFree ? (
-                          <p className="text-4xl font-black text-foreground">Grátis</p>
-                        ) : (
-                          <div className="flex items-end gap-1">
-                            <p className={`text-4xl font-black ${isAgenda ? "text-violet-600" : "text-[#F26E1D]"}`}>
-                              R${info.preco}
-                            </p>
-                            <p className="text-sm text-muted-foreground mb-1">/mês</p>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Divisor */}
-                      <div className="border-t border-border" />
-
-                      {/* Recursos */}
-                      <ul className="space-y-2 flex-1">
-                        {plano === "agenda" ? (
-                          ["Link de agendamento", "Gestão de agenda", "Até 5 colaboradores", "QR Code clientes"].map(f => (
-                            <li key={f} className="flex items-start gap-2 text-xs text-foreground/75">
-                              <Check className="w-3.5 h-3.5 text-violet-500 shrink-0 mt-0.5" strokeWidth={3} />{f}
-                            </li>
-                          ))
-                        ) : (
-                          [
-                            info.limiteClientes ? `Até ${info.limiteClientes} clientes` : "Clientes ilimitados",
-                            info.limiteProdutos ? `Até ${info.limiteProdutos} itens` : "Produtos ilimitados",
-                            info.limiteFuncionarios === 0 ? "Sem funcionários" : info.limiteFuncionarios ? `Até ${info.limiteFuncionarios} funcs.` : "Equipe ilimitada",
-                            ...(info.agendamentoOnline ? ["Agendamentos"] : []),
-                            ...(info.fidelidade ? ["Fidelidade"] : []),
-                          ].map(f => (
-                            <li key={f} className="flex items-start gap-2 text-xs text-foreground/75">
-                              <Check className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${isFree ? "text-muted-foreground" : "text-[#F26E1D]"}`} strokeWidth={3} />{f}
-                            </li>
-                          ))
-                        )}
-                      </ul>
+                {/* Agendamento Online */}
+                <div onClick={() => setPlanoSelecionado("agenda")}
+                  className={`rounded-2xl p-6 border flex flex-col relative cursor-pointer transition-all
+                    bg-gradient-to-br from-violet-50 to-indigo-50 dark:from-violet-950/40 dark:to-indigo-950/40
+                    ${planoSelecionado === "agenda" ? "border-violet-500 shadow-lg" : "border-violet-200 dark:border-violet-500/30 hover:border-violet-400"}`}>
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                    <span className="bg-violet-600 text-white text-[10px] font-black px-3 py-1 rounded-full whitespace-nowrap">SÓ AGENDA</span>
+                  </div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-500/20 flex items-center justify-center">
+                      <Calendar className="w-4 h-4 text-violet-600 dark:text-violet-400" />
                     </div>
-                  )
-                })}
+                    <div>
+                      <p className="font-bold text-sm">Agendamento Online</p>
+                      <span className="text-[10px] text-violet-500 font-medium">Para salões e estúdios</span>
+                    </div>
+                  </div>
+                  <div className="mb-1">
+                    <span className="text-3xl font-black text-violet-700 dark:text-violet-300">R$ 29</span>
+                    <span className="text-sm text-violet-500">/mês</span>
+                  </div>
+                  <p className="text-xs mb-4 text-violet-400">ou R$ 290/ano</p>
+                  <ul className="space-y-2 flex-1 mb-5">
+                    {["Link de agendamento online", "Gestão de agenda completa", "Até 5 colaboradores", "QR Code para clientes", "Notificações automáticas"].map(r => (
+                      <li key={r} className="flex items-center gap-2 text-sm text-violet-700 dark:text-violet-300">
+                        <Check className="w-3.5 h-3.5 shrink-0 text-violet-500" />{r}
+                      </li>
+                    ))}
+                  </ul>
+                  <button onClick={() => setPlanoSelecionado("agenda")}
+                    className={`w-full py-2.5 rounded-xl font-bold text-sm transition-all ${planoSelecionado === "agenda" ? "bg-violet-600 text-white" : "border border-violet-300 text-violet-600 hover:bg-violet-50"}`}>
+                    {planoSelecionado === "agenda" ? "✓ Selecionado" : "Selecionar"}
+                  </button>
+                </div>
+
+                {/* Gratuito */}
+                <div onClick={() => setPlanoSelecionado("gratuito")}
+                  className={`rounded-2xl p-6 border flex flex-col cursor-pointer transition-all bg-white dark:bg-white/[0.02]
+                    ${planoSelecionado === "gratuito" ? "border-[#F26E1D] shadow-lg" : "border-gray-200 dark:border-white/10 hover:border-gray-300"}`}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-white/[0.06] flex items-center justify-center">
+                      <Star className="w-4 h-4 text-gray-400" />
+                    </div>
+                    <p className="font-bold text-sm">Gratuito</p>
+                  </div>
+                  <div className="mb-5">
+                    <span className="text-3xl font-black">R$ 0</span>
+                    <span className="text-muted-foreground text-sm">/mês</span>
+                  </div>
+                  <ul className="space-y-2 flex-1 mb-5">
+                    {["Até 30 clientes", "Até 3 produtos/serviços", "1 usuário", "PDFs com marca d'água", "Relatórios básicos"].map(r => (
+                      <li key={r} className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Check className="w-3.5 h-3.5 shrink-0 text-gray-300 dark:text-gray-600" />{r}
+                      </li>
+                    ))}
+                  </ul>
+                  <button onClick={() => setPlanoSelecionado("gratuito")}
+                    className={`w-full py-2.5 rounded-xl font-bold text-sm transition-all ${planoSelecionado === "gratuito" ? "bg-[#F26E1D] text-white" : "border border-gray-200 dark:border-white/10 text-muted-foreground hover:border-gray-300"}`}>
+                    {planoSelecionado === "gratuito" ? "✓ Selecionado" : "Selecionar"}
+                  </button>
+                </div>
+
+                {/* Básico */}
+                <div onClick={() => setPlanoSelecionado("basico")}
+                  className={`rounded-2xl p-6 border flex flex-col cursor-pointer transition-all bg-white dark:bg-white/[0.02]
+                    ${planoSelecionado === "basico" ? "border-[#F26E1D] shadow-lg" : "border-gray-200 dark:border-white/10 hover:border-gray-300"}`}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-8 h-8 rounded-lg bg-[#F26E1D]/10 flex items-center justify-center">
+                      <Zap className="w-4 h-4 text-[#F26E1D]" />
+                    </div>
+                    <p className="font-bold text-sm">Básico</p>
+                  </div>
+                  <div className="mb-1">
+                    <span className="text-3xl font-black">R$ 49</span>
+                    <span className="text-muted-foreground text-sm">/mês</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-5">ou R$ 490/ano</p>
+                  <ul className="space-y-2 flex-1 mb-5">
+                    {["Até 200 clientes", "Produtos ilimitados", "Até 3 funcionários", "Agendamento online", "Relatórios completos"].map(r => (
+                      <li key={r} className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Check className="w-3.5 h-3.5 shrink-0 text-[#F26E1D]" />{r}
+                      </li>
+                    ))}
+                  </ul>
+                  <button onClick={() => setPlanoSelecionado("basico")}
+                    className={`w-full py-2.5 rounded-xl font-bold text-sm transition-all ${planoSelecionado === "basico" ? "bg-[#F26E1D] text-white" : "border border-gray-200 dark:border-white/10 text-muted-foreground hover:border-gray-300"}`}>
+                    {planoSelecionado === "basico" ? "✓ Selecionado" : "Selecionar"}
+                  </button>
+                </div>
+
+                {/* Profissional */}
+                <div onClick={() => setPlanoSelecionado("profissional")}
+                  className={`rounded-2xl p-6 border flex flex-col relative cursor-pointer transition-all
+                    ${planoSelecionado === "profissional"
+                      ? "bg-[#F26E1D] border-[#F26E1D] text-white shadow-lg shadow-orange-200"
+                      : "bg-white dark:bg-white/[0.02] border-gray-200 dark:border-white/10 hover:border-[#F26E1D]/50"}`}>
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                    <span className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[10px] font-black px-3 py-1 rounded-full">MAIS POPULAR</span>
+                  </div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${planoSelecionado === "profissional" ? "bg-white/20" : "bg-[#F26E1D]/10"}`}>
+                      <Crown className={`w-4 h-4 ${planoSelecionado === "profissional" ? "text-white" : "text-[#F26E1D]"}`} />
+                    </div>
+                    <p className="font-bold text-sm">Profissional</p>
+                  </div>
+                  <div className="mb-1">
+                    <span className="text-3xl font-black">R$ 99</span>
+                    <span className={`text-sm ${planoSelecionado === "profissional" ? "text-white/70" : "text-muted-foreground"}`}>/mês</span>
+                  </div>
+                  <p className={`text-xs mb-5 ${planoSelecionado === "profissional" ? "text-white/60" : "text-muted-foreground"}`}>ou R$ 990/ano</p>
+                  <ul className="space-y-2 flex-1 mb-5">
+                    {["Clientes ilimitados", "Funcionários ilimitados", "Agendamento online", "Lembretes automáticos", "Programa de fidelidade", "Relatórios avançados"].map(r => (
+                      <li key={r} className={`flex items-center gap-2 text-sm ${planoSelecionado === "profissional" ? "text-white/90" : "text-muted-foreground"}`}>
+                        <Check className={`w-3.5 h-3.5 shrink-0 ${planoSelecionado === "profissional" ? "text-white" : "text-[#F26E1D]"}`} />{r}
+                      </li>
+                    ))}
+                  </ul>
+                  <button onClick={() => setPlanoSelecionado("profissional")}
+                    className={`w-full py-2.5 rounded-xl font-bold text-sm transition-all ${planoSelecionado === "profissional" ? "bg-white text-[#F26E1D]" : "bg-[#F26E1D] text-white hover:bg-[#e05e10]"}`}>
+                    {planoSelecionado === "profissional" ? "✓ Selecionado" : "Selecionar"}
+                  </button>
+                </div>
               </div>
 
               {planoSelecionado !== "gratuito" && (

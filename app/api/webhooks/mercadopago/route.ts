@@ -1,14 +1,45 @@
 import { NextRequest, NextResponse } from "next/server"
 import { MercadoPagoConfig, Payment, PreApproval } from "mercadopago"
 import { createClient } from "@/lib/supabase/server"
+import { createHmac } from "crypto"
 
 const mp = new MercadoPagoConfig({
   accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN!,
 })
 
+// Valida a assinatura do webhook do Mercado Pago
+function validarAssinaturaMP(req: NextRequest, body: string): boolean {
+  const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET
+  if (!secret) return true // sem secret configurado, aceita (compatibilidade)
+
+  const xSignature = req.headers.get("x-signature") ?? ""
+  const xRequestId = req.headers.get("x-request-id") ?? ""
+  const dataId = req.nextUrl.searchParams.get("data.id") ?? ""
+
+  // Formato: ts=<timestamp>,v1=<hash>
+  const parts = Object.fromEntries(xSignature.split(",").map(p => p.split("=")))
+  const ts = parts["ts"] ?? ""
+  const v1 = parts["v1"] ?? ""
+
+  if (!ts || !v1) return false
+
+  const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`
+  const expected = createHmac("sha256", secret).update(manifest).digest("hex")
+
+  return expected === v1
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
+    const rawBody = await req.text()
+
+    // Valida assinatura — rejeita chamadas não originadas do Mercado Pago
+    if (!validarAssinaturaMP(req, rawBody)) {
+      console.warn("Webhook MP: assinatura inválida")
+      return NextResponse.json({ erro: "Assinatura inválida" }, { status: 401 })
+    }
+
+    const body = JSON.parse(rawBody)
     const { type, data } = body
 
     console.log("Webhook MP recebido:", type, data?.id)
@@ -28,7 +59,6 @@ export async function POST(req: NextRequest) {
         }
 
         if (meta?.empresa_id) {
-          // Ativar assinatura Pix
           await supabase.from("assinaturas")
             .update({
               status: "ativa",
@@ -38,7 +68,6 @@ export async function POST(req: NextRequest) {
             .eq("empresa_id", meta.empresa_id)
             .eq("mp_pix_payment_id", pagamento.id?.toString())
 
-          // Atualizar plano na empresa
           if (meta.plano) {
             await supabase.from("empresas")
               .update({ plano: meta.plano, plano_ativo: true })
@@ -85,7 +114,6 @@ export async function POST(req: NextRequest) {
           .update({ status: assinatura.status === "cancelled" ? "cancelada" : "pausada" })
           .eq("mp_preapproval_id", data.id)
 
-        // Rebaixar para plano gratuito se cancelado
         if (assinatura.status === "cancelled") {
           await supabase.from("empresas")
             .update({ plano: "gratuito", plano_ativo: true })
