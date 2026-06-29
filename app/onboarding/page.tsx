@@ -169,7 +169,7 @@ export default function OnboardingPage() {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
         <div className="flex justify-center mb-8">
-          <LogoFull height={52} />
+          <LogoFull height={72} />
         </div>
 
         {/* Progresso */}
@@ -323,64 +323,134 @@ export default function OnboardingPage() {
 
           {passo === 2 && (
             <motion.div key="p2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-              <h2 className="text-xl font-black text-center mb-1">Escolha seu plano</h2>
-              <p className="text-muted-foreground text-sm text-center mb-6">Comece grátis, faça upgrade quando precisar</p>
+              <div className="text-center mb-8">
+                <h2 className="text-2xl font-black mb-1">Escolha seu plano</h2>
+                <p className="text-muted-foreground text-sm">Comece grátis, faça upgrade quando precisar</p>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                {(Object.entries(planosInfo) as [Plano, typeof planosInfo.gratuito][]).map(([plano, info]) => (
-                  <div key={plano} onClick={() => setPlanoSelecionado(plano)}
-                    className={`border-2 rounded-2xl p-5 cursor-pointer transition-all ${
-                      planoSelecionado === plano
-                        ? plano === "agenda"
-                          ? "border-violet-500 bg-violet-50 dark:bg-violet-950/30 shadow-sm"
-                          : "border-primary bg-primary/5 shadow-orange"
-                        : "border-border hover:border-primary/40"
-                    }`}>
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <h3 className="font-black text-sm">{info.nome}</h3>
-                        {plano === "agenda" && (
-                          <span className="text-[10px] font-bold text-violet-600 dark:text-violet-400">Só agenda</span>
-                        )}
-                      </div>
-                      {planoSelecionado === plano && (
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center ${plano === "agenda" ? "bg-violet-500" : "bg-primary"}`}>
-                          <Check className="w-3 h-3 text-white" />
+                {(Object.entries(planosInfo) as [Plano, typeof planosInfo.gratuito][]).map(([plano, info]) => {
+                  const selecionado = planoSelecionado === plano
+                  const isAgenda = plano === "agenda"
+                  const isProfissional = plano === "profissional"
+
+                  return (
+                    <div
+                      key={plano}
+                      onClick={() => setPlanoSelecionado(plano)}
+                      className={`relative rounded-2xl p-5 cursor-pointer transition-all duration-200 border-2 flex flex-col ${
+                        selecionado
+                          ? isAgenda
+                            ? "border-violet-500 bg-gradient-to-br from-violet-50 to-indigo-50 dark:from-violet-950/40 dark:to-indigo-950/40 shadow-lg shadow-violet-100 dark:shadow-violet-900/20"
+                            : isProfissional
+                              ? "border-[#F26E1D] bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/40 dark:to-amber-950/40 shadow-lg shadow-orange-100 dark:shadow-orange-900/20"
+                              : "border-[#F26E1D] bg-primary/5 shadow-lg shadow-orange-100 dark:shadow-orange-900/20"
+                          : "border-border bg-card hover:border-primary/40 hover:shadow-md"
+                      }`}
+                    >
+                      {/* Badge popular / só agenda */}
+                      {isProfissional && (
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                          <span className="bg-[#F26E1D] text-white text-[10px] font-black px-3 py-1 rounded-full whitespace-nowrap">
+                            MAIS POPULAR
+                          </span>
                         </div>
                       )}
-                    </div>
-                    <div className="mb-4">
-                      {info.preco === 0
-                        ? <span className="text-2xl font-black text-foreground">Grátis</span>
-                        : <span className={`text-2xl font-black ${plano === "agenda" ? "text-violet-600 dark:text-violet-400" : "text-foreground"}`}>
-                            R$ {info.preco}<span className="text-sm font-normal text-muted-foreground">/mês</span>
-                          </span>}
-                    </div>
-                    <ul className="space-y-1.5 text-xs text-muted-foreground">
-                      {plano === "agenda" ? (
-                        <>
-                          <li>✓ Link de agendamento online</li>
-                          <li>✓ Gestão de agenda completa</li>
-                          <li>✓ Até 5 colaboradores</li>
-                          <li>✓ QR Code para clientes</li>
-                        </>
-                      ) : (
-                        <>
-                          <li>✓ {info.limiteClientes ? `Até ${info.limiteClientes} clientes` : "Clientes ilimitados"}</li>
-                          <li>✓ {info.limiteProdutos ? `Até ${info.limiteProdutos} itens` : "Produtos ilimitados"}</li>
-                          <li>✓ {info.limiteFuncionarios === 0 ? "Sem funcionários" : info.limiteFuncionarios ? `Até ${info.limiteFuncionarios} funcionários` : "Equipe ilimitada"}</li>
-                          {info.agendamentoOnline && <li>✓ Agendamentos</li>}
-                          {info.fidelidade && <li>✓ Programa fidelidade</li>}
-                        </>
+                      {isAgenda && (
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                          <span className="bg-violet-600 text-white text-[10px] font-black px-3 py-1 rounded-full whitespace-nowrap">
+                            SÓ AGENDA
+                          </span>
+                        </div>
                       )}
-                    </ul>
-                  </div>
-                ))}
+
+                      {/* Header */}
+                      <div className="flex items-center justify-between mb-4 mt-1">
+                        <div>
+                          <h3 className="font-black text-sm">{info.nome}</h3>
+                          {isAgenda && (
+                            <span className="text-[10px] font-semibold text-violet-500">Para salões e estúdios</span>
+                          )}
+                        </div>
+                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                          selecionado
+                            ? isAgenda ? "border-violet-500 bg-violet-500" : "border-[#F26E1D] bg-[#F26E1D]"
+                            : "border-border"
+                        }`}>
+                          {selecionado && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                        </div>
+                      </div>
+
+                      {/* Preço */}
+                      <div className="mb-4">
+                        {info.preco === 0 ? (
+                          <div>
+                            <span className="text-3xl font-black text-foreground">Grátis</span>
+                            <p className="text-xs text-muted-foreground mt-0.5">para sempre</p>
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="flex items-end gap-1">
+                              <span className={`text-3xl font-black ${isAgenda ? "text-violet-600 dark:text-violet-400" : "text-[#F26E1D]"}`}>
+                                R$ {info.preco}
+                              </span>
+                              <span className="text-xs text-muted-foreground mb-1">/mês</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              ou R$ {isAgenda ? "290" : plano === "basico" ? "490" : "990"}/ano
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Divisor */}
+                      <div className={`h-px w-full mb-4 ${isAgenda ? "bg-violet-200 dark:bg-violet-800" : "bg-border"}`} />
+
+                      {/* Features */}
+                      <ul className="space-y-2 flex-1">
+                        {plano === "agenda" ? (
+                          <>
+                            {["Link de agendamento online", "Gestão de agenda completa", "Até 5 colaboradores", "QR Code para clientes", "Notificações automáticas"].map((f) => (
+                              <li key={f} className="flex items-center gap-2 text-xs text-foreground/80">
+                                <div className="w-4 h-4 rounded-full bg-violet-100 dark:bg-violet-900 flex items-center justify-center shrink-0">
+                                  <Check className="w-2.5 h-2.5 text-violet-600 dark:text-violet-400" strokeWidth={3} />
+                                </div>
+                                {f}
+                              </li>
+                            ))}
+                          </>
+                        ) : (
+                          <>
+                            {[
+                              info.limiteClientes ? `Até ${info.limiteClientes} clientes` : "Clientes ilimitados",
+                              info.limiteProdutos ? `Até ${info.limiteProdutos} itens` : "Produtos ilimitados",
+                              info.limiteFuncionarios === 0 ? "Sem funcionários" : info.limiteFuncionarios ? `Até ${info.limiteFuncionarios} funcionários` : "Equipe ilimitada",
+                              ...(info.agendamentoOnline ? ["Agendamentos online"] : []),
+                              ...(info.fidelidade ? ["Programa fidelidade"] : []),
+                              ...(info.lembretesAutomaticos ? ["Lembretes automáticos"] : []),
+                            ].map((f) => (
+                              <li key={f} className="flex items-center gap-2 text-xs text-foreground/80">
+                                <div className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 ${
+                                  info.preco === 0
+                                    ? "bg-gray-100 dark:bg-gray-800"
+                                    : "bg-orange-100 dark:bg-orange-900/40"
+                                }`}>
+                                  <Check className={`w-2.5 h-2.5 ${info.preco === 0 ? "text-gray-400" : "text-[#F26E1D]"}`} strokeWidth={3} />
+                                </div>
+                                {f}
+                              </li>
+                            ))}
+                          </>
+                        )}
+                      </ul>
+                    </div>
+                  )
+                })}
               </div>
 
               {planoSelecionado !== "gratuito" && (
                 <p className="text-center text-xs text-muted-foreground mb-4">
-                  💳 Você será direcionado para o pagamento seguro.
+                  💳 Você será direcionado para o pagamento seguro via Mercado Pago.
                 </p>
               )}
 
