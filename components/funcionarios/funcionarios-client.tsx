@@ -38,8 +38,8 @@ export function FuncionariosClient({ empresaId, plano, funcionarios: funcInit }:
     resolver: zodResolver(schemaFunc),
   })
 
-  const limites: Record<string, number | null> = { gratuito: 0, basico: 3, profissional: null }
-  const limite = limites[plano]
+  const limites: Record<string, number | null> = { gratuito: 0, agenda: 5, basico: 3, profissional: null }
+  const limite = limites[plano] ?? null
 
   async function abrirModalNovo() {
     if (limite === 0) { toast.error("Colaboradores disponíveis a partir do Plano Básico."); return }

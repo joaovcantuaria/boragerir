@@ -415,7 +415,7 @@ export function ConfiguracoesClient({
                   className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shrink-0"
                   style={{ background: "linear-gradient(135deg, #F26E1D22, #F26E1D44)", border: "1px solid #F26E1D33" }}
                 >
-                  {planoAtual.preco === 0 ? "🆓" : planoAtual.preco === 49 ? "⚡" : "👑"}
+                  {planoAtual.preco === 0 ? "🆓" : planoAtual.preco === 29 ? "📅" : planoAtual.preco === 49 ? "⚡" : "👑"}
                 </div>
               </div>
 
@@ -464,21 +464,36 @@ export function ConfiguracoesClient({
                 <div className="h-px flex-1 bg-border" />
               </div>
 
-              {(["basico", "profissional"] as const).filter((p) => p !== empresa.plano).map((p) => (
+              {(["agenda", "basico", "profissional"] as const).filter((p) => p !== empresa.plano).map((p) => (
                 <div
                   key={p}
-                  className="group relative rounded-2xl border border-border hover:border-[#F26E1D]/50 transition-all duration-200 p-5 cursor-pointer overflow-hidden"
+                  className={`group relative rounded-2xl border transition-all duration-200 p-5 cursor-pointer overflow-hidden ${
+                    p === "agenda"
+                      ? "border-violet-200 dark:border-violet-500/30 hover:border-violet-400 dark:hover:border-violet-400"
+                      : "border-border hover:border-[#F26E1D]/50"
+                  }`}
                   onClick={() => window.location.href = "/planos"}
                 >
-                  <div className="absolute inset-0 bg-gradient-to-r from-[#F26E1D]/0 via-[#F26E1D]/0 to-[#F26E1D]/0 group-hover:from-[#F26E1D]/4 transition-all duration-300 pointer-events-none" />
+                  <div className={`absolute inset-0 transition-all duration-300 pointer-events-none ${
+                    p === "agenda"
+                      ? "group-hover:bg-violet-500/5"
+                      : "bg-gradient-to-r from-[#F26E1D]/0 to-[#F26E1D]/0 group-hover:from-[#F26E1D]/4"
+                  }`} />
                   <div className="relative flex items-center justify-between gap-4">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-lg">{p === "basico" ? "⚡" : "👑"}</span>
+                        <span className="text-lg">
+                          {p === "agenda" ? "📅" : p === "basico" ? "⚡" : "👑"}
+                        </span>
                         <span className="font-bold text-base">{planosInfo[p].nome}</span>
                         {p === "profissional" && (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white" style={{ background: "#F26E1D" }}>
                             RECOMENDADO
+                          </span>
+                        )}
+                        {p === "agenda" && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white bg-violet-600">
+                            SÓ AGENDA
                           </span>
                         )}
                       </div>
@@ -488,8 +503,10 @@ export function ConfiguracoesClient({
                       </div>
                     </div>
                     <Button
-                      className="shrink-0 font-bold text-white border-0 hover:opacity-90 transition-opacity"
-                      style={{ background: "linear-gradient(135deg, #F26E1D, #e05e10)" }}
+                      className={`shrink-0 font-bold text-white border-0 hover:opacity-90 transition-opacity ${
+                        p === "agenda" ? "bg-violet-600 hover:bg-violet-700" : ""
+                      }`}
+                      style={p !== "agenda" ? { background: "linear-gradient(135deg, #F26E1D, #e05e10)" } : {}}
                     >
                       Assinar
                     </Button>

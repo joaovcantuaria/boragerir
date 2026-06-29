@@ -50,10 +50,29 @@ const FUNCIONALIDADES = [
 
 const PLANOS = [
   {
+    nome: "Agendamento Online",
+    preco: "R$ 29",
+    periodo: "por mês",
+    destaque: false,
+    badge: "SÓ AGENDA",
+    badgeCor: "#7c3aed",
+    cor: "border-violet-500/40",
+    itens: [
+      "Link de agendamento online",
+      "Gestão de agenda completa",
+      "Até 5 colaboradores",
+      "QR Code para clientes",
+      "Notificações de agendamento",
+    ],
+    nao: ["Caixa e vendas", "Relatórios financeiros"],
+  },
+  {
     nome: "Gratuito",
     preco: "R$ 0",
     periodo: "para sempre",
     destaque: false,
+    badge: null,
+    badgeCor: null,
     cor: "border-white/10",
     itens: [
       "Até 30 clientes",
@@ -69,6 +88,8 @@ const PLANOS = [
     preco: "R$ 49",
     periodo: "por mês",
     destaque: true,
+    badge: null,
+    badgeCor: null,
     cor: "border-[#F26E1D]",
     itens: [
       "Até 200 clientes",
@@ -85,6 +106,8 @@ const PLANOS = [
     preco: "R$ 99",
     periodo: "por mês",
     destaque: false,
+    badge: null,
+    badgeCor: null,
     cor: "border-white/10",
     itens: [
       "Tudo ilimitado",
@@ -273,7 +296,7 @@ export function LandingPage() {
             <p className="text-[#F26E1D] text-sm font-semibold uppercase tracking-widest mb-3">Preços transparentes</p>
             <h2 className="text-3xl md:text-4xl font-black">Comece grátis,<br className="hidden md:block" /> cresça no seu ritmo</h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
             {PLANOS.map((p, i) => (
               <motion.div
                 key={i}
@@ -283,7 +306,15 @@ export function LandingPage() {
                 transition={{ delay: i * 0.1 }}
                 className={`relative bg-[#0f1117] border-2 ${p.cor} rounded-2xl p-6 flex flex-col`}
               >
-                {p.destaque && (
+                {p.badge && (
+                  <div
+                    className="absolute -top-3.5 left-1/2 -translate-x-1/2 text-white text-xs font-black px-4 py-1 rounded-full whitespace-nowrap"
+                    style={{ background: p.badgeCor ?? "#F26E1D" }}
+                  >
+                    {p.badge}
+                  </div>
+                )}
+                {p.destaque && !p.badge && (
                   <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-[#F26E1D] text-white text-xs font-black px-4 py-1 rounded-full">
                     Mais popular
                   </div>
@@ -298,7 +329,7 @@ export function LandingPage() {
                 <ul className="space-y-2.5 mb-6 flex-1">
                   {p.itens.map((item) => (
                     <li key={item} className="flex items-center gap-2 text-sm text-white/80">
-                      <CheckCircle className="w-4 h-4 text-[#F26E1D] shrink-0" />{item}
+                      <CheckCircle className="w-4 h-4 shrink-0" style={{ color: p.badgeCor ?? "#F26E1D" }} />{item}
                     </li>
                   ))}
                   {p.nao.map((item) => (
@@ -312,7 +343,9 @@ export function LandingPage() {
                   className={`w-full text-center py-3 rounded-xl font-bold text-sm transition-all ${
                     p.destaque
                       ? "bg-[#F26E1D] hover:bg-[#e05e10] text-white"
-                      : "border border-white/10 hover:border-white/20 text-white/70 hover:text-white"
+                      : p.badge
+                        ? "text-white border-2 border-violet-500/60 hover:border-violet-400"
+                        : "border border-white/10 hover:border-white/20 text-white/70 hover:text-white"
                   }`}
                 >
                   {p.preco === "R$ 0" ? "Começar grátis" : "Começar agora"}
