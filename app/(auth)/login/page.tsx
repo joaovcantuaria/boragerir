@@ -50,18 +50,27 @@ export default function LoginPage() {
       return
     }
 
-    // Redirecionar baseado no plano da empresa
+    // Redirecionar baseado no plano e status de pagamento
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         const { data: empresa } = await supabase
           .from("empresas")
-          .select("plano")
+          .select("plano, plano_ativo")
           .eq("user_id", user.id)
           .single()
 
         toast.success("Bem-vindo de volta!")
-        if (empresa?.plano === "agenda") {
+
+        // Plano pago sem pagamento confirmado → forçar para pagamento
+        if (empresa && !empresa.plano_ativo && empresa.plano !== "gratuito") {
+          router.push(`/planos?plano=${empresa.plano}&novo=1`)
+          router.refresh()
+          return
+        }
+
+        // Plano agenda ativo → ir para agendamentos
+        if (empresa?.plano === "agenda" && empresa.plano_ativo) {
           router.push("/agendamentos")
         } else {
           router.push("/dashboard")

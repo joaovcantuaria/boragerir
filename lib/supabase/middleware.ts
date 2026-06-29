@@ -98,8 +98,20 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(redirectUrl)
     }
 
-    // Plano "agenda" — acesso restrito apenas a agendamentos e configurações
-    if (empresa.plano === "agenda") {
+    const eRotaPlanos = pathname.startsWith("/planos")
+
+    // GATE DE PAGAMENTO — qualquer plano pago sem plano_ativo vai para pagamento
+    // Esta verificação vem ANTES de qualquer outra para garantir que nunca seja bypassada
+    if (!empresa.plano_ativo && empresa.plano !== "gratuito" && !eRotaPlanos) {
+      const redirectUrl = request.nextUrl.clone()
+      redirectUrl.pathname = "/planos"
+      redirectUrl.searchParams.set("plano", empresa.plano)
+      redirectUrl.searchParams.set("novo", "1")
+      return NextResponse.redirect(redirectUrl)
+    }
+
+    // Plano "agenda" ativo — acesso restrito apenas a agendamentos e configurações
+    if (empresa.plano === "agenda" && empresa.plano_ativo) {
       const rotasPermitidas = ["/agendamentos", "/configuracoes"]
       const eRotaPermitida = rotasPermitidas.some(
         (r) => pathname === r || pathname.startsWith(r + "/")
@@ -110,17 +122,6 @@ export async function updateSession(request: NextRequest) {
         return NextResponse.redirect(redirectUrl)
       }
       return supabaseResponse
-    }
-
-    // Se plano pago mas não ativo (aguardando pagamento) → forçar para tela de planos
-    // Exceção: a própria tela de planos e pagamento
-    const eRotaPlanos = pathname.startsWith("/planos")
-    if (!empresa.plano_ativo && empresa.plano !== "gratuito" && !eRotaPlanos) {
-      const redirectUrl = request.nextUrl.clone()
-      redirectUrl.pathname = "/planos"
-      redirectUrl.searchParams.set("plano", empresa.plano)
-      redirectUrl.searchParams.set("novo", "1")
-      return NextResponse.redirect(redirectUrl)
     }
   }
 
