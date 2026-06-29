@@ -98,6 +98,20 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(redirectUrl)
     }
 
+    // Plano "agenda" — acesso restrito apenas a agendamentos e configurações
+    if (empresa.plano === "agenda") {
+      const rotasPermitidas = ["/agendamentos", "/configuracoes"]
+      const eRotaPermitida = rotasPermitidas.some(
+        (r) => pathname === r || pathname.startsWith(r + "/")
+      )
+      if (!eRotaPermitida) {
+        const redirectUrl = request.nextUrl.clone()
+        redirectUrl.pathname = "/agendamentos"
+        return NextResponse.redirect(redirectUrl)
+      }
+      return supabaseResponse
+    }
+
     // Se plano pago mas não ativo (aguardando pagamento) → forçar para tela de planos
     // Exceção: a própria tela de planos e pagamento
     const eRotaPlanos = pathname.startsWith("/planos")

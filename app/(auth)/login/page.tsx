@@ -49,6 +49,30 @@ export default function LoginPage() {
       setLoading(false)
       return
     }
+
+    // Redirecionar baseado no plano da empresa
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: empresa } = await supabase
+          .from("empresas")
+          .select("plano")
+          .eq("user_id", user.id)
+          .single()
+
+        toast.success("Bem-vindo de volta!")
+        if (empresa?.plano === "agenda") {
+          router.push("/agendamentos")
+        } else {
+          router.push("/dashboard")
+        }
+        router.refresh()
+        return
+      }
+    } catch {
+      // fallback se falhar ao buscar empresa
+    }
+
     toast.success("Bem-vindo de volta!")
     router.push("/dashboard")
     router.refresh()

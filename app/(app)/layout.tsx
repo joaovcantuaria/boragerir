@@ -12,21 +12,28 @@ import { cn } from "@/lib/utils"
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false)
   const { empresa } = useEmpresa()
+  const plano = empresa?.plano ?? "gratuito"
+  const isPlanoAgenda = plano === "agenda"
 
   // Atualização automática em tempo real — escuta todas as tabelas críticas
   useRealtimeRefresh(empresa?.id)
 
   return (
     <div className="min-h-screen bg-background">
-      <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
-      <div className={cn("transition-all duration-200", collapsed ? "md:ml-[64px]" : "md:ml-[232px]")}>
+      {!isPlanoAgenda && (
+        <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
+      )}
+      <div className={cn(
+        "transition-all duration-200",
+        isPlanoAgenda ? "" : collapsed ? "md:ml-[64px]" : "md:ml-[232px]"
+      )}>
         <Header empresaNome={empresa?.nome} empresaLogoUrl={empresa?.logo_url} />
         <main className="p-4 lg:p-6 pb-20 md:pb-6 min-h-[calc(100vh-4rem)]">
           {children}
         </main>
       </div>
-      <MobileNav />
-      <ChatIA />
+      <MobileNav plano={plano} />
+      {!isPlanoAgenda && <ChatIA />}
     </div>
   )
 }

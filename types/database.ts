@@ -27,7 +27,7 @@ export type Database = {
           endereco_cidade: string
           endereco_estado: string
           endereco_cep: string
-          plano: "gratuito" | "basico" | "profissional"
+          plano: "gratuito" | "basico" | "profissional" | "agenda"
           plano_ativo: boolean
           pontos_por_real: number
           pontos_para_desconto: number

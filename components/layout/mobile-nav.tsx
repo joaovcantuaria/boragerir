@@ -30,15 +30,30 @@ const navExtras = [
   { href: "/configuracoes",     icon: Settings,     label: "Configurações" },
 ]
 
-export function MobileNav({ prefix = "" }: { prefix?: string }) {
+export function MobileNav({ prefix = "", plano = "gratuito" }: { prefix?: string; plano?: string }) {
   const pathname = usePathname()
   const [menuAberto, setMenuAberto] = useState(false)
 
-  const todosItens = [...navPrincipal, ...navExtras]
-  const algumExtraAtivo = navExtras.some((item) => {
-    const href = `${prefix}${item.href}`
-    return pathname === href || pathname.startsWith(href + "/")
-  })
+  const isPlanoAgenda = plano === "agenda"
+
+  // Plano agenda: apenas agenda e configurações na barra inferior
+  const navPrincipalFiltrado = isPlanoAgenda
+    ? [
+        { href: "/agendamentos", icon: Calendar,  label: "Agenda" },
+        { href: "/configuracoes", icon: Settings, label: "Config." },
+      ]
+    : navPrincipal
+
+  const todosItens = isPlanoAgenda
+    ? navPrincipalFiltrado
+    : [...navPrincipal, ...navExtras]
+
+  const algumExtraAtivo = isPlanoAgenda
+    ? false
+    : navExtras.some((item) => {
+        const href = `${prefix}${item.href}`
+        return pathname === href || pathname.startsWith(href + "/")
+      })
 
   return (
     <>
@@ -121,7 +136,7 @@ export function MobileNav({ prefix = "" }: { prefix?: string }) {
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <div className="flex items-center h-14">
-          {navPrincipal.map((item) => {
+          {navPrincipalFiltrado.map((item) => {
             const href = `${prefix}${item.href}`
             const isActive = pathname === href || pathname.startsWith(href + "/")
             const Icon = item.icon
@@ -140,30 +155,32 @@ export function MobileNav({ prefix = "" }: { prefix?: string }) {
             )
           })}
 
-          {/* Botão Mais */}
-          <button
-            onClick={() => setMenuAberto(!menuAberto)}
-            className={cn(
-              "flex-1 flex flex-col items-center justify-center gap-1 h-full text-[10px] font-semibold transition-colors",
-              (menuAberto || algumExtraAtivo)
-                ? "text-primary"
-                : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
-            )}>
-            {menuAberto
-              ? <X className="w-5 h-5 stroke-[2.5]" />
-              : <div className="flex flex-col gap-0.5 items-center">
-                  <div className="flex gap-0.5">
-                    <div className="w-1 h-1 rounded-full bg-current" />
-                    <div className="w-1 h-1 rounded-full bg-current" />
+          {/* Botão Mais — oculto no plano agenda */}
+          {!isPlanoAgenda && (
+            <button
+              onClick={() => setMenuAberto(!menuAberto)}
+              className={cn(
+                "flex-1 flex flex-col items-center justify-center gap-1 h-full text-[10px] font-semibold transition-colors",
+                (menuAberto || algumExtraAtivo)
+                  ? "text-primary"
+                  : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+              )}>
+              {menuAberto
+                ? <X className="w-5 h-5 stroke-[2.5]" />
+                : <div className="flex flex-col gap-0.5 items-center">
+                    <div className="flex gap-0.5">
+                      <div className="w-1 h-1 rounded-full bg-current" />
+                      <div className="w-1 h-1 rounded-full bg-current" />
+                    </div>
+                    <div className="flex gap-0.5">
+                      <div className="w-1 h-1 rounded-full bg-current" />
+                      <div className="w-1 h-1 rounded-full bg-current" />
+                    </div>
                   </div>
-                  <div className="flex gap-0.5">
-                    <div className="w-1 h-1 rounded-full bg-current" />
-                    <div className="w-1 h-1 rounded-full bg-current" />
-                  </div>
-                </div>
-            }
-            <span>Mais</span>
-          </button>
+              }
+              <span>Mais</span>
+            </button>
+          )}
         </div>
       </nav>
     </>
