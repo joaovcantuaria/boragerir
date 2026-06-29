@@ -50,36 +50,37 @@ export function AgendaConfig({ empresaId, config: configInicial }: AgendaConfigP
     if (dias.length === 0) { toast.error("Selecione ao menos um dia de atendimento."); return }
     setLoading(true)
 
-    const payload = {
-      empresa_id: empresaId,
-      dias_semana: dias,
-      hora_inicio: horaInicio,
-      hora_fim: horaFim,
-      intervalo_minutos: parseInt(intervalo) || 30,
-      duracao_padrao: parseInt(duracaoPadrao) || 60,
-      almoco_inicio: almocoInicio || null,
-      almoco_fim: almocoFim || null,
-      updated_at: new Date().toISOString(),
-    }
+    try {
+      const payload = {
+        empresa_id: empresaId,
+        dias_semana: dias,
+        hora_inicio: horaInicio,
+        hora_fim: horaFim,
+        intervalo_minutos: parseInt(intervalo) || 30,
+        duracao_padrao: parseInt(duracaoPadrao) || 60,
+        almoco_inicio: almocoInicio || null,
+        almoco_fim: almocoFim || null,
+        updated_at: new Date().toISOString(),
+      }
 
-    const { error } = configInicial?.id
-      ? await supabase.from("agenda_config").update(payload).eq("id", configInicial.id)
-      : await supabase.from("agenda_config").insert(payload)
+      // upsert garante insert ou update sem precisar de lógica manual de fallback
+      const { error } = await supabase
+        .from("agenda_config")
+        .upsert(payload, { onConflict: "empresa_id" })
 
-    if (error) {
-      if (error.code === "23505") {
-        const { error: errUpdate } = await supabase
-          .from("agenda_config").update(payload).eq("empresa_id", empresaId)
-        if (errUpdate) { toast.error("Erro ao salvar."); setLoading(false); return }
-      } else {
+      if (error) {
+        console.error("Erro ao salvar agenda_config:", error)
         toast.error("Erro ao salvar configuração.")
-        setLoading(false)
         return
       }
-    }
 
-    toast.success("Configuração salva com sucesso!")
-    setLoading(false)
+      toast.success("Configuração salva com sucesso!")
+    } catch (err) {
+      console.error("Erro inesperado ao salvar:", err)
+      toast.error("Erro inesperado ao salvar configuração.")
+    } finally {
+      setLoading(false)
+    }
   }
 
   // Preview dos slots
