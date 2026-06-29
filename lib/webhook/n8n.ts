@@ -4,7 +4,7 @@
  */
 
 const WEBHOOK_URL =
-  "https://n8n-production-b8162.up.railway.app/webhook-test/ac1f3243-80c9-43bd-aed2-8588512f5366"
+  "https://n8n-production-b8162.up.railway.app/webhook/ac1f3243-80c9-43bd-aed2-8588512f5366"
 
 export type WebhookSolicitacaoCriada = {
   evento: "solicitacao_criada"
