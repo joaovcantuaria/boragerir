@@ -194,7 +194,7 @@ export function LandingPage() {
                 Já tenho conta
               </Link>
             </div>
-            <p className="text-xs text-white/30 mt-4">Sem cartão de crédito • Plano gratuito para sempre</p>
+            <p className="text-xs text-white/30 mt-4"></p>
           </motion.div>
         </div>
 
