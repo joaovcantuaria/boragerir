@@ -204,7 +204,15 @@ export function UsuariosAdminClient({ usuarios: init }: { usuarios: UsuarioAdmin
 
       {/* Modal */}
       <Dialog open={modalAberto} onOpenChange={(open) => { if (!open) setModalAberto(false) }}>
-        <DialogContent onInteractOutside={(e) => e.preventDefault()} className={cn(`${t.cardBg} ${t.border} ${t.text}`)}>
+        <DialogContent
+          onInteractOutside={(e) => e.preventDefault()}
+          style={{
+            backgroundColor: t.cardBg.includes("white") ? "#ffffff" : "#1a1a1a",
+            borderColor: t.cardBg.includes("white") ? "#e5e7eb" : "rgba(255,255,255,0.1)",
+            color: t.cardBg.includes("white") ? "#111827" : "#ffffff",
+          }}
+          className="border"
+        >
           <DialogHeader>
             <DialogTitle className={t.text}>{editando ? "Editar Usuário" : "Novo Usuário Admin"}</DialogTitle>
           </DialogHeader>
@@ -212,19 +220,19 @@ export function UsuariosAdminClient({ usuarios: init }: { usuarios: UsuarioAdmin
             <div className="space-y-2">
               <Label className={t.textMuted6}>Nome *</Label>
               <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome completo"
-                className={`${t.subBg} ${t.border} ${t.text} placeholder:${t.textMuted2}`} />
+                className={`${t.subBg} ${t.border} ${t.text} placeholder:text-white/30`} />
             </div>
             <div className="space-y-2">
               <Label className={t.textMuted6}>E-mail *</Label>
               <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@exemplo.com"
                 disabled={!!editando}
-                className={`${t.subBg} ${t.border} ${t.text} placeholder:${t.textMuted2} disabled:opacity-50`} />
+                className={`${t.subBg} ${t.border} ${t.text} placeholder:text-white/30 disabled:opacity-50`} />
             </div>
             {!editando && (
               <div className="space-y-2">
                 <Label className={t.textMuted6}>Senha inicial *</Label>
                 <Input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Mínimo 8 caracteres"
-                  className={`${t.subBg} ${t.border} ${t.text} placeholder:${t.textMuted2}`} />
+                  className={`${t.subBg} ${t.border} ${t.text} placeholder:text-white/30`} />
               </div>
             )}
             <div className="space-y-2">
