@@ -6,7 +6,7 @@ import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import {
   Loader2, Store, CreditCard, Tag, Star, Lock,
-  Plus, Trash2, Check, Upload, Camera, FileText
+  Plus, Trash2, Check, Upload, Camera, FileText, Database
 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -25,6 +25,7 @@ import {
 import { AreaAtuacaoSelect } from "@/components/ui/area-atuacao-select"
 import { planosInfo } from "@/types"
 import type { Empresa, Categoria } from "@/types"
+import { BackupClient } from "@/components/configuracoes/backup-client"
 
 const schemaNegocio = z.object({
   nome: z.string().min(2),
@@ -220,7 +221,7 @@ export function ConfiguracoesClient({
       </div>
 
       <Tabs defaultValue="negocio">
-        <TabsList className="grid grid-cols-5 w-full">
+        <TabsList className="grid grid-cols-6 w-full">
           <TabsTrigger value="negocio" className="gap-1.5 text-xs font-semibold">
             <Store className="w-3.5 h-3.5" /><span className="hidden sm:inline">Negócio</span>
           </TabsTrigger>
@@ -235,6 +236,9 @@ export function ConfiguracoesClient({
           </TabsTrigger>
           <TabsTrigger value="conta" className="gap-1.5 text-xs font-semibold">
             <Lock className="w-3.5 h-3.5" /><span className="hidden sm:inline">Conta</span>
+          </TabsTrigger>
+          <TabsTrigger value="backup" className="gap-1.5 text-xs font-semibold">
+            <Database className="w-3.5 h-3.5" /><span className="hidden sm:inline">Backup</span>
           </TabsTrigger>
         </TabsList>
 
@@ -793,6 +797,11 @@ export function ConfiguracoesClient({
               </Button>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ── ABA BACKUP ── */}
+        <TabsContent value="backup" className="mt-4">
+          <BackupClient empresaNome={empresa.nome} />
         </TabsContent>
       </Tabs>
     </div>
