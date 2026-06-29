@@ -29,13 +29,25 @@ export type WebhookStatusAtualizado = {
 type WebhookPayload = WebhookSolicitacaoCriada | WebhookStatusAtualizado
 
 /**
- * Normaliza o telefone adicionando DDI 55 (Brasil) se necessário.
+ * Normaliza o telefone adicionando DDI 55 (Brasil) e garantindo o 9º dígito.
  * Aceita formatos: (11) 99999-9999 / 11999999999 / 5511999999999
  */
 export function normalizarTelefoneDDI(telefone: string): string {
   const limpo = telefone.replace(/\D/g, "")
-  if (limpo.startsWith("55") && limpo.length >= 12) return limpo
-  return `55${limpo}`
+
+  // Remove o DDI 55 se já existir para normalizar
+  const semDDI = limpo.startsWith("55") && limpo.length >= 12
+    ? limpo.slice(2)
+    : limpo
+
+  // Garante o 9º dígito para celulares brasileiros
+  // Formato: DDD (2 dígitos) + número (8 ou 9 dígitos)
+  // Se tiver 10 dígitos (DDD + 8), insere o 9 após o DDD
+  const comNono = semDDI.length === 10
+    ? `${semDDI.slice(0, 2)}9${semDDI.slice(2)}`
+    : semDDI
+
+  return `55${comNono}`
 }
 
 /**
