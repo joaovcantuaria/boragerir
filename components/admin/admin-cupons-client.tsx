@@ -145,38 +145,104 @@ export function AdminCuponsClient({ cupons: init }: { cupons: Cupom[] }) {
       {/* Lista */}
       {cupons.length > 0 ? (
         <div className={`${t.cardBg} border ${t.border} rounded-2xl overflow-hidden`}>
-          <div className={`grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 px-5 py-3 border-b ${t.border} text-xs font-bold ${t.textMuted2} uppercase`}>
+          {/* Cabeçalho — só desktop */}
+          <div className={`hidden md:grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 px-5 py-3 border-b ${t.border} text-xs font-bold ${t.textMuted2} uppercase`}>
             <span>Código</span><span>Tipo</span><span>Valor</span><span>Uso</span><span>Validade</span><span>Ações</span>
           </div>
-          {cupons.map((c) => (
-            <div key={c.id} className={`grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 px-5 py-4 border-b ${t.borderLight} last:border-0 items-center ${t.rowHover}`}>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className={`font-black ${t.text} font-mono text-sm`}>{c.codigo}</span>
-                  <button onClick={() => copiar(c.codigo)} className={`${t.textMuted2} hover:text-white transition-colors`}>
-                    <Copy className="w-3 h-3" />
+          {cupons.map((c, idx) => (
+            <div key={c.id} className={`border-b ${t.borderLight} last:border-0`}>
+              {/* Desktop */}
+              <div className={`hidden md:grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 px-5 py-4 items-center ${t.rowHover}`}>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className={`font-black ${t.text} font-mono text-sm`}>{c.codigo}</span>
+                    <button onClick={() => copiar(c.codigo)} className={`${t.textMuted2} hover:text-white transition-colors`}>
+                      <Copy className="w-3 h-3" />
+                    </button>
+                  </div>
+                  {c.descricao && <p className={`text-xs ${t.textMuted} mt-0.5`}>{c.descricao}</p>}
+                </div>
+                <span className={`text-xs ${t.textMuted3} capitalize`}>{c.tipo}</span>
+                <span className="text-sm font-bold text-primary">
+                  {c.tipo === "percentual" ? `${c.valor}%` : `R$ ${c.valor}`}
+                </span>
+                <span className={`text-xs ${t.textMuted3}`}>
+                  {c.uso_atual}{c.uso_maximo ? `/${c.uso_maximo}` : ""}
+                </span>
+                <span className={`text-xs ${t.textMuted3}`}>
+                  {c.validade ? format(parseISO(c.validade), "dd/MM/yy") : "∞"}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => toggleAtivo(c.id)} title={c.ativo ? "Desativar" : "Ativar"}
+                    className={`transition-colors ${c.ativo ? "text-emerald-400" : t.textMuted2}`}>
+                    {c.ativo ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
+                  </button>
+                  <button onClick={() => excluir(c.id)} className="text-red-400 hover:text-red-300 transition-colors">
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
-                {c.descricao && <p className={`text-xs ${t.textMuted} mt-0.5`}>{c.descricao}</p>}
               </div>
-              <span className={`text-xs ${t.textMuted3} capitalize`}>{c.tipo}</span>
-              <span className="text-sm font-bold text-primary">
-                {c.tipo === "percentual" ? `${c.valor}%` : `R$ ${c.valor}`}
-              </span>
-              <span className={`text-xs ${t.textMuted3}`}>
-                {c.uso_atual}{c.uso_maximo ? `/${c.uso_maximo}` : ""}
-              </span>
-              <span className={`text-xs ${t.textMuted3}`}>
-                {c.validade ? format(parseISO(c.validade), "dd/MM/yy") : "∞"}
-              </span>
-              <div className="flex items-center gap-1">
-                <button onClick={() => toggleAtivo(c.id)} title={c.ativo ? "Desativar" : "Ativar"}
-                  className={`transition-colors ${c.ativo ? "text-emerald-400" : t.textMuted2}`}>
-                  {c.ativo ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
-                </button>
-                <button onClick={() => excluir(c.id)} className="text-red-400 hover:text-red-300 transition-colors">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+
+              {/* Mobile — card limpo */}
+              <div className={`md:hidden p-4 ${idx > 0 ? `border-t ${t.borderLight}` : ""}`}>
+                {/* Linha 1: código + badge ativo + ações */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`font-black ${t.text} font-mono text-base`}>{c.codigo}</span>
+                      <button onClick={() => copiar(c.codigo)} className={`${t.textMuted2}`}>
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${c.ativo ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"}`}>
+                        {c.ativo ? "Ativo" : "Inativo"}
+                      </span>
+                    </div>
+                    {c.descricao && <p className={`text-xs ${t.textMuted} mt-0.5`}>{c.descricao}</p>}
+                  </div>
+                </div>
+
+                {/* Linha 2: tipo + valor + uso + validade */}
+                <div className={`mt-3 pt-3 border-t ${t.borderLight} grid grid-cols-2 gap-2`}>
+                  <div>
+                    <p className={`text-[10px] uppercase font-bold ${t.textMuted2} mb-0.5`}>Desconto</p>
+                    <p className="text-sm font-black text-primary">
+                      {c.tipo === "percentual" ? `${c.valor}%` : `R$ ${c.valor}`}
+                    </p>
+                  </div>
+                  <div>
+                    <p className={`text-[10px] uppercase font-bold ${t.textMuted2} mb-0.5`}>Usos</p>
+                    <p className={`text-sm font-semibold ${t.text}`}>
+                      {c.uso_atual}{c.uso_maximo ? `/${c.uso_maximo}` : " / ∞"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className={`text-[10px] uppercase font-bold ${t.textMuted2} mb-0.5`}>Tipo</p>
+                    <p className={`text-xs ${t.textMuted3} capitalize`}>{c.tipo}</p>
+                  </div>
+                  <div>
+                    <p className={`text-[10px] uppercase font-bold ${t.textMuted2} mb-0.5`}>Validade</p>
+                    <p className={`text-xs ${t.textMuted3}`}>
+                      {c.validade ? format(parseISO(c.validade), "dd/MM/yyyy") : "Sem prazo"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Linha 3: ações */}
+                <div className={`mt-3 pt-3 border-t ${t.borderLight} flex gap-2`}>
+                  <button onClick={() => toggleAtivo(c.id)}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 ${
+                      c.ativo
+                        ? "bg-yellow-500/10 text-yellow-400"
+                        : "bg-emerald-500/10 text-emerald-400"
+                    }`}>
+                    {c.ativo ? <ToggleLeft className="w-4 h-4" /> : <ToggleRight className="w-4 h-4" />}
+                    {c.ativo ? "Desativar" : "Ativar"}
+                  </button>
+                  <button onClick={() => excluir(c.id)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-red-500/10 text-red-400 active:scale-95 transition-all">
+                    <Trash2 className="w-4 h-4" />Excluir
+                  </button>
+                </div>
               </div>
             </div>
           ))}

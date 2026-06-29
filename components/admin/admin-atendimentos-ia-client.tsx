@@ -79,10 +79,10 @@ export function AdminAtendimentosIAClient({ atendimentos: init }: { atendimentos
       </div>
 
       {/* Filtros */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
         {["todos", "aberto", "resolvido", "encaminhado"].map((f) => (
           <button key={f} onClick={() => setFiltro(f)}
-            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all capitalize ${
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all capitalize shrink-0 ${
               filtro === f ? "bg-primary text-white" : t.filterInativo
             }`}>
             {f === "todos" ? "Todos" : corStatus[f]?.label ?? f}

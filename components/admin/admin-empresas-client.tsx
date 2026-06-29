@@ -94,8 +94,8 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
       </div>
 
       {/* Filtros */}
-      <div className="flex gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-60">
+      <div className="space-y-3">
+        <div className="relative">
           <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${t.textMuted2}`} />
           <input
             className={`w-full ${t.inputBg} border ${t.inputBorder} rounded-xl pl-9 pr-4 py-2.5 text-sm ${t.inputText} focus:outline-none`}
@@ -104,10 +104,10 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
             onChange={(e) => setBusca(e.target.value)}
           />
         </div>
-        <div className="flex gap-2">
-          {["todos", "gratuito", "basico", "profissional"].map((p) => (
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+          {["todos", "gratuito", "basico", "profissional", "agenda"].map((p) => (
             <button key={p} onClick={() => setFiltroPlano(p)}
-              className={`px-3 py-2 rounded-xl text-xs font-bold transition-all capitalize ${
+              className={`px-3 py-2 rounded-xl text-xs font-bold transition-all capitalize shrink-0 ${
                 filtroPlano === p ? "bg-primary text-white" : t.filterInativo
               }`}>
               {p}

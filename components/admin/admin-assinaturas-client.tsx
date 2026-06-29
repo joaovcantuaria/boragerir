@@ -81,21 +81,23 @@ export function AdminAssinaturasClient({ assinaturas, totais }: {
       </div>
 
       {/* Filtros */}
-      <div className="flex gap-3 flex-wrap">
+      <div className="space-y-3">
         <input
-          className={`${t.inputBg} border ${t.inputBorder} rounded-xl px-4 py-2.5 text-sm ${t.inputText} focus:outline-none flex-1 min-w-52`}
+          className={`w-full ${t.inputBg} border ${t.inputBorder} rounded-xl px-4 py-2.5 text-sm ${t.inputText} focus:outline-none`}
           placeholder="Buscar por empresa..."
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
         />
-        {["todos", "ativa", "pendente", "cancelada"].map((f) => (
-          <button key={f} onClick={() => setFiltro(f)}
-            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all capitalize ${
-              filtro === f ? "bg-primary text-white" : t.filterInativo
-            }`}>
-            {f}
-          </button>
-        ))}
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+          {["todos", "ativa", "pendente", "cancelada"].map((f) => (
+            <button key={f} onClick={() => setFiltro(f)}
+              className={`px-3 py-2 rounded-xl text-xs font-bold transition-all capitalize shrink-0 ${
+                filtro === f ? "bg-primary text-white" : t.filterInativo
+              }`}>
+              {f}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Lista */}
