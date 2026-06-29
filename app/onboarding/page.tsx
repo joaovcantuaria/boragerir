@@ -359,7 +359,7 @@ export default function OnboardingPage() {
                   </div>
                   <p className="text-xs mb-4 text-violet-400">ou R$ 290/ano</p>
                   <ul className="space-y-2 flex-1 mb-5">
-                    {["Link de agendamento online", "Gestão de agenda completa", "Até 5 colaboradores", "QR Code para clientes", "Notificações automáticas"].map(r => (
+                    {["Link de agendamento online", "Gestão de agenda completa", "Até 3 colaboradores", "QR Code para clientes", "Notificações automáticas"].map(r => (
                       <li key={r} className="flex items-center gap-2 text-sm text-violet-700 dark:text-violet-300">
                         <Check className="w-3.5 h-3.5 shrink-0 text-violet-500" />{r}
                       </li>
@@ -386,7 +386,7 @@ export default function OnboardingPage() {
                     <span className="text-muted-foreground text-sm">/mês</span>
                   </div>
                   <ul className="space-y-2 flex-1 mb-5">
-                    {["Até 30 clientes", "Até 3 produtos/serviços", "1 usuário", "PDFs com marca d'água", "Relatórios básicos"].map(r => (
+                    {["Até 15 clientes", "Até 10 produtos/serviços", "1 usuário", "PDFs com marca d'água", "Relatórios básicos"].map(r => (
                       <li key={r} className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Check className="w-3.5 h-3.5 shrink-0 text-gray-300 dark:text-gray-600" />{r}
                       </li>
@@ -414,7 +414,7 @@ export default function OnboardingPage() {
                   </div>
                   <p className="text-xs text-muted-foreground mb-5">ou R$ 490/ano</p>
                   <ul className="space-y-2 flex-1 mb-5">
-                    {["Até 200 clientes", "Produtos ilimitados", "Até 3 funcionários", "Agendamento online", "Relatórios completos"].map(r => (
+                    {["Até 200 clientes", "Produtos ilimitados", "Até 3 funcionários", "Gestão de agendamentos", "Relatórios completos"].map(r => (
                       <li key={r} className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Check className="w-3.5 h-3.5 shrink-0 text-[#F26E1D]" />{r}
                       </li>
@@ -447,7 +447,7 @@ export default function OnboardingPage() {
                   </div>
                   <p className={`text-xs mb-5 ${planoSelecionado === "profissional" ? "text-white/60" : "text-muted-foreground"}`}>ou R$ 990/ano</p>
                   <ul className="space-y-2 flex-1 mb-5">
-                    {["Clientes ilimitados", "Funcionários ilimitados", "Agendamento online", "Lembretes automáticos", "Programa de fidelidade", "Relatórios avançados"].map(r => (
+                    {["Clientes ilimitados", "Funcionários ilimitados", "Agendamento online público", "Link e QR Code de agenda", "Lembretes automáticos", "Programa de fidelidade", "Relatórios avançados", "Exportação Excel"].map(r => (
                       <li key={r} className={`flex items-center gap-2 text-sm ${planoSelecionado === "profissional" ? "text-white/90" : "text-muted-foreground"}`}>
                         <Check className={`w-3.5 h-3.5 shrink-0 ${planoSelecionado === "profissional" ? "text-white" : "text-[#F26E1D]"}`} />{r}
                       </li>

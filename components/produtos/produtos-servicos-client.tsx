@@ -108,8 +108,8 @@ export function ProdutosServicosClient({
   function abrirModalNovo(tipo: "produto" | "servico") {
     if (plano === "gratuito") {
       const qtdAtiva = produtos.filter((p) => p.ativo).length
-      if (qtdAtiva >= 3) {
-        toast.error("Limite de 3 produtos/serviços no plano gratuito.")
+      if (qtdAtiva >= 10) {
+        toast.error("Limite de 10 produtos/serviços no plano gratuito.")
         return
       }
     }

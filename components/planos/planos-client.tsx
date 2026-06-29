@@ -25,7 +25,7 @@ const planos = [
     recursos: [
       "Link de agendamento online",
       "Gestão de agenda completa",
-      "Até 5 colaboradores",
+      "Até 3 colaboradores",
       "Configuração de horários",
       "QR Code para clientes",
       "Notificações de agendamento",
@@ -44,7 +44,7 @@ const planos = [
       "Até 200 clientes",
       "Produtos e serviços ilimitados",
       "Até 3 funcionários",
-      "Agendamentos",
+      "Gestão de agendamentos",
       "PDFs sem marca d'água",
       "Relatórios completos",
       "Controle de estoque",
@@ -63,10 +63,12 @@ const planos = [
       "Clientes ilimitados",
       "Produtos e serviços ilimitados",
       "Funcionários ilimitados",
-      "Agendamentos online",
+      "Agendamento online público",
+      "Link e QR Code de agendamento",
       "Lembretes automáticos",
       "Programa de fidelidade",
       "Relatórios avançados",
+      "Exportação de dados Excel",
       "PDFs sem marca d'água",
       "Suporte prioritário",
     ],
@@ -566,7 +568,7 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
             <span className="text-muted-foreground text-sm">/mês</span>
           </div>
           <ul className="space-y-2 flex-1 mb-5">
-            {["Até 30 clientes", "Até 3 produtos/serviços", "1 usuário", "PDFs com marca d'água", "Relatórios básicos"].map((r) => (
+            {["Até 15 clientes", "Até 10 produtos/serviços", "1 usuário", "PDFs com marca d'água", "Relatórios básicos"].map((r) => (
               <li key={r} className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Check className="w-3.5 h-3.5 shrink-0 text-gray-300 dark:text-gray-600" />{r}
               </li>

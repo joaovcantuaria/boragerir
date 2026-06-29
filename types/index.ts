@@ -90,8 +90,8 @@ export const planosInfo: Record<Plano, InfoPlano> = {
   gratuito: {
     nome: "Gratuito",
     preco: 0,
-    limiteClientes: 30,
-    limiteProdutos: 3,
+    limiteClientes: 15,
+    limiteProdutos: 10,
     limiteFuncionarios: 0,
     agendamentoOnline: false,
     lembretesAutomaticos: false,
@@ -106,7 +106,7 @@ export const planosInfo: Record<Plano, InfoPlano> = {
     limiteClientes: 200,
     limiteProdutos: null,
     limiteFuncionarios: 3,
-    agendamentoOnline: true,
+    agendamentoOnline: false,  // Gestão de agenda interna — sem link público
     lembretesAutomaticos: false,
     marcaDagua: false,
     fidelidade: false,
@@ -131,7 +131,7 @@ export const planosInfo: Record<Plano, InfoPlano> = {
     preco: 29,
     limiteClientes: null,
     limiteProdutos: null,
-    limiteFuncionarios: 5,
+    limiteFuncionarios: 3,
     agendamentoOnline: true,
     lembretesAutomaticos: false,
     marcaDagua: false,

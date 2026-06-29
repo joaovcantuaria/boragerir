@@ -119,8 +119,8 @@ export function ClientesClient({
   })
 
   function abrirModalNovo() {
-    if (plano === "gratuito" && clientes.length >= 30) {
-      toast.error("Limite de 30 clientes no plano gratuito. Faça upgrade para continuar.")
+    if (plano === "gratuito" && clientes.length >= 15) {
+      toast.error("Limite de 15 clientes no plano gratuito. Faça upgrade para continuar.")
       return
     }
     setTipoPessoa("pf")
