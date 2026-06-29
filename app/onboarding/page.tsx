@@ -326,18 +326,25 @@ export default function OnboardingPage() {
               <h2 className="text-xl font-black text-center mb-1">Escolha seu plano</h2>
               <p className="text-muted-foreground text-sm text-center mb-6">Comece grátis, faça upgrade quando precisar</p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 {(Object.entries(planosInfo) as [Plano, typeof planosInfo.gratuito][]).map(([plano, info]) => (
                   <div key={plano} onClick={() => setPlanoSelecionado(plano)}
                     className={`border-2 rounded-2xl p-5 cursor-pointer transition-all ${
                       planoSelecionado === plano
-                        ? "border-primary bg-primary/5 shadow-orange"
+                        ? plano === "agenda"
+                          ? "border-violet-500 bg-violet-50 dark:bg-violet-950/30 shadow-sm"
+                          : "border-primary bg-primary/5 shadow-orange"
                         : "border-border hover:border-primary/40"
                     }`}>
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-black">{info.nome}</h3>
+                      <div>
+                        <h3 className="font-black text-sm">{info.nome}</h3>
+                        {plano === "agenda" && (
+                          <span className="text-[10px] font-bold text-violet-600 dark:text-violet-400">Só agenda</span>
+                        )}
+                      </div>
                       {planoSelecionado === plano && (
-                        <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center ${plano === "agenda" ? "bg-violet-500" : "bg-primary"}`}>
                           <Check className="w-3 h-3 text-white" />
                         </div>
                       )}
@@ -345,14 +352,27 @@ export default function OnboardingPage() {
                     <div className="mb-4">
                       {info.preco === 0
                         ? <span className="text-2xl font-black text-foreground">Grátis</span>
-                        : <span className="text-2xl font-black text-foreground">R$ {info.preco}<span className="text-sm font-normal text-muted-foreground">/mês</span></span>}
+                        : <span className={`text-2xl font-black ${plano === "agenda" ? "text-violet-600 dark:text-violet-400" : "text-foreground"}`}>
+                            R$ {info.preco}<span className="text-sm font-normal text-muted-foreground">/mês</span>
+                          </span>}
                     </div>
                     <ul className="space-y-1.5 text-xs text-muted-foreground">
-                      <li>✓ {info.limiteClientes ? `Até ${info.limiteClientes} clientes` : "Clientes ilimitados"}</li>
-                      <li>✓ {info.limiteProdutos ? `Até ${info.limiteProdutos} itens` : "Produtos ilimitados"}</li>
-                      <li>✓ {info.limiteFuncionarios === 0 ? "Sem funcionários" : info.limiteFuncionarios ? `Até ${info.limiteFuncionarios} funcionários` : "Equipe ilimitada"}</li>
-                      {info.agendamentoOnline && <li>✓ Agendamentos</li>}
-                      {info.fidelidade && <li>✓ Programa fidelidade</li>}
+                      {plano === "agenda" ? (
+                        <>
+                          <li>✓ Link de agendamento online</li>
+                          <li>✓ Gestão de agenda completa</li>
+                          <li>✓ Até 5 colaboradores</li>
+                          <li>✓ QR Code para clientes</li>
+                        </>
+                      ) : (
+                        <>
+                          <li>✓ {info.limiteClientes ? `Até ${info.limiteClientes} clientes` : "Clientes ilimitados"}</li>
+                          <li>✓ {info.limiteProdutos ? `Até ${info.limiteProdutos} itens` : "Produtos ilimitados"}</li>
+                          <li>✓ {info.limiteFuncionarios === 0 ? "Sem funcionários" : info.limiteFuncionarios ? `Até ${info.limiteFuncionarios} funcionários` : "Equipe ilimitada"}</li>
+                          {info.agendamentoOnline && <li>✓ Agendamentos</li>}
+                          {info.fidelidade && <li>✓ Programa fidelidade</li>}
+                        </>
+                      )}
                     </ul>
                   </div>
                 ))}
