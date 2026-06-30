@@ -14,7 +14,7 @@ import { LogoIcon } from "@/components/ui/logo"
 import { createClient } from "@/lib/supabase/client"
 import { AdminTemaProvider } from "@/components/admin/admin-tema-context"
 
-// Nav principal — aparece direto na topbar
+// Nav principal — aparece direto na topbar — v2
 const navPrincipal = [
   { href: "/admin",               icon: LayoutDashboard, label: "Dashboard" },
   { href: "/admin/empresas",      icon: Building2,       label: "Empresas" },
