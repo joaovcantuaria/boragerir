@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Loader2, Check, ChevronRight, Upload, Building2, User, Zap, Crown, Star, Calendar } from "lucide-react"
+import { Loader2, Check, ChevronRight, Upload, Building2, User, Zap, Crown, Star, Calendar, LogOut, Trash2, AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -45,9 +45,36 @@ export default function OnboardingPage() {
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [loadingSair, setLoadingSair] = useState(false)
+  const [confirmExcluir, setConfirmExcluir] = useState(false)
+  const [loadingExcluir, setLoadingExcluir] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
   const supabase = createClient()
+
+  async function sairDepois() {
+    setLoadingSair(true)
+    await supabase.auth.signOut()
+    router.push("/login")
+  }
+
+  async function excluirConta() {
+    setLoadingExcluir(true)
+    try {
+      // Deletar empresa se existir
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        await supabase.from("empresas").delete().eq("user_id", user.id)
+        // Fazer logout — a deleção completa da conta requer service role
+        await supabase.auth.signOut()
+      }
+      toast.success("Dados removidos. Até logo!")
+      router.push("/")
+    } catch {
+      toast.error("Erro ao excluir. Tente novamente.")
+    }
+    setLoadingExcluir(false)
+  }
 
   const { register, handleSubmit, setValue, watch, trigger, formState: { errors } } = useForm<FormNegocio>({
     resolver: zodResolver(schemaNegocio),
@@ -177,6 +204,51 @@ export default function OnboardingPage() {
             </div>
           </div>
         </div>
+
+        {/* Botões de saída — discretos no topo direito */}
+        <div className="flex items-center justify-end gap-2 mb-4">
+          <button onClick={sairDepois} disabled={loadingSair}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-lg hover:bg-muted">
+            {loadingSair ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
+            Continuar depois
+          </button>
+          <button onClick={() => setConfirmExcluir(true)}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-red-500 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20">
+            <Trash2 className="w-3.5 h-3.5" />
+            Excluir conta
+          </button>
+        </div>
+
+        {/* Modal confirmação excluir */}
+        {confirmExcluir && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white dark:bg-[#1c1c1e] border border-border rounded-2xl p-6 w-full max-w-sm shadow-2xl space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5 text-red-500" />
+                </div>
+                <div>
+                  <h3 className="font-black text-base">Excluir conta?</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Esta ação não pode ser desfeita.</p>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Todos os seus dados e informações cadastradas serão <strong className="text-foreground">permanentemente removidos</strong>. Você precisará criar uma nova conta para usar o Bora Gerir.
+              </p>
+              <div className="flex gap-2">
+                <button onClick={() => setConfirmExcluir(false)}
+                  className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:bg-muted transition-all">
+                  Cancelar
+                </button>
+                <button onClick={excluirConta} disabled={loadingExcluir}
+                  className="flex-1 h-10 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                  {loadingExcluir ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  Sim, excluir tudo
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Progresso */}
         <div className="flex items-center justify-center gap-6 mb-8">
