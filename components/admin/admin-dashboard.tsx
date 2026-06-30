@@ -39,7 +39,7 @@ const badgeStatus: Record<string, { cor: string; icon: typeof CheckCircle }> = {
 
 export function AdminDashboard({
   totalEmpresas, totalAssinaturasAtivas, receitaMensal, receitaTotal,
-  empresasRecentes, assinaturas, ticketsAbertos, contagemPlanos
+  empresasRecentes, assinaturas, ticketsAbertos, contagemPlanos, analytics
 }: Props) {
   const router = useRouter()
   const t = useAdminTema()
@@ -85,6 +85,55 @@ export function AdminDashboard({
           )
         })}
       </div>
+
+      {/* Analytics de visitas */}
+      {analytics && (analytics.site + analytics.login + analytics.cadastro + analytics.hoje + analytics.semana + analytics.mes) >= 0 && (
+        <div className={`${t.cardBg} border ${t.border} rounded-2xl p-5`}>
+          <div className="flex items-center gap-2 mb-5">
+            <div className="p-2 rounded-xl bg-indigo-500/10">
+              <Eye className="w-4 h-4 text-indigo-400" />
+            </div>
+            <div>
+              <h3 className={`text-sm font-bold ${t.text}`}>Contador de visitas</h3>
+              <p className={`text-xs ${t.textMuted}`}>Site público + telas de login e cadastro</p>
+            </div>
+          </div>
+
+          {/* Totais por página */}
+          <div className="grid grid-cols-3 gap-3 mb-5">
+            {[
+              { icon: Globe, label: "Site", valor: analytics.site, cor: "text-blue-400", bg: "bg-blue-500/10" },
+              { icon: LogIn, label: "Login", valor: analytics.login, cor: "text-emerald-400", bg: "bg-emerald-500/10" },
+              { icon: UserPlus, label: "Cadastro", valor: analytics.cadastro, cor: "text-primary", bg: "bg-primary/10" },
+            ].map(({ icon: Icon, label, valor, cor, bg }) => (
+              <div key={label} className={`${t.subBg} rounded-xl p-3 text-center`}>
+                <div className={`inline-flex p-2 rounded-lg ${bg} mb-2`}>
+                  <Icon className={`w-4 h-4 ${cor}`} />
+                </div>
+                <p className={`text-xl font-black ${t.text}`}>{valor.toLocaleString("pt-BR")}</p>
+                <p className={`text-xs ${t.textMuted} mt-0.5`}>{label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Divisor */}
+          <div className={`border-t ${t.borderLight} mb-4`} />
+
+          {/* Visitas por período */}
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: "Hoje", valor: analytics.hoje },
+              { label: "Últimos 7 dias", valor: analytics.semana },
+              { label: "Este mês", valor: analytics.mes },
+            ].map(({ label, valor }) => (
+              <div key={label} className="text-center">
+                <p className={`text-lg font-black ${t.text}`}>{valor.toLocaleString("pt-BR")}</p>
+                <p className={`text-xs ${t.textMuted}`}>{label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Gráficos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

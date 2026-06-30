@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { createClient } from "@/lib/supabase/client"
-import { useRegistrarVisita } from "@/hooks/use-registrar-visita"
 
 export const dynamic = "force-dynamic"
 
@@ -37,7 +36,6 @@ export default function LoginPage() {
   const [emailEnviado, setEmailEnviado] = useState(false)
   const router = useRouter()
   const supabase = createClient()
-  useRegistrarVisita("login")
 
   const formLogin = useForm<FormLogin>({ resolver: zodResolver(schemaLogin) })
   const formRecuperar = useForm<FormRecuperar>({ resolver: zodResolver(schemaRecuperar) })

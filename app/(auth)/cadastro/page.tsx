@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { createClient } from "@/lib/supabase/client"
-import { useRegistrarVisita } from "@/hooks/use-registrar-visita"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 
@@ -35,7 +34,6 @@ export default function CadastroPage() {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
   const supabase = createClient()
-  useRegistrarVisita("cadastro")
 
   // Documentos legais
   const [termos, setTermos] = useState<string>("")
