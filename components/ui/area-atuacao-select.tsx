@@ -88,20 +88,24 @@ export function AreaAtuacaoSelect({
 
       {/* Dropdown */}
       {aberto && (
-        <div className={cn(
-          "absolute left-0 right-0 top-full mt-1 z-50 rounded-xl border shadow-lg overflow-hidden",
-          "bg-white dark:bg-gray-900 border-border"
-        )}>
+        <div
+          className="absolute left-0 right-0 top-full mt-1 z-50 rounded-xl border shadow-lg overflow-hidden"
+          style={{
+            backgroundColor: "#ffffff",
+            borderColor: "#e5e7eb",
+          }}
+        >
           {/* Campo de busca */}
-          <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border">
-            <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+          <div className="flex items-center gap-2 px-3 py-2.5 border-b" style={{ borderColor: "#e5e7eb" }}>
+            <Search className="w-4 h-4 shrink-0" style={{ color: "#9ca3af" }} />
             <input
               ref={inputRef}
               type="text"
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               placeholder="Pesquisar área..."
-              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              className="flex-1 bg-transparent text-sm outline-none"
+              style={{ color: "#111827" }}
             />
           </div>
 
@@ -112,20 +116,21 @@ export function AreaAtuacaoSelect({
               <button
                 type="button"
                 onClick={() => selecionar(busca.trim())}
-                className={cn(
-                  "w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors",
-                  "text-primary hover:bg-primary/8 font-semibold"
-                )}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors font-semibold"
+                style={{ color: "#F26E1D" }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(242,110,29,0.08)" }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
               >
-                <div className="w-5 h-5 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
-                  <Plus className="w-3 h-3 text-primary" />
+                <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+                  style={{ background: "rgba(242,110,29,0.15)" }}>
+                  <Plus className="w-3 h-3" style={{ color: "#F26E1D" }} />
                 </div>
                 <span>Criar &ldquo;{busca.trim()}&rdquo;</span>
               </button>
             )}
 
             {opcoesFiltradas.length === 0 && !mostrarCriar && (
-              <p className="px-3 py-4 text-sm text-center text-muted-foreground">
+              <p className="px-3 py-4 text-sm text-center" style={{ color: "#9ca3af" }}>
                 Nenhuma área encontrada
               </p>
             )}
@@ -135,15 +140,30 @@ export function AreaAtuacaoSelect({
                 key={opcao}
                 type="button"
                 onClick={() => selecionar(opcao)}
-                className={cn(
-                  "w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-left transition-all border-l-2",
-                  value === opcao
-                    ? "bg-[#F26E1D]/8 text-[#F26E1D] font-semibold border-l-[#F26E1D]"
-                    : "hover:bg-[#F26E1D]/5 hover:text-[#F26E1D] hover:border-l-[#F26E1D] border-l-transparent"
-                )}
+                className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-left transition-all border-l-2"
+                style={{
+                  color: value === opcao ? "#F26E1D" : "#374151",
+                  fontWeight: value === opcao ? 600 : 400,
+                  background: value === opcao ? "rgba(242,110,29,0.06)" : "transparent",
+                  borderLeftColor: value === opcao ? "#F26E1D" : "transparent",
+                }}
+                onMouseEnter={(e) => {
+                  if (value !== opcao) {
+                    e.currentTarget.style.background = "rgba(242,110,29,0.05)"
+                    e.currentTarget.style.color = "#F26E1D"
+                    e.currentTarget.style.borderLeftColor = "#F26E1D"
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (value !== opcao) {
+                    e.currentTarget.style.background = "transparent"
+                    e.currentTarget.style.color = "#374151"
+                    e.currentTarget.style.borderLeftColor = "transparent"
+                  }
+                }}
               >
                 <span>{opcao}</span>
-                {value === opcao && <Check className="w-4 h-4 shrink-0 text-primary" />}
+                {value === opcao && <Check className="w-4 h-4 shrink-0" style={{ color: "#F26E1D" }} />}
               </button>
             ))}
           </div>
