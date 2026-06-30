@@ -113,11 +113,23 @@ export default function OnboardingPage() {
       .single()
 
     if (empresaExistente) {
-      // Empresa já criada
-      if (planoSelecionado !== "gratuito") {
-        // Redirecionar para pagamento se plano pago
-        window.location.href = `/planos?plano=${planoSelecionado}&novo=1`
+      // Empresa já criada — respeitar o plano que o usuário selecionou agora
+      const planoFinalExistente = planoSelecionado ?? empresaExistente.plano
+      const planoPagoExistente = planoFinalExistente !== "gratuito"
+
+      if (planoPagoExistente) {
+        // Se selecionou plano pago, atualizar o plano da empresa e ir para pagamento
+        await supabase.from("empresas").update({
+          plano: planoFinalExistente,
+          plano_ativo: false,
+        }).eq("id", empresaExistente.id)
+        window.location.href = `/planos?plano=${planoFinalExistente}&novo=1`
       } else {
+        // Selecionou gratuito — garantir que plano está como gratuito e ir para dashboard
+        await supabase.from("empresas").update({
+          plano: "gratuito",
+          plano_ativo: true,
+        }).eq("id", empresaExistente.id)
         toast.success("Bem-vindo ao Bora Gerir! 🚀")
         window.location.href = "/dashboard"
       }
@@ -141,7 +153,9 @@ export default function OnboardingPage() {
     }
 
     // Se plano pago: criar empresa com plano_ativo: false (aguarda pagamento)
-    const planoPago = planoSelecionado !== "gratuito"
+    // Garantia extra: nunca enviar gratuito como plano pago
+    const planoFinal = planoSelecionado ?? "gratuito"
+    const planoPago = planoFinal !== "gratuito"
 
     const { error } = await supabase.from("empresas").insert({
       user_id: user.id,
@@ -158,7 +172,7 @@ export default function OnboardingPage() {
       endereco_cidade: dados.endereco_cidade,
       endereco_estado: dados.endereco_estado.toUpperCase(),
       endereco_cep: dados.endereco_cep,
-      plano: planoSelecionado,
+      plano: planoFinal,
       // Plano pago: aguarda pagamento para ativar. Gratuito: ativo imediatamente
       plano_ativo: !planoPago,
       pontos_por_real: 1,
@@ -168,7 +182,7 @@ export default function OnboardingPage() {
       if (error.code === "23505") {
         // Empresa já existe, redirecionar
         if (planoPago) {
-          window.location.href = `/planos?plano=${planoSelecionado}&novo=1`
+          window.location.href = `/planos?plano=${planoFinal}&novo=1`
         } else {
           toast.success("Cadastro já concluído! Redirecionando...")
           window.location.href = "/dashboard"
@@ -182,8 +196,7 @@ export default function OnboardingPage() {
 
     if (planoPago) {
       toast.success("Dados salvos! Agora finalize seu plano.")
-      // Redirecionar para tela de planos/pagamento com o plano pré-selecionado
-      window.location.href = `/planos?plano=${planoSelecionado}&novo=1`
+      window.location.href = `/planos?plano=${planoFinal}&novo=1`
     } else {
       toast.success("Tudo pronto! Bem-vindo ao Bora Gerir 🚀")
       window.location.href = "/dashboard"
