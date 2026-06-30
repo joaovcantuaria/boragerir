@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
+import { useTheme } from "next-themes"
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from "recharts"
 import {
   Wallet, TrendingUp, Users, ShoppingCart, Calendar, CheckSquare,
-  Package, AlertTriangle, ArrowRight, Clock, RefreshCw,
+  Package, AlertTriangle, ArrowRight, Clock, RefreshCw, Moon, Sun,
   ShoppingBag, FileText, BarChart3, Settings, CreditCard,
   HeadphonesIcon, ClipboardList, UserCheck,
 } from "lucide-react"
@@ -70,6 +71,9 @@ export function DashboardClient({
   tarefasPendentes,
 }: DashboardClientProps) {
   const router = useRouter()
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
 
   // Realtime — atualiza KPIs sem reload
   const [totalVendas, setTotalVendas] = useState(initialVendas)
@@ -182,24 +186,42 @@ export function DashboardClient({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           {pulsing && (
             <motion.div
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0 }}
-              className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium bg-emerald-50 dark:bg-emerald-900/20 px-2.5 py-1 rounded-full"
+              className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium bg-emerald-50 dark:bg-emerald-900/20 px-2.5 py-1 rounded-full mr-1"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Atualizado
+              <span className="hidden sm:inline">Atualizado</span>
             </motion.div>
           )}
+
+          {/* Toggle tema — visível em todos os tamanhos */}
+          {mounted && (
+            <button
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              title={theme === "dark" ? "Modo claro" : "Modo escuro"}
+            >
+              {theme === "dark"
+                ? <Sun className="w-4 h-4" />
+                : <Moon className="w-4 h-4" />
+              }
+            </button>
+          )}
+
+          {/* Botão atualizar — recarrega dados do servidor */}
           <button
-            onClick={() => router.refresh()}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-2.5 py-1.5 rounded-md hover:bg-muted transition-colors"
+            onClick={() => {
+              router.refresh()
+            }}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            title="Atualizar dados"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Atualizar</span>
+            <RefreshCw className="w-4 h-4" />
           </button>
         </div>
       </div>
