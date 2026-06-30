@@ -1,11 +1,15 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+
+// Rotas onde o refresh automático causa problemas (têm estado local gerenciado)
+const ROTAS_SEM_REFRESH = ["/venda", "/caixa", "/agendamentos", "/tarefas", "/contratos"]
 
 export function useRealtimeRefresh(empresaId: string | null | undefined) {
   const router = useRouter()
+  const pathname = usePathname()
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [mounted, setMounted] = useState(false)
 
@@ -17,14 +21,19 @@ export function useRealtimeRefresh(empresaId: string | null | undefined) {
     const supabase = createClient()
 
     function scheduleRefresh() {
+      // Não faz refresh em rotas que gerenciam estado local —
+      // evita o flash/reset da tela durante operações
+      if (ROTAS_SEM_REFRESH.some((r) => pathname.startsWith(r))) return
+
       if (timerRef.current) clearTimeout(timerRef.current)
+      // 800ms de debounce — aguarda estabilizar antes de refrescar
       timerRef.current = setTimeout(() => router.refresh(), 800)
     }
 
     const tabelas = [
-      "vendas", "agendamentos", "clientes",
-      "movimentacoes_caixa", "caixas",
-      "produtos_servicos", "funcionarios", "debitos_clientes",
+      "vendas", "agendamentos", "clientes", "movimentacoes_caixa",
+      "caixas", "produtos_servicos", "funcionarios", "debitos_clientes",
+      "orcamentos", "tarefas", "contratos", "contratos_parcelas", "agenda_config",
     ]
 
     const canais = tabelas.map((tabela) =>
@@ -43,5 +52,5 @@ export function useRealtimeRefresh(empresaId: string | null | undefined) {
       canais.forEach((c) => supabase.removeChannel(c))
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [mounted, empresaId])
+  }, [mounted, empresaId, pathname])
 }
