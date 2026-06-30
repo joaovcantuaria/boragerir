@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   LayoutDashboard, Wallet, ShoppingCart, Calendar, Users,
@@ -42,7 +42,7 @@ interface TopbarProps {
   empresaLogoUrl?: string | null
 }
 
-// Dropdown genérico com overlay invisível para fechar
+// Dropdown genérico com portal — renderiza fora do stacking context do header
 function Dropdown({
   open,
   onClose,
@@ -54,38 +54,54 @@ function Dropdown({
   open: boolean
   onClose: () => void
   children: React.ReactNode
-  trigger: React.ReactNode
+  trigger: (ref: React.RefObject<HTMLDivElement | null>) => React.ReactNode
   align?: "left" | "right"
   width?: number
 }) {
+  const triggerRef = React.useRef<HTMLDivElement>(null)
+  const [rect, setRect] = React.useState<DOMRect | null>(null)
+
+  React.useEffect(() => {
+    if (open && triggerRef.current) {
+      setRect(triggerRef.current.getBoundingClientRect())
+    }
+  }, [open])
+
+  const style: React.CSSProperties = rect
+    ? {
+        position: "fixed",
+        top: rect.bottom + 4,
+        ...(align === "right"
+          ? { right: window.innerWidth - rect.right }
+          : { left: rect.left }),
+        width,
+        zIndex: 99999,
+      }
+    : { display: "none" }
+
   return (
-    <div className="relative">
-      {trigger}
+    <>
+      {trigger(triggerRef)}
       {open && (
         <>
-          {/* Overlay invisível para fechar ao clicar fora */}
+          {/* Overlay invisível */}
           <div
-            className="fixed inset-0"
-            style={{ zIndex: 9998 }}
+            style={{ position: "fixed", inset: 0, zIndex: 99998 }}
             onClick={onClose}
           />
-          {/* Dropdown */}
+          {/* Menu — fora do stacking context */}
           <motion.div
             initial={{ opacity: 0, y: -4, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.12 }}
-            className="absolute top-full mt-1.5 rounded-lg border shadow-2xl overflow-hidden bg-card border-border"
-            style={{
-              zIndex: 9999,
-              width,
-              [align === "right" ? "right" : "left"]: 0,
-            }}
+            className="rounded-lg border shadow-2xl overflow-hidden bg-card border-border"
+            style={style}
           >
             {children}
           </motion.div>
         </>
       )}
-    </div>
+    </>
   )
 }
 
@@ -169,23 +185,25 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl }: TopbarPro
           open={maisAberto}
           onClose={() => setMaisAberto(false)}
           width={272}
-          trigger={
-            <button
-              onClick={() => { setMaisAberto((v) => !v); setUserAberto(false) }}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all whitespace-nowrap"
-              style={{
-                background: (maisAberto || algumSecundarioAtivo) ? "rgba(242,110,29,0.18)" : "transparent",
-                color: (maisAberto || algumSecundarioAtivo) ? "#F26E1D" : "rgba(255,255,255,0.6)",
-              }}
-            >
-              <Grid3X3 className="w-3.5 h-3.5 shrink-0" />
-              <span className="hidden lg:inline">Mais</span>
-              <ChevronDown className={cn(
-                "w-3 h-3 transition-transform hidden lg:block",
-                maisAberto && "rotate-180"
-              )} />
-            </button>
-          }
+          trigger={(ref) => (
+            <div ref={ref}>
+              <button
+                onClick={() => { setMaisAberto((v) => !v); setUserAberto(false) }}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all whitespace-nowrap"
+                style={{
+                  background: (maisAberto || algumSecundarioAtivo) ? "rgba(242,110,29,0.18)" : "transparent",
+                  color: (maisAberto || algumSecundarioAtivo) ? "#F26E1D" : "rgba(255,255,255,0.6)",
+                }}
+              >
+                <Grid3X3 className="w-3.5 h-3.5 shrink-0" />
+                <span className="hidden lg:inline">Mais</span>
+                <ChevronDown className={cn(
+                  "w-3 h-3 transition-transform hidden lg:block",
+                  maisAberto && "rotate-180"
+                )} />
+              </button>
+            </div>
+          )}
         >
           <div className="p-2 grid grid-cols-2 gap-0.5">
             {navSecundario.map((item) => {
@@ -258,31 +276,31 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl }: TopbarPro
           onClose={() => setUserAberto(false)}
           align="right"
           width={192}
-          trigger={
-            <button
-              onClick={() => { setUserAberto((v) => !v); setMaisAberto(false) }}
-              className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-md transition-colors"
-              style={{ color: "rgba(255,255,255,0.8)" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.08)" }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
-            >
-              <Avatar className="w-6 h-6" style={{ ring: "1px solid rgba(255,255,255,0.2)" }}>
-                {empresaLogoUrl && <AvatarFallback className="text-[10px] font-bold" style={{ background: "#F26E1D", color: "white" }}>
-                  {gerarIniciais(empresaNome)}
-                </AvatarFallback>}
-                <AvatarFallback className="text-[10px] font-bold" style={{ background: "#F26E1D", color: "white" }}>
-                  {gerarIniciais(empresaNome)}
-                </AvatarFallback>
-              </Avatar>
-              <span className="text-xs font-medium hidden md:block max-w-[120px] truncate">
-                {empresaNome}
-              </span>
-              <ChevronDown className={cn(
-                "w-3 h-3 transition-transform hidden md:block",
-                userAberto && "rotate-180"
-              )} style={{ color: "rgba(255,255,255,0.4)" }} />
-            </button>
-          }
+          trigger={(ref) => (
+            <div ref={ref}>
+              <button
+                onClick={() => { setUserAberto((v) => !v); setMaisAberto(false) }}
+                className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-md transition-colors"
+                style={{ color: "rgba(255,255,255,0.8)" }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.08)" }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
+              >
+                <Avatar className="w-6 h-6">
+                  {empresaLogoUrl && <AvatarImage src={empresaLogoUrl} alt={empresaNome} />}
+                  <AvatarFallback className="text-[10px] font-bold" style={{ background: "#F26E1D", color: "white" }}>
+                    {gerarIniciais(empresaNome)}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-xs font-medium hidden md:block max-w-[120px] truncate">
+                  {empresaNome}
+                </span>
+                <ChevronDown
+                  className={cn("w-3 h-3 transition-transform hidden md:block", userAberto && "rotate-180")}
+                  style={{ color: "rgba(255,255,255,0.4)" }}
+                />
+              </button>
+            </div>
+          )}
         >
           <div className="px-3 py-2.5 border-b border-border">
             <p className="text-xs font-semibold text-foreground truncate">{empresaNome}</p>
