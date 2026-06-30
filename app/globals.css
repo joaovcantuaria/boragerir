@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Impede force dark mode de browsers (Opera, Chrome flags, etc) */
+:root {
+  color-scheme: light;
+}
+
 /* ============================================================
    Bora Gerir — Design System v2
    Visual: corporativo, compacto, imersivo
