@@ -467,7 +467,7 @@ function ModalBloco({ nome, cor, editando, onNome, onCor, onSalvar, onFechar }: 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm shadow-xl space-y-4">
+        className="bg-white dark:bg-[#1c1c1e] border border-border rounded-2xl p-6 w-full max-w-sm shadow-xl space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="font-black text-base">{editando ? "Editar Bloco" : "Novo Bloco"}</h3>
           <button onClick={onFechar} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="w-4 h-4" /></button>
@@ -517,7 +517,7 @@ function ModalTarefa({ tarefa, blocoIdInicial, blocos, onSalvar, onFechar }: {
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-sm">
       <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
-        className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md shadow-xl space-y-4 p-5 max-h-[90vh] overflow-y-auto">
+        className="bg-white dark:bg-[#1c1c1e] border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md shadow-xl space-y-4 p-5 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between">
           <h3 className="font-black text-base">{tarefa ? "Editar Tarefa" : "Nova Tarefa"}</h3>
           <button onClick={onFechar} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="w-4 h-4" /></button>
