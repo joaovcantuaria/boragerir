@@ -55,6 +55,23 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (user && (pathname === "/login" || pathname === "/cadastro")) {
+    // Checar se é admin ANTES de redirecionar para dashboard
+    if (serviceKey) {
+      const { createClient } = await import("@supabase/supabase-js")
+      const adminClient = createClient(url, serviceKey, { auth: { persistSession: false } })
+      const { data: usuarioAdmin } = await adminClient
+        .from("usuarios_admin")
+        .select("ativo")
+        .eq("email", user.email ?? "")
+        .maybeSingle()
+
+      if (usuarioAdmin?.ativo) {
+        const redirectUrl = request.nextUrl.clone()
+        redirectUrl.pathname = "/admin"
+        return NextResponse.redirect(redirectUrl)
+      }
+    }
+
     const redirectUrl = request.nextUrl.clone()
     redirectUrl.pathname = "/dashboard"
     return NextResponse.redirect(redirectUrl)
