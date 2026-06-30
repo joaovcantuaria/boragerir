@@ -1,26 +1,39 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend
 } from "recharts"
 import {
-  Wallet, TrendingUp, Users, ArrowRight, AlertTriangle,
-  Calendar, ShoppingCart, CheckCircle2, Package, CheckSquare, Clock, Flag
+  Wallet, TrendingUp, Users, ShoppingCart, Calendar, CheckSquare,
+  Package, AlertTriangle, ArrowRight, Clock, RefreshCw,
+  ShoppingBag, FileText, BarChart3, Settings, CreditCard,
+  HeadphonesIcon, ClipboardList, UserCheck,
 } from "lucide-react"
-import { motion } from "framer-motion"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { motion, AnimatePresence } from "framer-motion"
 import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
-import { formatarMoeda, formatarDataHora, coresStatus, labelsStatus } from "@/lib/utils"
+import { formatarMoeda, coresStatus, labelsStatus } from "@/lib/utils"
+import { createClient } from "@/lib/supabase/client"
 import type { Empresa } from "@/types"
 import { format, subDays } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
-const CORES_PIE = ["#10B981", "#3B82F6", "#F59E0B", "#8B5CF6", "#EF4444"]
+// ── Módulos do launcher ──────────────────────────────────────
+const modulos = [
+  { path: "/caixa",             icon: Wallet,       label: "Caixa",             color: "#10b981", shortcut: "C" },
+  { path: "/venda",             icon: ShoppingCart, label: "Nova Venda",        color: "#F26E1D", shortcut: "N" },
+  { path: "/agendamentos",      icon: Calendar,     label: "Agendamentos",      color: "#6366f1", shortcut: "A" },
+  { path: "/clientes",          icon: Users,        label: "Clientes",          color: "#3b82f6", shortcut: "L" },
+  { path: "/produtos-servicos", icon: ShoppingBag,  label: "Produtos/Serviços", color: "#f59e0b", shortcut: "P" },
+  { path: "/orcamentos",        icon: FileText,     label: "Orçamentos",        color: "#8b5cf6" },
+  { path: "/contratos",         icon: ClipboardList,label: "Contratos",         color: "#0ea5e9" },
+  { path: "/tarefas",           icon: CheckSquare,  label: "Tarefas",           color: "#ec4899" },
+  { path: "/funcionarios",      icon: UserCheck,    label: "Colaboradores",     color: "#14b8a6" },
+  { path: "/financeiro",        icon: BarChart3,    label: "Financeiro",        color: "#84cc16", shortcut: "F" },
+  { path: "/configuracoes",     icon: Settings,     label: "Configurações",     color: "#6b7280" },
+  { path: "/suporte",           icon: HeadphonesIcon,label: "Suporte",          color: "#a855f7" },
+]
 
 interface DashboardClientProps {
   empresa: Empresa
@@ -29,9 +42,7 @@ interface DashboardClientProps {
   ticketMedio: number
   caixaAberto: { id: string; valor_abertura: number } | null
   agendamentosHoje: {
-    id: string
-    data_hora: string
-    status: string
+    id: string; data_hora: string; status: string
     clientes?: { nome_completo: string } | null
     nome_cliente_avulso?: string | null
     produtos_servicos?: { nome: string } | null
@@ -40,14 +51,17 @@ interface DashboardClientProps {
   alertasEstoque: { id: string; nome: string; estoque_atual: number | null; estoque_minimo: number | null }[]
   vendasSemana: { total: number; created_at: string }[]
   vendasHoje: { total: number; forma_pagamento: string }[]
-  tarefasPendentes: { id: string; titulo: string; status: string; prioridade: string; prazo: string | null; bloco_id: string | null }[]
+  tarefasPendentes: {
+    id: string; titulo: string; status: string; prioridade: string
+    prazo: string | null; bloco_id: string | null
+  }[]
 }
 
 export function DashboardClient({
   empresa,
-  totalVendasHoje,
-  qtdAtendimentos,
-  ticketMedio,
+  totalVendasHoje: initialVendas,
+  qtdAtendimentos: initialQtd,
+  ticketMedio: initialTicket,
   caixaAberto,
   agendamentosHoje,
   alertasEstoque,
@@ -57,302 +71,435 @@ export function DashboardClient({
 }: DashboardClientProps) {
   const router = useRouter()
 
-  // Dados do gráfico de barras (7 dias)
+  // Realtime — atualiza KPIs sem reload
+  const [totalVendas, setTotalVendas] = useState(initialVendas)
+  const [qtdAtend,    setQtdAtend]    = useState(initialQtd)
+  const [ticketM,     setTicketM]     = useState(initialTicket)
+  const [pulsing,     setPulsing]     = useState(false)
+  const [lastUpdate,  setLastUpdate]  = useState<Date | null>(null)
+
+  const pulsar = useCallback(() => {
+    setPulsing(true)
+    setLastUpdate(new Date())
+    setTimeout(() => setPulsing(false), 800)
+  }, [])
+
+  useEffect(() => {
+    const supabase = createClient()
+    const hoje = new Date()
+    const inicioDia = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()).toISOString()
+
+    const canal = supabase
+      .channel("dashboard-realtime")
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "vendas",
+        filter: `empresa_id=eq.${empresa.id}`,
+      }, async () => {
+        // Rebuscar totais do dia
+        const { data } = await supabase
+          .from("vendas")
+          .select("total")
+          .eq("empresa_id", empresa.id)
+          .eq("status", "concluida")
+          .gte("created_at", inicioDia)
+
+        if (data) {
+          const total = data.reduce((s, v) => s + v.total, 0)
+          setTotalVendas(total)
+          setQtdAtend(data.length)
+          setTicketM(data.length > 0 ? total / data.length : 0)
+          pulsar()
+        }
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(canal) }
+  }, [empresa.id, pulsar])
+
+  // Gráfico 7 dias
   const dadosSemana = Array.from({ length: 7 }, (_, i) => {
     const dia = subDays(new Date(), 6 - i)
     const diaStr = format(dia, "yyyy-MM-dd")
     const total = vendasSemana
       .filter((v) => v.created_at.startsWith(diaStr))
       .reduce((s, v) => s + v.total, 0)
-    return {
-      dia: format(dia, "EEE", { locale: ptBR }),
-      total,
-    }
+    return { dia: format(dia, "EEE", { locale: ptBR }), total }
   })
 
-  // Dados do gráfico de pizza (formas de pagamento)
-  const pagamentosMap: Record<string, number> = {}
-  vendasHoje.forEach((v) => {
-    const label = v.forma_pagamento === "cartao_credito" ? "Crédito"
-      : v.forma_pagamento === "cartao_debito" ? "Débito"
-      : v.forma_pagamento === "dinheiro" ? "Dinheiro"
-      : v.forma_pagamento === "pix" ? "Pix"
-      : "Outro"
-    pagamentosMap[label] = (pagamentosMap[label] ?? 0) + v.total
-  })
-  const dadosPagamento = Object.entries(pagamentosMap).map(([name, value]) => ({ name, value }))
-
-  const cards = [
+  const kpis = [
     {
-      titulo: "Vendas hoje",
-      valor: formatarMoeda(totalVendasHoje),
-      icone: TrendingUp,
-      cor: "text-emerald-500",
-      bg: "bg-emerald-500/10",
+      label: "Vendas hoje",
+      value: formatarMoeda(totalVendas),
+      icon: TrendingUp,
+      color: "#10b981",
+      bg: "#10b98115",
+      trend: qtdAtend > 0 ? `${qtdAtend} atendimento${qtdAtend > 1 ? "s" : ""}` : "Nenhuma venda",
     },
     {
-      titulo: "Atendimentos",
-      valor: qtdAtendimentos.toString(),
-      icone: Users,
-      cor: "text-blue-500",
-      bg: "bg-blue-500/10",
+      label: "Ticket médio",
+      value: formatarMoeda(ticketM),
+      icon: ShoppingCart,
+      color: "#6366f1",
+      bg: "#6366f115",
+      trend: "do dia",
     },
     {
-      titulo: "Ticket médio",
-      valor: formatarMoeda(ticketMedio),
-      icone: ShoppingCart,
-      cor: "text-purple-500",
-      bg: "bg-purple-500/10",
+      label: "Agendamentos",
+      value: agendamentosHoje.length.toString(),
+      icon: Calendar,
+      color: "#F26E1D",
+      bg: "#F26E1D15",
+      trend: "hoje",
     },
     {
-      titulo: "Status do caixa",
-      valor: caixaAberto ? "Aberto" : "Fechado",
-      icone: Wallet,
-      cor: caixaAberto ? "text-emerald-500" : "text-gray-500",
-      bg: caixaAberto ? "bg-emerald-500/10" : "bg-gray-500/10",
+      label: "Caixa",
+      value: caixaAberto ? "Aberto" : "Fechado",
+      icon: Wallet,
+      color: caixaAberto ? "#10b981" : "#6b7280",
+      bg: caixaAberto ? "#10b98115" : "#6b728015",
+      trend: caixaAberto ? "Em operação" : "Clique para abrir",
+      onClick: () => router.push("/caixa"),
     },
   ]
 
   return (
-    <div className="space-y-6">
-      {/* Boas-vindas */}
+    <div className="space-y-5">
+      {/* Header da página */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Olá, {empresa.nome} 👋</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-lg font-semibold text-foreground">
+            Olá, {empresa.nome.split(" ")[0]} 👋
+          </h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
             {format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
+            {lastUpdate && (
+              <span className="ml-2 text-primary">
+                · atualizado às {format(lastUpdate, "HH:mm:ss")}
+              </span>
+            )}
           </p>
         </div>
-        <Button onClick={() => router.push("/venda")} className="hidden sm:flex gap-2">
-          <ShoppingCart className="w-4 h-4" />
-          Nova Venda
-        </Button>
+
+        <div className="flex items-center gap-2">
+          {pulsing && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium bg-emerald-50 dark:bg-emerald-900/20 px-2.5 py-1 rounded-full"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Atualizado
+            </motion.div>
+          )}
+          <button
+            onClick={() => router.refresh()}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-2.5 py-1.5 rounded-md hover:bg-muted transition-colors"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Atualizar</span>
+          </button>
+        </div>
       </div>
 
-      {/* Cards de resumo */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {cards.map((card, i) => {
-          const Icon = card.icone
+      {/* Alertas */}
+      <AnimatePresence>
+        {!caixaAberto && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="flex items-center justify-between px-4 py-2.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 rounded-lg"
+          >
+            <div className="flex items-center gap-2.5">
+              <Wallet className="w-4 h-4 text-amber-500 shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-300">Caixa fechado</p>
+                <p className="text-xs text-amber-600 dark:text-amber-400">Abra o caixa para registrar vendas</p>
+              </div>
+            </div>
+            <button
+              onClick={() => router.push("/caixa")}
+              className="text-xs font-semibold text-white bg-amber-500 hover:bg-amber-600 px-3 py-1.5 rounded-md transition-colors shrink-0"
+            >
+              Abrir caixa
+            </button>
+          </motion.div>
+        )}
+
+        {alertasEstoque.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center justify-between px-4 py-2.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700/40 rounded-lg"
+          >
+            <div className="flex items-center gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-red-800 dark:text-red-300">
+                  {alertasEstoque.length} item{alertasEstoque.length > 1 ? "ns" : ""} com estoque baixo
+                </p>
+                <p className="text-xs text-red-600 dark:text-red-400 truncate max-w-xs">
+                  {alertasEstoque.map((p) => p.nome).join(", ")}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => router.push("/produtos-servicos")}
+              className="text-xs font-semibold text-red-600 hover:text-red-700 px-2 py-1 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors shrink-0"
+            >
+              Ver →
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {kpis.map((kpi, i) => {
+          const Icon = kpi.icon
           return (
             <motion.div
-              key={card.titulo}
-              initial={{ opacity: 0, y: 20 }}
+              key={kpi.label}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
+              transition={{ delay: i * 0.04, duration: 0.2 }}
+              onClick={kpi.onClick}
+              className={`kpi-card ${kpi.onClick ? "cursor-pointer" : ""} ${
+                pulsing && (kpi.label === "Vendas hoje" || kpi.label === "Ticket médio")
+                  ? "ring-2 ring-emerald-400/40"
+                  : ""
+              }`}
             >
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${card.bg}`}>
-                      <Icon className={`w-5 h-5 ${card.cor}`} />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">{card.titulo}</p>
-                      <p className="text-lg font-bold">{card.valor}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="flex items-center justify-between mb-2">
+                <span className="kpi-label">{kpi.label}</span>
+                <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ background: kpi.bg }}>
+                  <Icon className="w-3.5 h-3.5" style={{ color: kpi.color }} />
+                </div>
+              </div>
+              <div className="kpi-value">{kpi.value}</div>
+              <div className="kpi-sub">{kpi.trend}</div>
             </motion.div>
           )
         })}
       </div>
 
-      {/* Status do caixa */}
-      {!caixaAberto && (
-        <Card className="border-yellow-500/30 bg-yellow-500/5">
-          <CardContent className="p-4 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Wallet className="w-5 h-5 text-yellow-500" />
-              <div>
-                <p className="font-medium">Caixa fechado</p>
-                <p className="text-sm text-muted-foreground">Abra o caixa para registrar vendas</p>
+      {/* Grid principal */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+
+        {/* Launcher de módulos */}
+        <div className="xl:col-span-2">
+          <div className="card-v2">
+            <div className="card-v2-header">
+              <h3 className="text-sm font-semibold text-foreground">Módulos</h3>
+              <span className="text-xs text-muted-foreground">Clique ou use atalho de teclado</span>
+            </div>
+            <div className="card-v2-body">
+              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                {modulos.map((mod, i) => {
+                  const Icon = mod.icon
+                  return (
+                    <motion.button
+                      key={mod.path}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: i * 0.03, duration: 0.18 }}
+                      onClick={() => router.push(mod.path)}
+                      className="launcher-btn relative group"
+                      style={{ background: mod.color + "18" }}
+                      title={`${mod.label}${mod.shortcut ? ` (${mod.shortcut})` : ""}`}
+                    >
+                      {/* Badge do shortcut */}
+                      {mod.shortcut && (
+                        <span className="absolute top-1.5 right-1.5 text-[9px] font-bold opacity-0 group-hover:opacity-60 transition-opacity"
+                          style={{ color: mod.color }}>
+                          {mod.shortcut}
+                        </span>
+                      )}
+                      <div
+                        className="w-9 h-9 rounded-lg flex items-center justify-center shadow-sm"
+                        style={{ background: mod.color }}
+                      >
+                        <Icon className="w-4.5 h-4.5 text-white" />
+                      </div>
+                      <span className="text-[11px] font-medium text-foreground text-center leading-tight">
+                        {mod.label}
+                      </span>
+                    </motion.button>
+                  )
+                })}
               </div>
             </div>
-            <Button onClick={() => router.push("/caixa")} size="sm"
-              className="bg-[#F26E1D] hover:bg-[#e05e10] text-white font-bold border-0">
-              Abrir caixa
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        </div>
 
-      {/* Alertas de estoque */}
-      {alertasEstoque.length > 0 && (
-        <Card className="border-red-500/30 bg-red-500/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2 text-red-500">
-              <AlertTriangle className="w-4 h-4" />
-              Estoque baixo ({alertasEstoque.length} item{alertasEstoque.length > 1 ? "ns" : ""})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="flex flex-wrap gap-2">
-              {alertasEstoque.map((p) => (
-                <Badge key={p.id} variant="destructive" className="text-xs">
-                  <Package className="w-3 h-3 mr-1" />
-                  {p.nome} ({p.estoque_atual ?? 0} un)
-                </Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Widget de Tarefas */}
-      {tarefasPendentes.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <CheckSquare className="w-4 h-4 text-primary" />
-                Tarefas pendentes
-                <span className="text-xs font-normal text-muted-foreground ml-1">
-                  {tarefasPendentes.length} tarefa{tarefasPendentes.length > 1 ? "s" : ""}
+        {/* Tarefas pendentes */}
+        <div className="card-v2 flex flex-col">
+          <div className="card-v2-header">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <CheckSquare className="w-4 h-4 text-primary" />
+              Tarefas
+              {tarefasPendentes.length > 0 && (
+                <span className="text-[11px] font-semibold text-white bg-primary px-1.5 py-0.5 rounded-full">
+                  {tarefasPendentes.length}
                 </span>
-              </CardTitle>
-              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground h-7 px-2 gap-1"
-                onClick={() => router.push("/tarefas")}>
-                Ver todas <ArrowRight className="w-3 h-3" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-0 space-y-2">
-            {tarefasPendentes.slice(0, 5).map((t) => {
-              const hoje = new Date()
-              const vencida = t.prazo && new Date(t.prazo) < hoje
-              const hoje_mesmo = t.prazo && new Date(t.prazo).toDateString() === hoje.toDateString()
-              const prio: Record<string, { dot: string; badge: string }> = {
-                baixa:   { dot: "bg-gray-300",   badge: "text-gray-500 bg-gray-100 dark:bg-gray-800" },
-                media:   { dot: "bg-blue-400",   badge: "text-blue-600 bg-blue-50 dark:bg-blue-900/40" },
-                alta:    { dot: "bg-orange-400", badge: "text-orange-600 bg-orange-50 dark:bg-orange-900/40" },
-                urgente: { dot: "bg-red-500",    badge: "text-red-600 bg-red-50 dark:bg-red-900/40" },
-              }
-              const pc = prio[t.prioridade] ?? prio.media
-              return (
-                <div key={t.id} className="flex items-center gap-3 py-2 border-b border-border last:border-0">
-                  <div className={`w-2 h-2 rounded-full shrink-0 ${pc.dot}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{t.titulo}</p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {t.status === "iniciado" && (
-                      <span className="flex items-center gap-1 text-[10px] font-semibold text-blue-500 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-full">
-                        <Clock className="w-3 h-3" />Em andamento
-                      </span>
-                    )}
-                    {t.prazo && (
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${vencida ? "text-red-600 bg-red-50 dark:bg-red-900/30" : hoje_mesmo ? "text-orange-600 bg-orange-50 dark:bg-orange-900/30" : "text-muted-foreground bg-muted"}`}>
-                        {vencida ? "⚠️ Vencida" : hoje_mesmo ? "🔔 Hoje" : format(new Date(t.prazo.includes("T") ? t.prazo : t.prazo + "T12:00"), "dd/MM", { locale: ptBR })}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-            {tarefasPendentes.length > 5 && (
-              <p className="text-xs text-muted-foreground text-center pt-1">
-                +{tarefasPendentes.length - 5} tarefas pendentes
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Gráficos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Faturamento — últimos 7 dias</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={dadosSemana}>
-                <XAxis dataKey="dia" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `R$${v}`} />
-                <Tooltip formatter={(v: number) => formatarMoeda(v)} />
-                <Bar dataKey="total" fill="#10B981" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Pagamentos de hoje</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {dadosPagamento.length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie
-                    data={dadosPagamento}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={80}
-                    dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    labelLine={false}
-                  >
-                    {dadosPagamento.map((_, i) => (
-                      <Cell key={i} fill={CORES_PIE[i % CORES_PIE.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(v: number) => formatarMoeda(v)} />
-                </PieChart>
-              </ResponsiveContainer>
+              )}
+            </h3>
+            <button
+              onClick={() => router.push("/tarefas")}
+              className="text-xs text-primary hover:underline flex items-center gap-1"
+            >
+              Ver todas <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
+          <div className="card-v2-body flex-1 overflow-y-auto max-h-[300px]">
+            {tarefasPendentes.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 gap-2 text-muted-foreground">
+                <CheckSquare className="w-8 h-8 opacity-30" />
+                <p className="text-sm">Nenhuma tarefa pendente</p>
+              </div>
             ) : (
-              <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">
-                Nenhuma venda hoje
+              <div className="space-y-1">
+                {tarefasPendentes.slice(0, 8).map((t) => {
+                  const hoje = new Date()
+                  const vencida = t.prazo && new Date(t.prazo) < hoje
+                  const hojeM = t.prazo && new Date(t.prazo).toDateString() === hoje.toDateString()
+                  const prioColor: Record<string, string> = {
+                    baixa: "#9ca3af", media: "#3b82f6", alta: "#f97316", urgente: "#ef4444"
+                  }
+                  return (
+                    <div
+                      key={t.id}
+                      className="hover-row flex items-center gap-2.5 py-1.5 px-2 rounded-md hover:bg-muted transition-colors group cursor-default"
+                    >
+                      <div
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{ background: prioColor[t.prioridade] ?? "#9ca3af" }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium truncate text-foreground">{t.titulo}</p>
+                      </div>
+                      {t.status === "iniciado" && (
+                        <span className="text-[10px] font-semibold text-blue-500 shrink-0">▶</span>
+                      )}
+                      {t.prazo && (
+                        <span className={`text-[10px] font-medium shrink-0 ${
+                          vencida ? "text-red-500" : hojeM ? "text-orange-500" : "text-muted-foreground"
+                        }`}>
+                          {vencida ? "Vencida" : hojeM ? "Hoje" : format(new Date(t.prazo.includes("T") ? t.prazo : t.prazo + "T12:00"), "dd/MM")}
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
-      {/* Agendamentos do dia */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-base">Agendamentos de hoje</CardTitle>
-          <Button variant="ghost" size="sm" onClick={() => router.push("/agendamentos")}>
-            Ver todos <ArrowRight className="w-3 h-3 ml-1" />
-          </Button>
-        </CardHeader>
-        <CardContent className="pt-0">
-          {agendamentosHoje.length > 0 ? (
-            <div className="space-y-2">
-              {agendamentosHoje.map((ag) => (
-                <div key={ag.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <div className="flex items-center gap-3">
-                    <Calendar className="w-4 h-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm font-medium">
-                        {ag.clientes?.nome_completo ?? ag.nome_cliente_avulso ?? "Cliente avulso"}
+      {/* Segunda linha: gráfico + agendamentos */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+
+        {/* Gráfico 7 dias */}
+        <div className="lg:col-span-3 card-v2">
+          <div className="card-v2-header">
+            <h3 className="text-sm font-semibold text-foreground">Faturamento — 7 dias</h3>
+            <button
+              onClick={() => router.push("/financeiro")}
+              className="text-xs text-primary hover:underline flex items-center gap-1"
+            >
+              Detalhes <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
+          <div className="card-v2-body">
+            <ResponsiveContainer width="100%" height={160}>
+              <BarChart data={dadosSemana} barSize={28}>
+                <XAxis
+                  dataKey="dia"
+                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  tickFormatter={(v) => v > 0 ? `R$${v}` : ""}
+                  axisLine={false}
+                  tickLine={false}
+                  width={48}
+                />
+                <Tooltip
+                  formatter={(v: number) => [formatarMoeda(v), "Faturamento"]}
+                  contentStyle={{
+                    background: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "6px",
+                    fontSize: "12px",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                  }}
+                  cursor={{ fill: "hsl(var(--muted))" }}
+                />
+                <Bar dataKey="total" fill="#F26E1D" radius={[3, 3, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Agendamentos do dia */}
+        <div className="lg:col-span-2 card-v2 flex flex-col">
+          <div className="card-v2-header">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-primary" />
+              Agenda de hoje
+            </h3>
+            <button
+              onClick={() => router.push("/agendamentos")}
+              className="text-xs text-primary hover:underline flex items-center gap-1"
+            >
+              Ver <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto max-h-[200px]">
+            {agendamentosHoje.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 gap-2 text-muted-foreground">
+                <Calendar className="w-8 h-8 opacity-30" />
+                <p className="text-xs">Nenhum agendamento hoje</p>
+              </div>
+            ) : (
+              <div>
+                {agendamentosHoje.map((ag, i) => (
+                  <div
+                    key={ag.id}
+                    className={`hover-row flex items-center gap-2.5 px-4 py-2 hover:bg-muted transition-colors group ${
+                      i < agendamentosHoje.length - 1 ? "border-b border-border" : ""
+                    }`}
+                  >
+                    <div className="w-10 text-center shrink-0">
+                      <span className="text-[11px] font-bold text-primary">
+                        {format(new Date(ag.data_hora), "HH:mm")}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium truncate text-foreground">
+                        {ag.clientes?.nome_completo ?? ag.nome_cliente_avulso ?? "Avulso"}
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        {format(new Date(ag.data_hora), "HH:mm")} • {ag.produtos_servicos?.nome ?? "Serviço"}
-                        {ag.funcionarios?.nome && ` • ${ag.funcionarios.nome}`}
+                      <p className="text-[10px] text-muted-foreground truncate">
+                        {ag.produtos_servicos?.nome ?? "Serviço"}
+                        {ag.funcionarios?.nome && ` · ${ag.funcionarios.nome}`}
                       </p>
                     </div>
+                    <Badge className={`text-[10px] shrink-0 ${coresStatus[ag.status as keyof typeof coresStatus] ?? ""}`}>
+                      {labelsStatus[ag.status] ?? ag.status}
+                    </Badge>
                   </div>
-                  <Badge className={coresStatus[ag.status as keyof typeof coresStatus] ?? ""}>
-                    {labelsStatus[ag.status] ?? ag.status}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="py-8 text-center text-muted-foreground">
-              <Calendar className="w-10 h-10 mx-auto mb-2 opacity-40" />
-              <p className="text-sm">Nenhum agendamento para hoje</p>
-              <Button variant="outline" size="sm" className="mt-3" onClick={() => router.push("/agendamentos")}>
-                Novo agendamento
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
