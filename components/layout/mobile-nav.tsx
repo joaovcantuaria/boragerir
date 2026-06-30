@@ -129,13 +129,19 @@ export function MobileNav({ prefix = "", plano = "gratuito" }: { prefix?: string
         )}
       </AnimatePresence>
 
-      {/* Barra de navegação inferior */}
-      <nav className={cn(
-        "md:hidden fixed bottom-0 left-0 right-0 z-40 mobile-nav-bar",
-        "bg-white border-t border-gray-200",
-        "dark:bg-[#0f111a] dark:border-white/[0.08]"
-      )}
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      {/* Barra de navegação inferior — sempre fixed, nunca se move */}
+      <nav
+        style={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 40,
+          backgroundColor: "#ffffff",
+          borderTop: "1px solid #e5e7eb",
+          paddingBottom: "env(safe-area-inset-bottom)",
+        }}
+        className="md:hidden"
       >
         <div className="flex items-center h-14">
           {navPrincipalFiltrado.map((item) => {
@@ -145,30 +151,24 @@ export function MobileNav({ prefix = "", plano = "gratuito" }: { prefix?: string
             return (
               <Link key={href} href={href}
                 prefetch={true}
-                className={cn(
-                  "flex-1 flex flex-col items-center justify-center gap-1 h-full text-[10px] font-semibold transition-colors",
-                  isActive
-                    ? "text-primary"
-                    : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
-                )}>
-                <Icon className={cn("w-5 h-5", isActive && "stroke-[2.5]")} />
+                className="flex-1 flex flex-col items-center justify-center gap-1 h-full text-[10px] font-semibold transition-colors"
+                style={{ color: isActive ? "#F26E1D" : "#9ca3af" }}
+              >
+                <Icon className="w-5 h-5" strokeWidth={isActive ? 2.5 : 1.8} />
                 <span>{item.label}</span>
               </Link>
             )
           })}
 
-          {/* Botão Mais — oculto no plano agenda */}
+          {/* Botão Mais */}
           {!isPlanoAgenda && (
             <button
               onClick={() => setMenuAberto(!menuAberto)}
-              className={cn(
-                "flex-1 flex flex-col items-center justify-center gap-1 h-full text-[10px] font-semibold transition-colors",
-                (menuAberto || algumExtraAtivo)
-                  ? "text-primary"
-                  : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
-              )}>
+              className="flex-1 flex flex-col items-center justify-center gap-1 h-full text-[10px] font-semibold transition-colors"
+              style={{ color: (menuAberto || algumExtraAtivo) ? "#F26E1D" : "#9ca3af" }}
+            >
               {menuAberto
-                ? <X className="w-5 h-5 stroke-[2.5]" />
+                ? <X className="w-5 h-5" strokeWidth={2.5} />
                 : <div className="flex flex-col gap-0.5 items-center">
                     <div className="flex gap-0.5">
                       <div className="w-1 h-1 rounded-full bg-current" />

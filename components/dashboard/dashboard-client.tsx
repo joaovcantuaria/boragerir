@@ -294,10 +294,37 @@ export function DashboardClient({
           <div className="card-v2">
             <div className="card-v2-header">
               <h3 className="text-sm font-semibold text-foreground">Módulos</h3>
-              <span className="text-xs text-muted-foreground">Clique ou use atalho de teclado</span>
+              <span className="text-xs text-muted-foreground hidden sm:inline">Clique ou use atalho de teclado</span>
             </div>
             <div className="card-v2-body">
-              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+              {/* Mobile: grid 6 colunas só com ícones — compacto */}
+              <div className="grid grid-cols-6 gap-2 sm:hidden">
+                {modulos.map((mod, i) => {
+                  const Icon = mod.icon
+                  return (
+                    <motion.button
+                      key={mod.path}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: i * 0.03, duration: 0.18 }}
+                      onClick={() => router.push(mod.path)}
+                      className="flex items-center justify-center rounded-xl active:scale-95 transition-transform"
+                      style={{ background: mod.color + "18", padding: "10px", aspectRatio: "1" }}
+                      title={mod.label}
+                    >
+                      <div
+                        className="w-8 h-8 rounded-lg flex items-center justify-center shadow-sm"
+                        style={{ background: mod.color }}
+                      >
+                        <Icon className="w-4 h-4 text-white" />
+                      </div>
+                    </motion.button>
+                  )
+                })}
+              </div>
+
+              {/* Desktop: grid 6 colunas com ícone + nome */}
+              <div className="hidden sm:grid grid-cols-6 gap-2">
                 {modulos.map((mod, i) => {
                   const Icon = mod.icon
                   return (
@@ -311,7 +338,6 @@ export function DashboardClient({
                       style={{ background: mod.color + "18" }}
                       title={`${mod.label}${mod.shortcut ? ` (${mod.shortcut})` : ""}`}
                     >
-                      {/* Badge do shortcut */}
                       {mod.shortcut && (
                         <span className="absolute top-1.5 right-1.5 text-[9px] font-bold opacity-0 group-hover:opacity-60 transition-opacity"
                           style={{ color: mod.color }}>
@@ -322,7 +348,7 @@ export function DashboardClient({
                         className="w-9 h-9 rounded-lg flex items-center justify-center shadow-sm"
                         style={{ background: mod.color }}
                       >
-                        <Icon className="w-4.5 h-4.5 text-white" />
+                        <Icon className="w-4 h-4 text-white" />
                       </div>
                       <span className="text-[11px] font-medium text-foreground text-center leading-tight">
                         {mod.label}

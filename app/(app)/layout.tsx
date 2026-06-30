@@ -78,12 +78,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background flex flex-col">
 
-      {/* Topbar — navegação no topo */}
+      {/* Topbar — só no desktop (md+). Mobile usa a barra inferior */}
       {!isPlanoAgenda && (
-        <Topbar
-          empresaNome={empresa?.nome}
-          empresaLogoUrl={empresa?.logo_url}
-        />
+        <div className="hidden md:block">
+          <Topbar
+            empresaNome={empresa?.nome}
+            empresaLogoUrl={empresa?.logo_url}
+          />
+        </div>
       )}
 
       {/* Conteúdo com animação de transição */}
