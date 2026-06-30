@@ -43,9 +43,10 @@ export async function updateSession(request: NextRequest) {
   const eRotaPublica = rotasPublicas.some((r) => pathname === r || pathname.startsWith("/auth/"))
   const eRotaAdmin = pathname.startsWith("/admin")
   const eRotaAgendar = pathname.startsWith("/agendar/")
+  const eRotaApi = pathname.startsWith("/api/")
 
-  // Rotas públicas de agendamento não precisam de auth
-  if (eRotaAgendar) return supabaseResponse
+  // Rotas públicas de agendamento e APIs não precisam de redirect pelo middleware
+  if (eRotaAgendar || eRotaApi) return supabaseResponse
 
   if (!user && !eRotaPublica) {
     const redirectUrl = request.nextUrl.clone()
