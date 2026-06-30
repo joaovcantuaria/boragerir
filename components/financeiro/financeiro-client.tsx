@@ -196,29 +196,59 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
       </div>
 
       <Tabs defaultValue="faturamento">
-        <TabsList>
-          <TabsTrigger value="faturamento">Faturamento</TabsTrigger>
-          <TabsTrigger value="vendas">Vendas</TabsTrigger>
-          {plano !== "gratuito" && (
-            <TabsTrigger value="areceber" className="gap-2">
-              A Receber
-              {totalAReceber > 0 && <span className="bg-amber-500 text-white text-xs font-black px-1.5 py-0.5 rounded-full">{debitos.length}</span>}
-            </TabsTrigger>
-          )}
-          <TabsTrigger value="formas">Formas de pagamento</TabsTrigger>
-          <TabsTrigger value="contaspagar" className="gap-2">
-            Contas a Pagar
-            {contasPagar.filter((c) => c.status === "atrasado").length > 0 && (
-              <span className="bg-red-500 text-white text-xs font-black px-1.5 py-0.5 rounded-full">
-                {contasPagar.filter((c) => c.status === "atrasado").length}
-              </span>
+        {/* Mobile: grid 2 colunas. Desktop: scroll horizontal */}
+        <div className="block sm:hidden">
+          <TabsList className="w-full grid grid-cols-2 h-auto gap-1 p-1">
+            <TabsTrigger value="faturamento" className="text-xs py-2">Faturamento</TabsTrigger>
+            <TabsTrigger value="vendas" className="text-xs py-2">Vendas</TabsTrigger>
+            {plano !== "gratuito" && (
+              <TabsTrigger value="areceber" className="text-xs py-2 gap-1">
+                A Receber
+                {totalAReceber > 0 && <span className="bg-amber-500 text-white text-[10px] font-black px-1 py-0.5 rounded-full">{debitos.length}</span>}
+              </TabsTrigger>
             )}
-          </TabsTrigger>
-          <TabsTrigger value="fluxo">Fluxo de Caixa</TabsTrigger>
-          {plano !== "gratuito" && (
-            <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
-          )}
-        </TabsList>
+            <TabsTrigger value="formas" className="text-xs py-2">Pagamentos</TabsTrigger>
+            <TabsTrigger value="contaspagar" className="text-xs py-2 gap-1">
+              Contas
+              {contasPagar.filter((c) => c.status === "atrasado").length > 0 && (
+                <span className="bg-red-500 text-white text-[10px] font-black px-1 py-0.5 rounded-full">
+                  {contasPagar.filter((c) => c.status === "atrasado").length}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="fluxo" className="text-xs py-2">Fluxo</TabsTrigger>
+            {plano !== "gratuito" && (
+              <TabsTrigger value="relatorios" className="text-xs py-2">Relatórios</TabsTrigger>
+            )}
+          </TabsList>
+        </div>
+
+        {/* Desktop: scroll horizontal */}
+        <div className="hidden sm:block overflow-x-auto">
+          <TabsList className="inline-flex min-w-max">
+            <TabsTrigger value="faturamento">Faturamento</TabsTrigger>
+            <TabsTrigger value="vendas">Vendas</TabsTrigger>
+            {plano !== "gratuito" && (
+              <TabsTrigger value="areceber" className="gap-2">
+                A Receber
+                {totalAReceber > 0 && <span className="bg-amber-500 text-white text-xs font-black px-1.5 py-0.5 rounded-full">{debitos.length}</span>}
+              </TabsTrigger>
+            )}
+            <TabsTrigger value="formas">Formas de pagamento</TabsTrigger>
+            <TabsTrigger value="contaspagar" className="gap-2">
+              Contas a Pagar
+              {contasPagar.filter((c) => c.status === "atrasado").length > 0 && (
+                <span className="bg-red-500 text-white text-xs font-black px-1.5 py-0.5 rounded-full">
+                  {contasPagar.filter((c) => c.status === "atrasado").length}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="fluxo">Fluxo de Caixa</TabsTrigger>
+            {plano !== "gratuito" && (
+              <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
+            )}
+          </TabsList>
+        </div>
 
         <TabsContent value="faturamento" className="mt-4">
           <Card>

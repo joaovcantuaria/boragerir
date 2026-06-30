@@ -281,10 +281,10 @@ export function AgendamentosClient({
 
       {/* Calendário + Lista */}
       <Tabs defaultValue="calendario">
-        <TabsList>
-          <TabsTrigger value="calendario">Calendário</TabsTrigger>
-          <TabsTrigger value="lista">Lista do dia</TabsTrigger>
-          <TabsTrigger value="configuracao">Configuração</TabsTrigger>
+        <TabsList className="w-full">
+          <TabsTrigger value="calendario" className="flex-1">Calendário</TabsTrigger>
+          <TabsTrigger value="lista" className="flex-1">Lista do dia</TabsTrigger>
+          <TabsTrigger value="configuracao" className="flex-1">Configuração</TabsTrigger>
         </TabsList>
 
         <TabsContent value="calendario" className="mt-4 space-y-4">
