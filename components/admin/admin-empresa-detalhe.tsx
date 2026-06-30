@@ -95,11 +95,12 @@ export function AdminEmpresaDetalhe({ empresa, assinaturas, notas: notasInit, ti
         body: JSON.stringify({ empresa_id: empresa.id }),
       })
       const data = await res.json()
-      if (!res.ok) { toast.error(data.erro ?? "Erro ao zerar conta."); return }
+      if (!res.ok) { toast.error(data.erro ?? "Erro ao zerar conta."); setZerandoConta(false); return }
       toast.success(data.mensagem)
       setConfirmZerar(false)
-    } catch {
-      toast.error("Erro inesperado.")
+    } catch (err) {
+      console.error("Erro ao zerar conta:", err)
+      toast.error("Erro de conexão ao zerar conta.")
     }
     setZerandoConta(false)
   }
