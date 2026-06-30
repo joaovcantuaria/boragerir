@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { format, parseISO } from "date-fns"
-import { ArrowLeft, Building2, Mail, Phone, MapPin, CreditCard, MessageSquare, Plus, Send, Loader2 } from "lucide-react"
+import { ArrowLeft, Building2, Mail, Phone, MapPin, CreditCard, MessageSquare, Plus, Send, Loader2, Trash2, AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
 import { formatarCNPJ, formatarCPF, formatarTelefone, formatarMoeda } from "@/lib/utils"
 import { useAdminTema } from "@/components/admin/admin-tema-context"
@@ -28,6 +28,8 @@ export function AdminEmpresaDetalhe({ empresa, assinaturas, notas: notasInit, ti
   const [loading, setLoading] = useState(false)
   const [emailAssunto, setEmailAssunto] = useState("")
   const [emailMensagem, setEmailMensagem] = useState("")
+  const [zerandoConta, setZerandoConta] = useState(false)
+  const [confirmZerar, setConfirmZerar] = useState(false)
   const router = useRouter()
   const t = useAdminTema()
 
@@ -82,6 +84,24 @@ export function AdminEmpresaDetalhe({ empresa, assinaturas, notas: notasInit, ti
       setEmailAssunto(""); setEmailMensagem("")
     } else toast.error("Erro ao enviar e-mail.")
     setLoading(false)
+  }
+
+  async function zerarConta() {
+    setZerandoConta(true)
+    try {
+      const res = await fetch("/api/admin/empresas/zerar-conta", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ empresa_id: empresa.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) { toast.error(data.erro ?? "Erro ao zerar conta."); return }
+      toast.success(data.mensagem)
+      setConfirmZerar(false)
+    } catch {
+      toast.error("Erro inesperado.")
+    }
+    setZerandoConta(false)
   }
 
   return (
@@ -216,6 +236,46 @@ export function AdminEmpresaDetalhe({ empresa, assinaturas, notas: notasInit, ti
               {notas.length === 0 && <p className={`${t.textMuted2} text-xs text-center py-2`}>Sem notas</p>}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Zona de Risco */}
+      <div className={`rounded-2xl border border-red-500/30 bg-red-500/5 p-5 space-y-4`}>
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-red-500" />
+          <h3 className="font-bold text-sm text-red-500">Zona de Risco</h3>
+        </div>
+
+        {/* Zerar conta */}
+        <div className={`flex items-start justify-between gap-4 p-4 rounded-xl ${t.subBg} border border-red-500/20`}>
+          <div>
+            <p className={`text-sm font-semibold ${t.text}`}>Zerar conta</p>
+            <p className={`text-xs ${t.textMuted} mt-0.5 max-w-sm`}>
+              Remove todos os dados operacionais (vendas, caixas, agendamentos, orçamentos, tarefas). 
+              Preserva empresa, clientes, produtos, funcionários e plano.
+            </p>
+          </div>
+          {!confirmZerar ? (
+            <button onClick={() => setConfirmZerar(true)}
+              className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl border border-red-500/40 text-red-400 text-xs font-bold hover:bg-red-500/10 transition-colors">
+              <Trash2 className="w-3.5 h-3.5" />Zerar
+            </button>
+          ) : (
+            <div className="shrink-0 flex flex-col items-end gap-2">
+              <p className="text-xs text-red-400 font-semibold">Tem certeza? Ação irreversível.</p>
+              <div className="flex gap-2">
+                <button onClick={() => setConfirmZerar(false)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${t.subBg} ${t.textMuted4} border ${t.border}`}>
+                  Cancelar
+                </button>
+                <button onClick={zerarConta} disabled={zerandoConta}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 flex items-center gap-1.5">
+                  {zerandoConta ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
