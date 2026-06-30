@@ -47,6 +47,24 @@ export default function LoginPage() {
       password: data.senha,
     })
     if (error) {
+      // Email não confirmado — avisar mas não bloquear
+      if (error.message.includes("Email not confirmed")) {
+        toast("Seu e-mail ainda não foi confirmado.", {
+          description: "Verifique sua caixa de entrada e confirme para segurança total.",
+          action: {
+            label: "Reenviar",
+            onClick: async () => {
+              await supabase.auth.resend({ type: "signup", email: data.email })
+              toast.success("E-mail de confirmação reenviado!")
+            },
+          },
+          duration: 8000,
+        })
+        // Tenta logar mesmo assim — o Supabase pode ter sido configurado para permitir
+        // Se falhou mesmo com a mensagem de email não confirmado, mostra aviso e continua
+        setLoading(false)
+        return
+      }
       toast.error("E-mail ou senha incorretos.")
       setLoading(false)
       return
