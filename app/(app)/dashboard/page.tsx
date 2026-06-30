@@ -29,41 +29,14 @@ export default async function DashboardPage() {
     { data: agendamentosHoje },
     { data: estoqueBaixo },
     { data: vendasSemana },
+    { data: tarefasPendentes },
   ] = await Promise.all([
-    supabase
-      .from("vendas")
-      .select("total, forma_pagamento")
-      .eq("empresa_id", empresa.id)
-      .eq("status", "concluida")
-      .gte("created_at", inicioDia)
-      .lte("created_at", fimDia),
-    supabase
-      .from("caixas")
-      .select("*")
-      .eq("empresa_id", empresa.id)
-      .eq("status", "aberto")
-      .single(),
-    supabase
-      .from("agendamentos")
-      .select("*, clientes(nome_completo), funcionarios(nome), produtos_servicos(nome)")
-      .eq("empresa_id", empresa.id)
-      .gte("data_hora", inicioDia)
-      .lte("data_hora", fimDia)
-      .order("data_hora"),
-    supabase
-      .from("produtos_servicos")
-      .select("id, nome, estoque_atual, estoque_minimo")
-      .eq("empresa_id", empresa.id)
-      .eq("tipo", "produto")
-      .eq("ativo", true)
-      .not("estoque_minimo", "is", null),
-    supabase
-      .from("vendas")
-      .select("total, created_at")
-      .eq("empresa_id", empresa.id)
-      .eq("status", "concluida")
-      .gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-      .order("created_at"),
+    supabase.from("vendas").select("total, forma_pagamento").eq("empresa_id", empresa.id).eq("status", "concluida").gte("created_at", inicioDia).lte("created_at", fimDia),
+    supabase.from("caixas").select("*").eq("empresa_id", empresa.id).eq("status", "aberto").single(),
+    supabase.from("agendamentos").select("*, clientes(nome_completo), funcionarios(nome), produtos_servicos(nome)").eq("empresa_id", empresa.id).gte("data_hora", inicioDia).lte("data_hora", fimDia).order("data_hora"),
+    supabase.from("produtos_servicos").select("id, nome, estoque_atual, estoque_minimo").eq("empresa_id", empresa.id).eq("tipo", "produto").eq("ativo", true).not("estoque_minimo", "is", null),
+    supabase.from("vendas").select("total, created_at").eq("empresa_id", empresa.id).eq("status", "concluida").gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()).order("created_at"),
+    supabase.from("tarefas").select("id, titulo, status, prioridade, prazo, bloco_id").eq("empresa_id", empresa.id).neq("status", "concluido").order("prazo", { ascending: true, nullsFirst: false }).limit(10),
   ])
 
   const totalVendasHoje = vendasHoje?.reduce((sum, v) => sum + v.total, 0) ?? 0
@@ -86,6 +59,7 @@ export default async function DashboardPage() {
       alertasEstoque={alertasEstoque}
       vendasSemana={vendasSemana ?? []}
       vendasHoje={vendasHoje ?? []}
+      tarefasPendentes={tarefasPendentes ?? []}
     />
   )
 }

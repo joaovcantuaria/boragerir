@@ -8,7 +8,7 @@ import {
 } from "recharts"
 import {
   Wallet, TrendingUp, Users, ArrowRight, AlertTriangle,
-  Calendar, ShoppingCart, CheckCircle2, Package
+  Calendar, ShoppingCart, CheckCircle2, Package, CheckSquare, Clock, Flag
 } from "lucide-react"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -40,6 +40,7 @@ interface DashboardClientProps {
   alertasEstoque: { id: string; nome: string; estoque_atual: number | null; estoque_minimo: number | null }[]
   vendasSemana: { total: number; created_at: string }[]
   vendasHoje: { total: number; forma_pagamento: string }[]
+  tarefasPendentes: { id: string; titulo: string; status: string; prioridade: string; prazo: string | null; bloco_id: string | null }[]
 }
 
 export function DashboardClient({
@@ -52,6 +53,7 @@ export function DashboardClient({
   alertasEstoque,
   vendasSemana,
   vendasHoje,
+  tarefasPendentes,
 }: DashboardClientProps) {
   const router = useRouter()
 
@@ -193,6 +195,66 @@ export function DashboardClient({
                 </Badge>
               ))}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Widget de Tarefas */}
+      {tarefasPendentes.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <CheckSquare className="w-4 h-4 text-primary" />
+                Tarefas pendentes
+                <span className="text-xs font-normal text-muted-foreground ml-1">
+                  {tarefasPendentes.length} tarefa{tarefasPendentes.length > 1 ? "s" : ""}
+                </span>
+              </CardTitle>
+              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground h-7 px-2 gap-1"
+                onClick={() => router.push("/tarefas")}>
+                Ver todas <ArrowRight className="w-3 h-3" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0 space-y-2">
+            {tarefasPendentes.slice(0, 5).map((t) => {
+              const hoje = new Date()
+              const vencida = t.prazo && new Date(t.prazo) < hoje
+              const hoje_mesmo = t.prazo && new Date(t.prazo).toDateString() === hoje.toDateString()
+              const prio: Record<string, { dot: string; badge: string }> = {
+                baixa:   { dot: "bg-gray-300",   badge: "text-gray-500 bg-gray-100 dark:bg-gray-800" },
+                media:   { dot: "bg-blue-400",   badge: "text-blue-600 bg-blue-50 dark:bg-blue-900/40" },
+                alta:    { dot: "bg-orange-400", badge: "text-orange-600 bg-orange-50 dark:bg-orange-900/40" },
+                urgente: { dot: "bg-red-500",    badge: "text-red-600 bg-red-50 dark:bg-red-900/40" },
+              }
+              const pc = prio[t.prioridade] ?? prio.media
+              return (
+                <div key={t.id} className="flex items-center gap-3 py-2 border-b border-border last:border-0">
+                  <div className={`w-2 h-2 rounded-full shrink-0 ${pc.dot}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{t.titulo}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {t.status === "iniciado" && (
+                      <span className="flex items-center gap-1 text-[10px] font-semibold text-blue-500 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-full">
+                        <Clock className="w-3 h-3" />Em andamento
+                      </span>
+                    )}
+                    {t.prazo && (
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${vencida ? "text-red-600 bg-red-50 dark:bg-red-900/30" : hoje_mesmo ? "text-orange-600 bg-orange-50 dark:bg-orange-900/30" : "text-muted-foreground bg-muted"}`}>
+                        {vencida ? "⚠️ Vencida" : hoje_mesmo ? "🔔 Hoje" : format(new Date(t.prazo.includes("T") ? t.prazo : t.prazo + "T12:00"), "dd/MM", { locale: ptBR })}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+            {tarefasPendentes.length > 5 && (
+              <p className="text-xs text-muted-foreground text-center pt-1">
+                +{tarefasPendentes.length - 5} tarefas pendentes
+              </p>
+            )}
           </CardContent>
         </Card>
       )}
