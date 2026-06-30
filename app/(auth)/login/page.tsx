@@ -42,33 +42,24 @@ export default function LoginPage() {
 
   async function onLogin(data: FormLogin) {
     setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({
-      email: data.email,
-      password: data.senha,
+
+    // Usar API route própria que permite login mesmo sem email confirmado
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: data.email, password: data.senha }),
     })
-    if (error) {
-      // Email não confirmado — avisar mas não bloquear
-      if (error.message.includes("Email not confirmed")) {
-        toast("Seu e-mail ainda não foi confirmado.", {
-          description: "Verifique sua caixa de entrada e confirme para segurança total.",
-          action: {
-            label: "Reenviar",
-            onClick: async () => {
-              await supabase.auth.resend({ type: "signup", email: data.email })
-              toast.success("E-mail de confirmação reenviado!")
-            },
-          },
-          duration: 8000,
-        })
-        // Tenta logar mesmo assim — o Supabase pode ter sido configurado para permitir
-        // Se falhou mesmo com a mensagem de email não confirmado, mostra aviso e continua
-        setLoading(false)
-        return
-      }
-      toast.error("E-mail ou senha incorretos.")
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      toast.error(body.error ?? "E-mail ou senha incorretos.")
       setLoading(false)
       return
     }
+
+    // Sessão foi definida nos cookies pela API — atualizar antes de ler
+    router.refresh()
+    await new Promise((r) => setTimeout(r, 200)) // aguarda propagação dos cookies
 
     // Redirecionar baseado no plano e status de pagamento
     try {
