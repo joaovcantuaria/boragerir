@@ -6,7 +6,7 @@ import { ptBR } from "date-fns/locale"
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from "recharts"
 import {
   Building2, CreditCard, TrendingUp, AlertCircle,
-  ArrowRight, CheckCircle, Clock, XCircle
+  ArrowRight, CheckCircle, Clock, XCircle, Eye, Globe, LogIn, UserPlus
 } from "lucide-react"
 import { formatarMoeda } from "@/lib/utils"
 import { useAdminTema } from "@/components/admin/admin-tema-context"
@@ -22,6 +22,7 @@ interface Props {
   assinaturas: { id: string; plano: string; periodicidade: string; status: string; valor_total: number; forma_pagamento: string | null; created_at: string }[]
   ticketsAbertos: { id: string; assunto: string; status: string; prioridade: string; created_at: string; empresa_id: string | null }[]
   contagemPlanos: Record<string, number>
+  analytics?: { site: number; login: number; cadastro: number; hoje: number; semana: number; mes: number }
 }
 
 const badgePlano: Record<string, string> = {

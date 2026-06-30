@@ -65,6 +65,28 @@ export default async function AdminPage() {
       // tabela tickets ainda não existe
     }
 
+    // Analytics de visitas — pode não existir ainda
+    let analytics = { site: 0, login: 0, cadastro: 0, hoje: 0, semana: 0, mes: 0 }
+    try {
+      const agora = new Date()
+      const hoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate()).toISOString()
+      const semana = new Date(agora.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
+      const mes = new Date(agora.getFullYear(), agora.getMonth(), 1).toISOString()
+
+      const [
+        { count: site }, { count: login }, { count: cadastro },
+        { count: hojeCount }, { count: semanaCount }, { count: mesCount },
+      ] = await Promise.all([
+        supabase.from("visitas_analytics").select("*", { count: "exact", head: true }).eq("pagina", "site"),
+        supabase.from("visitas_analytics").select("*", { count: "exact", head: true }).eq("pagina", "login"),
+        supabase.from("visitas_analytics").select("*", { count: "exact", head: true }).eq("pagina", "cadastro"),
+        supabase.from("visitas_analytics").select("*", { count: "exact", head: true }).gte("created_at", hoje),
+        supabase.from("visitas_analytics").select("*", { count: "exact", head: true }).gte("created_at", semana),
+        supabase.from("visitas_analytics").select("*", { count: "exact", head: true }).gte("created_at", mes),
+      ])
+      analytics = { site: site ?? 0, login: login ?? 0, cadastro: cadastro ?? 0, hoje: hojeCount ?? 0, semana: semanaCount ?? 0, mes: mesCount ?? 0 }
+    } catch { /* tabela ainda não existe */ }
+
     return (
       <AdminDashboard
         totalEmpresas={totalEmpresas ?? 0}
@@ -75,6 +97,7 @@ export default async function AdminPage() {
         assinaturas={assinaturas}
         ticketsAbertos={tickets}
         contagemPlanos={contagemPlanos}
+        analytics={analytics}
       />
     )
   } catch (error) {

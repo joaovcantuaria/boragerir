@@ -8,10 +8,12 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Eye, EyeOff, Loader2, X, CheckCircle, FileText, Shield } from "lucide-react"
 import { toast } from "sonner"
+import { useRegistrarVisita } from "@/hooks/use-registrar-visita"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { createClient } from "@/lib/supabase/client"
+import { useRegistrarVisita } from "@/hooks/use-registrar-visita"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 
@@ -28,10 +30,12 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 export default function CadastroPage() {
+  useRegistrarVisita("cadastro")
   const [mostrarSenha, setMostrarSenha] = useState(false)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
   const supabase = createClient()
+  useRegistrarVisita("cadastro")
 
   // Documentos legais
   const [termos, setTermos] = useState<string>("")

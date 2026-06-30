@@ -8,10 +8,12 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { toast } from "sonner"
+import { useRegistrarVisita } from "@/hooks/use-registrar-visita"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { createClient } from "@/lib/supabase/client"
+import { useRegistrarVisita } from "@/hooks/use-registrar-visita"
 
 export const dynamic = "force-dynamic"
 
@@ -28,12 +30,14 @@ type FormLogin = z.infer<typeof schemaLogin>
 type FormRecuperar = z.infer<typeof schemaRecuperar>
 
 export default function LoginPage() {
+  useRegistrarVisita("login")
   const [mostrarSenha, setMostrarSenha] = useState(false)
   const [loading, setLoading] = useState(false)
   const [modoRecuperar, setModoRecuperar] = useState(false)
   const [emailEnviado, setEmailEnviado] = useState(false)
   const router = useRouter()
   const supabase = createClient()
+  useRegistrarVisita("login")
 
   const formLogin = useForm<FormLogin>({ resolver: zodResolver(schemaLogin) })
   const formRecuperar = useForm<FormRecuperar>({ resolver: zodResolver(schemaRecuperar) })

@@ -9,6 +9,7 @@ import {
   Zap, Shield, Clock, TrendingUp, Star, ChevronRight
 } from "lucide-react"
 import { LogoIcon } from "@/components/ui/logo"
+import { useRegistrarVisita } from "@/hooks/use-registrar-visita"
 
 const NAV_LINKS = [
   { label: "Funcionalidades", href: "#funcionalidades" },
@@ -128,6 +129,7 @@ const PLANOS = [
 export function LandingPage() {
   const [menuAberto, setMenuAberto] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  useRegistrarVisita("site")
 
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 20)

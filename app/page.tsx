@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { LandingPage } from "@/components/landing/landing-page"
+import { VisitaTracker } from "@/components/analytics/visita-tracker"
 import { headers } from "next/headers"
 
 export const metadata = {
@@ -29,5 +30,10 @@ export default async function HomePage() {
   }
 
   // Se acessou pelo boragerir.com ou www.boragerir.com → landing page
-  return <LandingPage />
+  return (
+    <>
+      <VisitaTracker pagina="site" />
+      <LandingPage />
+    </>
+  )
 }
