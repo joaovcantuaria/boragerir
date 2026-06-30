@@ -282,9 +282,17 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
         </div>
       )}
       {isNovoCadastro && (
-        <div className="text-center space-y-1">
-          <h2 className="text-2xl font-black">Finalize sua assinatura</h2>
-          <p className="text-muted-foreground text-sm">Um último passo para ativar seu plano <strong>{planoEscolhido.nome}</strong></p>
+        <div className="space-y-3">
+          <button
+            onClick={() => window.location.href = "/onboarding"}
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            ← Voltar para escolha de planos
+          </button>
+          <div className="text-center space-y-1">
+            <h2 className="text-2xl font-black">Finalize sua assinatura</h2>
+            <p className="text-muted-foreground text-sm">Um último passo para ativar seu plano <strong>{planoEscolhido.nome}</strong></p>
+          </div>
         </div>
       )}
 
