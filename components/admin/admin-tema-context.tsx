@@ -34,27 +34,29 @@ const tokensEscuro = {
 }
 
 const tokensClaro = {
-  pageBg:      "bg-gray-50",
+  pageBg:      "bg-[#f0f2f5]",
   cardBg:      "bg-white",
   inputBg:     "bg-white",
-  hoverBg:     "hover:bg-gray-50",
+  hoverBg:     "hover:bg-gray-100",
   hoverBgBtn:  "hover:bg-gray-100",
   border:      "border-gray-200",
   borderLight: "border-gray-100",
   text:        "text-gray-900",
-  textMuted:   "text-gray-400",
-  textMuted2:  "text-gray-400",
-  textMuted3:  "text-gray-500",
-  textMuted4:  "text-gray-600",
-  textMuted5:  "text-gray-300",
-  textMuted6:  "text-gray-700",
+  textMuted:   "text-gray-500",
+  textMuted2:  "text-gray-500",
+  textMuted3:  "text-gray-600",
+  textMuted4:  "text-gray-700",
+  textMuted5:  "text-gray-400",
+  textMuted6:  "text-gray-800",
   inputText:   "text-gray-900 placeholder:text-gray-400",
-  inputBorder: "border-gray-200 focus:border-[#F26E1D]",
-  filterInativo: "bg-gray-100 text-gray-500 hover:bg-gray-200",
+  inputBorder: "border-gray-300 focus:border-[#F26E1D]",
+  // Botões filtro inativos — fundo branco com borda, texto escuro visível
+  filterInativo: "bg-white border border-gray-300 text-gray-700 hover:border-[#F26E1D] hover:text-[#F26E1D]",
   rowHover:    "hover:bg-gray-50",
-  subBg:       "bg-gray-50",
+  // subBg — fundo levemente cinza para containers, não para botões
+  subBg:       "bg-gray-100",
   subBg2:      "bg-gray-50",
-  subBorder:   "border-gray-100",
+  subBorder:   "border-gray-200",
 }
 
 export type AdminTokens = typeof tokensEscuro

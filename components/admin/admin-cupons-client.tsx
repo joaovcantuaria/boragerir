@@ -100,7 +100,7 @@ export function AdminCuponsClient({ cupons: init }: { cupons: Cupom[] }) {
               <div className="space-y-1.5">
                 <label className={`text-xs font-semibold ${t.textMuted3}`}>Tipo *</label>
                 <select value={form.tipo} onChange={(e) => setForm((p) => ({ ...p, tipo: e.target.value }))}
-                  className={`w-full ${t.subBg} border ${t.border} rounded-xl px-3 py-2.5 text-sm ${t.text} focus:outline-none focus:border-primary`}>
+                  className="w-full bg-white border border-gray-300 text-gray-900 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-primary">
                   <option value="percentual">Percentual (%)</option>
                   <option value="fixo">Valor fixo (R$)</option>
                 </select>
@@ -130,7 +130,7 @@ export function AdminCuponsClient({ cupons: init }: { cupons: Cupom[] }) {
             </div>
             <div className="flex gap-3 pt-2">
               <button onClick={() => setModalAberto(false)}
-                className={`flex-1 py-2.5 rounded-xl border ${t.border} ${t.textMuted4} text-sm ${t.hoverBg}`}>
+                className="flex-1 py-2.5 rounded-xl border border-gray-300 text-gray-700 text-sm hover:bg-gray-50 transition-colors">
                 Cancelar
               </button>
               <button onClick={criar} disabled={loading}

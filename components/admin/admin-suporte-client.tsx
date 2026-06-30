@@ -88,7 +88,9 @@ export function AdminSuporteClient({ tickets: init }: { tickets: Ticket[] }) {
         {["todos", "aberto", "em_andamento", "resolvido", "fechado"].map((f) => (
           <button key={f} onClick={() => setFiltro(f)}
             className={`px-3 py-2 rounded-xl text-xs font-bold transition-all capitalize ${
-              filtro === f ? "bg-primary text-white" : t.filterInativo
+              filtro === f
+                ? "bg-primary text-white"
+                : "bg-white border border-gray-300 text-gray-700 hover:border-primary hover:text-primary"
             }`}>
             {f.replace("_", " ")}
           </button>
@@ -157,7 +159,7 @@ export function AdminSuporteClient({ tickets: init }: { tickets: Ticket[] }) {
                         <select
                           value={ticket.status}
                           onChange={(e) => alterarStatus(ticket, e.target.value)}
-                          className={`${t.subBg} border ${t.border} rounded-xl px-3 py-2 text-sm ${t.text} focus:outline-none focus:border-primary`}
+                          className="bg-white border border-gray-300 text-gray-900 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-primary"
                         >
                           <option value="aberto">Aberto</option>
                           <option value="em_andamento">Em andamento</option>

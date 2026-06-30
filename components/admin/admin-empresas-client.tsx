@@ -108,7 +108,7 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
           {["todos", "gratuito", "basico", "profissional", "agenda"].map((p) => (
             <button key={p} onClick={() => setFiltroPlano(p)}
               className={`px-3 py-2 rounded-xl text-xs font-bold transition-all capitalize shrink-0 ${
-                filtroPlano === p ? "bg-primary text-white" : t.filterInativo
+                filtroPlano === p ? "bg-primary text-white" : "bg-white border border-gray-300 text-gray-700 hover:border-primary hover:text-primary"
               }`}>
               {p}
             </button>
