@@ -313,7 +313,7 @@ function CartaoTarefa({ tarefa, blocos, onStatus, onEditar, onExcluir }: {
             {tarefa.prazo && (
               <span className={cn("inline-flex items-center gap-1 text-[10px] font-medium", vencido ? "text-red-500 font-semibold" : "text-muted-foreground")}>
                 <Calendar className="w-3 h-3" />
-                {format(new Date(tarefa.prazo + "T12:00:00"), "dd MMM", { locale: ptBR })}
+                {format(new Date(tarefa.prazo.includes("T") ? tarefa.prazo : tarefa.prazo + "T12:00:00"), tarefa.prazo.includes("T") ? "dd MMM · HH:mm" : "dd MMM", { locale: ptBR })}
                 {vencido && " · vencida"}
               </span>
             )}
@@ -383,6 +383,7 @@ function ModalTarefa({ tarefa, blocoIdInicial, blocos, onSalvar, onFechar }: {
   const [descricao, setDescricao] = useState(tarefa?.descricao ?? "")
   const [prioridade, setPrioridade] = useState<PrioridadeTarefa>(tarefa?.prioridade ?? "media")
   const [prazo, setPrazo] = useState(tarefa?.prazo ? tarefa.prazo.slice(0, 10) : "")
+  const [horario, setHorario] = useState(tarefa?.prazo && tarefa.prazo.includes("T") ? tarefa.prazo.slice(11, 16) : "")
   const [blocoId, setBlocoId] = useState<string | null>(tarefa?.bloco_id ?? blocoIdInicial)
 
   return (
@@ -432,18 +433,24 @@ function ModalTarefa({ tarefa, blocoIdInicial, blocos, onSalvar, onFechar }: {
                 className="w-full h-11 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400" />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-500">Bloco</label>
-              <select value={blocoId ?? ""} onChange={(e) => setBlocoId(e.target.value || null)}
-                className="w-full h-11 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 cursor-pointer">
-                <option value="">Sem bloco</option>
-                {blocos.map((b) => <option key={b.id} value={b.id}>{b.nome}</option>)}
-              </select>
+              <label className="text-xs font-semibold text-gray-500">Horário limite</label>
+              <input type="time" value={horario} onChange={(e) => setHorario(e.target.value)}
+                className="w-full h-11 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400" />
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-gray-500">Bloco</label>
+            <select value={blocoId ?? ""} onChange={(e) => setBlocoId(e.target.value || null)}
+              className="w-full h-11 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 cursor-pointer">
+              <option value="">Sem bloco</option>
+              {blocos.map((b) => <option key={b.id} value={b.id}>{b.nome}</option>)}
+            </select>
           </div>
 
           <div className="flex gap-2 pt-1">
             <button onClick={onFechar} className="flex-1 h-11 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-all bg-white">Cancelar</button>
-            <button onClick={() => onSalvar({ titulo, descricao, prioridade, prazo, blocoId })} disabled={!titulo.trim()}
+            <button onClick={() => onSalvar({ titulo, descricao, prioridade, prazo: prazo && horario ? `${prazo}T${horario}` : prazo, blocoId })} disabled={!titulo.trim()}
               className="flex-1 h-11 rounded-xl text-white text-sm font-bold transition-all disabled:opacity-40"
               style={{ backgroundColor: "#F26E1D" }}>
               {tarefa ? "Salvar" : "Criar Tarefa"}
