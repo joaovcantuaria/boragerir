@@ -413,6 +413,18 @@ tr:hover .row-hover-actions,
 }
 
 /* ============================================================
+   DROPDOWN TOPBAR — fundo sólido garantido em qualquer modo
+   ============================================================ */
+:root {
+  --dropdown-bg: #ffffff;
+  --dropdown-border: #e5e7eb;
+}
+.dark {
+  --dropdown-bg: hsl(222, 25%, 13%);
+  --dropdown-border: hsl(222, 20%, 20%);
+}
+
+/* ============================================================
    FIXES DE TRANSPARÊNCIA — Radix UI
    ============================================================ */
 [data-radix-popper-content-wrapper],

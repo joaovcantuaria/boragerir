@@ -94,8 +94,12 @@ function Dropdown({
             initial={{ opacity: 0, y: -4, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.12 }}
-            className="rounded-lg border shadow-2xl overflow-hidden bg-card border-border"
-            style={style}
+            className="rounded-lg border shadow-2xl overflow-hidden"
+            style={{
+              ...style,
+              backgroundColor: "var(--dropdown-bg, #ffffff)",
+              borderColor: "var(--dropdown-border, #e5e7eb)",
+            }}
           >
             {children}
           </motion.div>
@@ -214,10 +218,17 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl }: TopbarPro
                   key={item.path}
                   href={item.path}
                   onClick={() => setMaisAberto(false)}
-                  className={cn(
-                    "flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-colors",
-                    isActive ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted"
-                  )}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-colors"
+                  style={{
+                    color: isActive ? "#F26E1D" : "#374151",
+                    background: isActive ? "rgba(242,110,29,0.08)" : "transparent",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive) e.currentTarget.style.background = "#f3f4f6"
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive) e.currentTarget.style.background = "transparent"
+                  }}
                 >
                   <div
                     className="w-6 h-6 rounded-md flex items-center justify-center shrink-0"
@@ -302,25 +313,31 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl }: TopbarPro
             </div>
           )}
         >
-          <div className="px-3 py-2.5 border-b border-border">
-            <p className="text-xs font-semibold text-foreground truncate">{empresaNome}</p>
+          <div className="px-3 py-2.5" style={{ borderBottom: "1px solid #e5e7eb" }}>
+            <p className="text-xs font-semibold truncate" style={{ color: "#111827" }}>{empresaNome}</p>
           </div>
           <div className="p-1.5 space-y-0.5">
             <button
               onClick={() => { router.push("/configuracoes"); setUserAberto(false) }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium text-foreground hover:bg-muted transition-colors"
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-colors"
+              style={{ color: "#374151" }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "#f3f4f6" }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
             >
-              <Settings className="w-3.5 h-3.5 text-muted-foreground" />
+              <Settings className="w-3.5 h-3.5" style={{ color: "#9ca3af" }} />
               Configurações
             </button>
             <button
               onClick={() => { router.push("/planos"); setUserAberto(false) }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium text-foreground hover:bg-muted transition-colors"
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-colors"
+              style={{ color: "#374151" }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "#f3f4f6" }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
             >
-              <CreditCard className="w-3.5 h-3.5 text-muted-foreground" />
+              <CreditCard className="w-3.5 h-3.5" style={{ color: "#9ca3af" }} />
               Meu plano
             </button>
-            <div className="border-t border-border my-1" />
+            <div style={{ borderTop: "1px solid #e5e7eb", margin: "4px 0" }} />
             <button
               onClick={handleLogout}
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-colors"
