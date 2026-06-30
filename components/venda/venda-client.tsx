@@ -69,6 +69,7 @@ export function VendaClient({
   const [formaPagamento, setFormaPagamento] = useState<string>("")
   const [parcelas, setParcelas] = useState<string>("1")
   const [observacoes, setObservacoes] = useState("")
+  const [dataVenda, setDataVenda] = useState<string>(new Date().toISOString().slice(0, 10))
   const [buscaCliente, setBuscaCliente] = useState("")
   const [buscaProduto, setBuscaProduto] = useState("")
   const [mostrarBuscaCliente, setMostrarBuscaCliente] = useState(false)
@@ -175,6 +176,7 @@ export function VendaClient({
         parcelas: parseInt(parcelas) || 1,
         status: "concluida",
         observacoes: observacoes || null,
+        created_at: new Date(`${dataVenda}T12:00:00`).toISOString(),
       })
       .select()
       .single()
@@ -595,6 +597,26 @@ export function VendaClient({
               className="text-sm"
               rows={2}
             />
+
+            {/* Data da venda — padrão hoje, permite retroativa */}
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <span>Data da venda</span>
+                {dataVenda !== new Date().toISOString().slice(0, 10) && (
+                  <span className="text-[10px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-900/30 px-1.5 py-0.5 rounded-full">
+                    Retroativa
+                  </span>
+                )}
+              </Label>
+              <Input
+                type="date"
+                value={dataVenda}
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => setDataVenda(e.target.value)}
+                className="h-8 text-sm"
+              />
+            </div>
+
             <Button
               className="w-full gap-2"
               size="lg"
