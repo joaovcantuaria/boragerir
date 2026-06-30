@@ -11,7 +11,7 @@ export default async function AdminEmpresaDetalhePage({ params }: { params: Prom
   const [{ data: empresa }, { data: assinaturas }, { data: notas }, { data: tickets }] =
     await Promise.all([
       supabase.from("empresas").select("*").eq("id", id).single(),
-      supabase.from("assinaturas").select("*").eq("empresa_id", id).order("created_at", { ascending: false }),
+      supabase.from("assinaturas").select("id, plano, periodicidade, status, valor_total, forma_pagamento, created_at, data_fim").eq("empresa_id", id).order("created_at", { ascending: false }),
       supabase.from("notas_admin").select("*").eq("empresa_id", id).order("created_at", { ascending: false }),
       supabase.from("tickets_suporte").select("*").eq("empresa_id", id).order("created_at", { ascending: false }),
     ])
