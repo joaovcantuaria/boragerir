@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import {
   LayoutDashboard, Wallet, ShoppingCart, Calendar,
   Users, ShoppingBag, FileText, UserCheck, BarChart3,
-  CreditCard, Settings, X, CheckSquare
+  CreditCard, Settings, X, CheckSquare, ClipboardList
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState } from "react"
@@ -24,6 +24,7 @@ const navPrincipal = [
 const navExtras = [
   { href: "/produtos-servicos", icon: ShoppingBag,  label: "Produtos/Serviços" },
   { href: "/orcamentos",        icon: FileText,     label: "Orçamentos" },
+  { href: "/contratos",         icon: ClipboardList,label: "Contratos" },
   { href: "/tarefas",           icon: CheckSquare,  label: "Tarefas" },
   { href: "/funcionarios",      icon: UserCheck,    label: "Colaboradores" },
   { href: "/financeiro",        icon: BarChart3,    label: "Financeiro" },
