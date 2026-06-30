@@ -181,55 +181,60 @@ export function TarefasClient({ empresaId, blocosInit, tarefasInit }: Props) {
       )}
 
       {/* Blocos */}
-      <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {blocos.map((bloco) => {
           const lista = filtrar(tarefasDoBloco(bloco.id))
           const all = tarefasDoBloco(bloco.id)
           const concl = all.filter((t) => t.status === "concluido").length
           const col = colapsados.has(bloco.id)
           return (
-            <div key={bloco.id} className="rounded-2xl border border-border overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 bg-muted/30">
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: bloco.cor }} />
+            <div key={bloco.id} className="rounded-2xl border border-border overflow-hidden flex flex-col">
+              {/* Header do bloco */}
+              <div className="flex items-center justify-between px-3.5 py-2.5 bg-muted/30">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: bloco.cor }} />
                   <span className="font-bold text-sm truncate">{bloco.nome}</span>
                   <span className="text-xs text-muted-foreground shrink-0">{concl}/{all.length}</span>
-                  {all.length > 0 && (
-                    <div className="h-1 w-20 bg-border rounded-full overflow-hidden shrink-0">
-                      <div className="h-full rounded-full transition-all duration-500" style={{ width: `${(concl/all.length)*100}%`, backgroundColor: bloco.cor }} />
-                    </div>
-                  )}
                 </div>
                 <div className="flex items-center gap-0.5 shrink-0">
-                  <button onClick={() => setModalTarefa({ aberto: true, blocoId: bloco.id })} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title="Adicionar tarefa">
-                    <Plus className="w-3.5 h-3.5" />
+                  <button onClick={() => setModalTarefa({ aberto: true, blocoId: bloco.id })} className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title="Adicionar tarefa">
+                    <Plus className="w-3 h-3" />
                   </button>
-                  <button onClick={() => { setBlocoEditando(bloco); setNomeBlocoInput(bloco.nome); setCorBlocoInput(bloco.cor); setModalBloco(true) }} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-                    <Edit2 className="w-3.5 h-3.5" />
+                  <button onClick={() => { setBlocoEditando(bloco); setNomeBlocoInput(bloco.nome); setCorBlocoInput(bloco.cor); setModalBloco(true) }} className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                    <Edit2 className="w-3 h-3" />
                   </button>
-                  <button onClick={() => excluirBloco(bloco)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-red-500 transition-colors">
-                    <Trash2 className="w-3.5 h-3.5" />
+                  <button onClick={() => excluirBloco(bloco)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-red-500 transition-colors">
+                    <Trash2 className="w-3 h-3" />
                   </button>
-                  <button onClick={() => toggleColapso(bloco.id)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-                    {col ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
+                  <button onClick={() => toggleColapso(bloco.id)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                    {col ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
                   </button>
                 </div>
               </div>
+
+              {/* Barra de progresso */}
+              {all.length > 0 && (
+                <div className="h-0.5 bg-border">
+                  <div className="h-full transition-all duration-500" style={{ width: `${(concl/all.length)*100}%`, backgroundColor: bloco.cor }} />
+                </div>
+              )}
+
+              {/* Tarefas do bloco */}
               <AnimatePresence>
                 {!col && (
-                  <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden">
-                    <div className="p-3 space-y-2">
+                  <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden flex-1">
+                    <div className="p-2.5 space-y-1.5">
                       {lista.length > 0 ? lista.map((t) => (
                         <CartaoTarefa key={t.id} tarefa={t} blocos={blocos} onStatus={alterarStatus}
                           onEditar={(t) => setModalTarefa({ aberto: true, tarefa: t })} onExcluir={excluirTarefa} />
                       )) : (
-                        <p className="text-xs text-muted-foreground text-center py-6">
-                          {filtroStatus !== "todos" || filtroPrioridade !== "todos" ? "Nenhuma tarefa com esses filtros" : "Nenhuma tarefa ainda"}
+                        <p className="text-xs text-muted-foreground text-center py-5">
+                          {filtroStatus !== "todos" || filtroPrioridade !== "todos" ? "Sem tarefas com esses filtros" : "Nenhuma tarefa"}
                         </p>
                       )}
                       <button onClick={() => setModalTarefa({ aberto: true, blocoId: bloco.id })}
-                        className="w-full flex items-center gap-2 py-2.5 px-3 rounded-xl text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all border border-dashed border-border">
-                        <Plus className="w-3.5 h-3.5" />Adicionar tarefa
+                        className="w-full flex items-center gap-1.5 py-2 px-2.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all border border-dashed border-border mt-1">
+                        <Plus className="w-3 h-3" />Adicionar tarefa
                       </button>
                     </div>
                   </motion.div>
