@@ -137,29 +137,55 @@ export function AgendamentosClient({
   }
 
   async function alterarStatus(id: string, status: string) {
-    const { error } = await supabase.from("agendamentos").update({ status }).eq("id", id)
-    if (error) { toast.error("Erro ao atualizar status."); return }
+    // Optimistic update
+    const statusAnterior = agendamentos.find((a) => a.id === id)?.status
     setAgendamentos((prev) => prev.map((a) => a.id === id ? { ...a, status } : a))
+    const { error } = await supabase.from("agendamentos").update({ status }).eq("id", id)
+    if (error) {
+      // Reverter em caso de erro
+      setAgendamentos((prev) => prev.map((a) => a.id === id ? { ...a, status: statusAnterior ?? a.status } : a))
+      toast.error("Erro ao atualizar status.")
+      return
+    }
     toast.success(`Status: "${labelsStatus[status] ?? status}"`)
   }
 
+  const [processando, setProcessando] = useState<Set<string>>(new Set())
+
   async function confirmarAgendamento(id: string, acao: "confirmar" | "espera" | "cancelar") {
-    const res = await fetch("/api/agendamentos/confirmar", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ agendamento_id: id, acao }),
-    })
-    const data = await res.json()
-    if (res.ok) {
-      setAgendamentos((prev) => prev.map((a) => a.id === id ? { ...a, status: data.status } : a))
-      const msgs: Record<string, string> = {
-        confirmar: "✅ Confirmado! E-mail enviado ao cliente.",
-        espera: "⏳ Na lista de espera. Cliente notificado.",
-        cancelar: "❌ Cancelado.",
+    // Marcar como processando para desabilitar botões
+    setProcessando((p) => new Set(p).add(id))
+
+    // Optimistic update — remove da lista de solicitações imediatamente
+    const novoStatusOtimista = acao === "confirmar" ? "confirmado" : acao === "espera" ? "espera" : "cancelado"
+    setAgendamentos((prev) => prev.map((a) => a.id === id ? { ...a, status: novoStatusOtimista } : a))
+
+    try {
+      const res = await fetch("/api/agendamentos/confirmar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agendamento_id: id, acao }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        // Confirma com o status real retornado pela API
+        setAgendamentos((prev) => prev.map((a) => a.id === id ? { ...a, status: data.status } : a))
+        const msgs: Record<string, string> = {
+          confirmar: "✅ Confirmado! E-mail enviado ao cliente.",
+          espera: "⏳ Na lista de espera. Cliente notificado.",
+          cancelar: "❌ Cancelado.",
+        }
+        toast.success(msgs[acao])
+      } else {
+        // Reverter o optimistic update em caso de erro
+        setAgendamentos((prev) => prev.map((a) => a.id === id ? { ...a, status: "solicitado" } : a))
+        toast.error(data.erro ?? "Erro ao processar.")
       }
-      toast.success(msgs[acao])
-    } else {
-      toast.error(data.erro ?? "Erro ao processar.")
+    } catch {
+      setAgendamentos((prev) => prev.map((a) => a.id === id ? { ...a, status: "solicitado" } : a))
+      toast.error("Erro de conexão.")
+    } finally {
+      setProcessando((p) => { const novo = new Set(p); novo.delete(id); return novo })
     }
   }
 
@@ -220,15 +246,19 @@ export function AgendamentosClient({
                 </div>
                 <div className="flex gap-1.5">
                   <button onClick={() => confirmarAgendamento(ag.id, "confirmar")}
-                    className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 transition-colors">
-                    <CheckCircle className="w-3 h-3" />Confirmar
+                    disabled={processando.has(ag.id)}
+                    className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 transition-colors disabled:opacity-60">
+                    {processando.has(ag.id) ? <span className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" /> : <CheckCircle className="w-3 h-3" />}
+                    Confirmar
                   </button>
                   <button onClick={() => confirmarAgendamento(ag.id, "espera")}
-                    className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-amber-500 text-white text-xs font-bold hover:bg-amber-600 transition-colors">
+                    disabled={processando.has(ag.id)}
+                    className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-amber-500 text-white text-xs font-bold hover:bg-amber-600 transition-colors disabled:opacity-60">
                     <Clock3 className="w-3 h-3" />Espera
                   </button>
                   <button onClick={() => confirmarAgendamento(ag.id, "cancelar")}
-                    className="px-2 py-1.5 rounded-lg border border-red-200 text-red-500 text-xs hover:bg-red-50 transition-colors">
+                    disabled={processando.has(ag.id)}
+                    className="px-2 py-1.5 rounded-lg border border-red-200 text-red-500 text-xs hover:bg-red-50 transition-colors disabled:opacity-60">
                     <XCircle className="w-3.5 h-3.5" />
                   </button>
                 </div>
