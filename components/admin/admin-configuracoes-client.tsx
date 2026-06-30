@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Plus, Trash2, Loader2, Save, Settings, DollarSign } from "lucide-react"
+import { Plus, Trash2, Loader2, Save, Settings, DollarSign, FileText } from "lucide-react"
 import { toast } from "sonner"
 import { useAdminTema } from "@/components/admin/admin-tema-context"
 
@@ -31,16 +31,45 @@ interface AppConfig {
 export function AdminConfiguracoesClient({
   planos: planosInit,
   appConfig: appInit,
+  termosUso: termosInit = "",
+  politicaPrivacidade: politicaInit = "",
 }: {
   planos: Record<string, PlanoConfig>
   appConfig: AppConfig
+  termosUso?: string
+  politicaPrivacidade?: string
 }) {
   const [planos, setPlanos] = useState<Record<string, PlanoConfig>>(planosInit)
   const [appConfig, setAppConfig] = useState<AppConfig>(appInit)
   const [loading, setLoading] = useState(false)
-  const [aba, setAba] = useState<"planos" | "app">("planos")
+  const [aba, setAba] = useState<"planos" | "app" | "documentos">("planos")
   const [novoRecurso, setNovoRecurso] = useState<Record<string, string>>({})
+  const [termosTexto, setTermosTexto] = useState(typeof termosInit === "string" ? termosInit : "")
+  const [politicaTexto, setPoliticaTexto] = useState(typeof politicaInit === "string" ? politicaInit : "")
+  const [loadingDocs, setLoadingDocs] = useState(false)
+  const [docsCarregados, setDocsCarregados] = useState(true) // já carregados via SSR
   const t = useAdminTema()
+
+  async function carregarDocumentos() {
+    if (docsCarregados) return
+    const res = await fetch("/api/documentos-legais")
+    const data = await res.json()
+    setTermosTexto(typeof data.termos === "string" ? data.termos : (data.termos?.texto ?? ""))
+    setPoliticaTexto(typeof data.politica === "string" ? data.politica : (data.politica?.texto ?? ""))
+    setDocsCarregados(true)
+  }
+
+  async function salvarDocumento(chave: "termos_uso" | "politica_privacidade", texto: string) {
+    setLoadingDocs(true)
+    const res = await fetch("/api/admin/configuracoes/salvar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chave, valor: texto }),
+    })
+    if (res.ok) toast.success("Documento salvo!")
+    else toast.error("Erro ao salvar.")
+    setLoadingDocs(false)
+  }
 
   function atualizarPlano(planoId: string, campo: string, valor: string | number | boolean) {
     setPlanos((prev) => ({
@@ -110,8 +139,9 @@ export function AdminConfiguracoesClient({
         {[
           { id: "planos", label: "Planos e Preços", icon: DollarSign },
           { id: "app", label: "Configurações do App", icon: Settings },
+          { id: "documentos", label: "Documentos Legais", icon: FileText },
         ].map(({ id, label, icon: Icon }) => (
-          <button key={id} onClick={() => setAba(id as "planos" | "app")}
+          <button key={id} onClick={() => { setAba(id as "planos" | "app" | "documentos"); if (id === "documentos") carregarDocumentos() }}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
               aba === id ? "bg-primary text-white" : t.filterInativo
             }`}>
@@ -258,6 +288,65 @@ export function AdminConfiguracoesClient({
             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
             Salvar configurações
           </button>
+        </div>
+      )}
+
+      {/* Documentos Legais */}
+      {aba === "documentos" && (
+        <div className="space-y-6 max-w-3xl">
+          <p className={`text-sm ${t.textMuted}`}>
+            Edite os textos dos documentos legais. Eles serão exibidos na tela de cadastro e devem ser aceitos pelo usuário antes de criar a conta.
+          </p>
+
+          {/* Termos de Uso */}
+          <div className={`${t.cardBg} border ${t.border} rounded-2xl p-5 space-y-4`}>
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-primary" />
+              <h3 className={`font-black ${t.text}`}>Termos de Uso</h3>
+            </div>
+            <p className={`text-xs ${t.textMuted}`}>
+              Use markdown básico: **negrito**, # Título, ## Subtítulo, - lista. O texto será exibido no popup da tela de cadastro.
+            </p>
+            <textarea
+              value={termosTexto}
+              onChange={(e) => setTermosTexto(e.target.value)}
+              rows={16}
+              placeholder="# Termos de Uso do Bora Gerir&#10;&#10;## 1. Aceitação dos Termos&#10;Ao criar uma conta..."
+              className={`w-full ${t.inputBg} border ${t.inputBorder} rounded-xl px-4 py-3 text-sm ${t.inputText} focus:outline-none focus:border-primary font-mono resize-y`}
+            />
+            <button
+              onClick={() => salvarDocumento("termos_uso", termosTexto)}
+              disabled={loadingDocs}
+              className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-primary/90 disabled:opacity-50">
+              {loadingDocs ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              Salvar Termos de Uso
+            </button>
+          </div>
+
+          {/* Política de Privacidade */}
+          <div className={`${t.cardBg} border ${t.border} rounded-2xl p-5 space-y-4`}>
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-blue-400" />
+              <h3 className={`font-black ${t.text}`}>Política de Privacidade</h3>
+            </div>
+            <p className={`text-xs ${t.textMuted}`}>
+              Use markdown básico: **negrito**, # Título, ## Subtítulo, - lista.
+            </p>
+            <textarea
+              value={politicaTexto}
+              onChange={(e) => setPoliticaTexto(e.target.value)}
+              rows={16}
+              placeholder="# Política de Privacidade do Bora Gerir&#10;&#10;## 1. Informações coletadas&#10;Coletamos as seguintes informações..."
+              className={`w-full ${t.inputBg} border ${t.inputBorder} rounded-xl px-4 py-3 text-sm ${t.inputText} focus:outline-none focus:border-primary font-mono resize-y`}
+            />
+            <button
+              onClick={() => salvarDocumento("politica_privacidade", politicaTexto)}
+              disabled={loadingDocs}
+              className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-blue-700 disabled:opacity-50">
+              {loadingDocs ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              Salvar Política de Privacidade
+            </button>
+          </div>
         </div>
       )}
     </div>
