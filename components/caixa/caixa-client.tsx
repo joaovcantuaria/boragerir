@@ -44,6 +44,7 @@ type Movimentacao = {
 interface CaixaClientProps {
   empresaId: string
   userId: string
+  plano?: string
   caixaAberto: {
     id: string; valor_abertura: number; data_abertura: string; observacoes_abertura?: string | null
   } | null
@@ -51,7 +52,7 @@ interface CaixaClientProps {
   caixasAnteriores: CaixaAnterior[]
 }
 
-export function CaixaClient({ empresaId, userId, caixaAberto: caixaInicial, movimentacoes: movsIniciais, caixasAnteriores: caixasAntInit }: CaixaClientProps) {
+export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto: caixaInicial, movimentacoes: movsIniciais, caixasAnteriores: caixasAntInit }: CaixaClientProps) {
   const [caixa, setCaixa] = useState(caixaInicial)
   const [movimentacoes, setMovimentacoes] = useState(movsIniciais)
   const [caixasAnteriores, setCaixasAnteriores] = useState<CaixaAnterior[]>(caixasAntInit)
@@ -192,6 +193,8 @@ export function CaixaClient({ empresaId, userId, caixaAberto: caixaInicial, movi
     setLoading(false)
   }
 
+  const temCaixasAnteriores = ["basico", "profissional"].includes(plano)
+
   return (
     <div className="space-y-6">
       <div>
@@ -205,15 +208,17 @@ export function CaixaClient({ empresaId, userId, caixaAberto: caixaInicial, movi
             <Wallet className="w-4 h-4" />
             Caixa Atual
           </TabsTrigger>
-          <TabsTrigger value="anteriores" className="gap-2">
-            <History className="w-4 h-4" />
-            Caixas Anteriores
-            {caixasAnteriores.length > 0 && (
-              <span className="bg-muted text-muted-foreground text-xs font-bold px-1.5 py-0.5 rounded-full">
-                {caixasAnteriores.length}
-              </span>
-            )}
-          </TabsTrigger>
+          {temCaixasAnteriores && (
+            <TabsTrigger value="anteriores" className="gap-2">
+              <History className="w-4 h-4" />
+              Caixas Anteriores
+              {caixasAnteriores.length > 0 && (
+                <span className="bg-muted text-muted-foreground text-xs font-bold px-1.5 py-0.5 rounded-full">
+                  {caixasAnteriores.length}
+                </span>
+              )}
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* ── ABA ATUAL ── */}
@@ -316,15 +321,17 @@ export function CaixaClient({ empresaId, userId, caixaAberto: caixaInicial, movi
         </TabsContent>
 
         {/* ── ABA CAIXAS ANTERIORES ── */}
-        <TabsContent value="anteriores" className="mt-4">
-          <CaixasAnterioresTab
-            caixas={caixasAnteriores}
-            busca={buscaAnt}
-            setBusca={setBuscaAnt}
-            onVerDetalhe={verDetalheCaixa}
-            loadingDetalhe={loadingDetalhe}
-          />
-        </TabsContent>
+        {temCaixasAnteriores && (
+          <TabsContent value="anteriores" className="mt-4">
+            <CaixasAnterioresTab
+              caixas={caixasAnteriores}
+              busca={buscaAnt}
+              setBusca={setBuscaAnt}
+              onVerDetalhe={verDetalheCaixa}
+              loadingDetalhe={loadingDetalhe}
+            />
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Modal detalhe caixa anterior */}

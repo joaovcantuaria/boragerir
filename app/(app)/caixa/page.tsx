@@ -34,22 +34,28 @@ export default async function CaixaPage() {
     movimentacoes = data ?? []
   }
 
-  // Caixas anteriores (últimos 30 fechados)
-  const { data: caixasAnteriores } = await supabase
-    .from("caixas")
-    .select("*")
-    .eq("empresa_id", empresa.id)
-    .eq("status", "fechado")
-    .order("data_abertura", { ascending: false })
-    .limit(30)
+  // Caixas anteriores disponíveis apenas nos planos Básico e Profissional
+  const planosComCaixasAnteriores = ["basico", "profissional"]
+  let caixasAnteriores: any[] = []
+  if (planosComCaixasAnteriores.includes(empresa.plano)) {
+    const { data } = await supabase
+      .from("caixas")
+      .select("*")
+      .eq("empresa_id", empresa.id)
+      .eq("status", "fechado")
+      .order("data_abertura", { ascending: false })
+      .limit(30)
+    caixasAnteriores = data ?? []
+  }
 
   return (
     <CaixaClient
       empresaId={empresa.id}
       userId={user.id}
+      plano={empresa.plano}
       caixaAberto={caixaAberto ?? null}
       movimentacoes={movimentacoes}
-      caixasAnteriores={caixasAnteriores ?? []}
+      caixasAnteriores={caixasAnteriores}
     />
   )
 }

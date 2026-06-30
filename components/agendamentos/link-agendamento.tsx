@@ -60,12 +60,18 @@ export function LinkAgendamento({ empresaSlug, empresaId, plano }: LinkAgendamen
     }
   }
 
-  if (plano === "gratuito") {
+  // Link público de agendamento online: apenas planos Agenda e Profissional
+  const planosComAgendamentoOnline = ["agenda", "profissional"]
+  if (!planosComAgendamentoOnline.includes(plano)) {
     return (
       <div className="p-4 rounded-2xl border border-dashed border-border bg-muted/40 text-center">
         <Link2 className="w-8 h-8 mx-auto mb-2 text-muted-foreground opacity-40" />
-        <p className="text-sm font-semibold text-foreground">Agendamento online</p>
-        <p className="text-xs text-muted-foreground mt-1">Disponível a partir do Plano Básico.</p>
+        <p className="text-sm font-semibold text-foreground">Agendamento online público</p>
+        <p className="text-xs text-muted-foreground mt-1">
+          {plano === "basico"
+            ? "O Plano Básico inclui gestão de agenda interna. O link público está disponível no Plano Profissional."
+            : "Disponível nos planos Agendamento Online e Profissional."}
+        </p>
         <a href="/planos" className="mt-3 inline-block text-xs text-primary font-bold hover:underline">
           Fazer upgrade →
         </a>

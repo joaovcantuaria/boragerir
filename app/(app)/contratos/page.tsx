@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { ContratosClient } from "@/components/contratos/contratos-client"
 import { redirect } from "next/navigation"
+import Link from "next/link"
 
 export const dynamic = "force-dynamic"
 export const metadata = { title: "Contratos" }
@@ -11,8 +12,29 @@ export default async function ContratosPage() {
   if (!user) redirect("/login")
 
   const { data: empresa } = await supabase
-    .from("empresas").select("id, plano").eq("user_id", user.id).single()
+    .from("empresas").select("id, plano, plano_ativo").eq("user_id", user.id).single()
   if (!empresa) redirect("/onboarding")
+
+  // Contratos disponível apenas nos planos Básico e Profissional
+  const planosComContratos = ["basico", "profissional"]
+  if (!planosComContratos.includes(empresa.plano) || !empresa.plano_ativo) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 text-center px-4">
+        <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center text-3xl">📄</div>
+        <div>
+          <h2 className="text-2xl font-black">Gestão de Contratos</h2>
+          <p className="text-muted-foreground mt-2 max-w-sm">
+            A gestão de contratos recorrentes está disponível nos planos <strong>Básico</strong> e <strong>Profissional</strong>.
+          </p>
+        </div>
+        <Link href="/planos"
+          className="px-6 py-3 rounded-xl font-bold text-white text-sm hover:opacity-90 transition-opacity"
+          style={{ backgroundColor: "#F26E1D" }}>
+          Ver planos →
+        </Link>
+      </div>
+    )
+  }
 
   const [
     { data: contratos },

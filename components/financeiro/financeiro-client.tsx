@@ -199,10 +199,12 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
         <TabsList>
           <TabsTrigger value="faturamento">Faturamento</TabsTrigger>
           <TabsTrigger value="vendas">Vendas</TabsTrigger>
-          <TabsTrigger value="areceber" className="gap-2">
-            A Receber
-            {totalAReceber > 0 && <span className="bg-amber-500 text-white text-xs font-black px-1.5 py-0.5 rounded-full">{debitos.length}</span>}
-          </TabsTrigger>
+          {plano !== "gratuito" && (
+            <TabsTrigger value="areceber" className="gap-2">
+              A Receber
+              {totalAReceber > 0 && <span className="bg-amber-500 text-white text-xs font-black px-1.5 py-0.5 rounded-full">{debitos.length}</span>}
+            </TabsTrigger>
+          )}
           <TabsTrigger value="formas">Formas de pagamento</TabsTrigger>
           <TabsTrigger value="contaspagar" className="gap-2">
             Contas a Pagar
@@ -213,7 +215,9 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
             )}
           </TabsTrigger>
           <TabsTrigger value="fluxo">Fluxo de Caixa</TabsTrigger>
-          <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
+          {plano !== "gratuito" && (
+            <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="faturamento" className="mt-4">
@@ -369,10 +373,12 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
           />
         </TabsContent>
 
-        {/* ── ABA RELATÓRIOS ── */}
-        <TabsContent value="relatorios" className="mt-4">
-          <RelatoriosTab vendas={vendas} movimentacoes={movimentacoes} funcionarios={funcionarios} debitos={debitos} empresaId={empresaId} />
-        </TabsContent>
+        {/* ── ABA RELATÓRIOS — disponível apenas nos planos pagos ── */}
+        {plano !== "gratuito" && (
+          <TabsContent value="relatorios" className="mt-4">
+            <RelatoriosTab vendas={vendas} movimentacoes={movimentacoes} funcionarios={funcionarios} debitos={debitos} empresaId={empresaId} />
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Modal de edição */}

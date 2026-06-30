@@ -78,12 +78,17 @@ export type InfoPlano = {
   limiteClientes: number | null
   limiteProdutos: number | null
   limiteFuncionarios: number | null
-  agendamentoOnline: boolean
+  agendamentoOnline: boolean      // link público de agendamento (agenda e profissional)
+  gestaoAgendaInterna: boolean    // gestão de agenda interna (basico, profissional, agenda)
   lembretesAutomaticos: boolean
   marcaDagua: boolean
   fidelidade: boolean
   relatoriosAvancados: boolean
   exportacaoExcel: boolean
+  tarefas: boolean                // módulo tarefas (agenda, basico, profissional)
+  contratos: boolean              // gestão de contratos (basico, profissional)
+  debito: boolean                 // deixar em débito (basico, profissional)
+  caixasAnteriores: boolean       // acesso a caixas anteriores (basico, profissional)
 }
 
 export const planosInfo: Record<Plano, InfoPlano> = {
@@ -94,11 +99,16 @@ export const planosInfo: Record<Plano, InfoPlano> = {
     limiteProdutos: 10,
     limiteFuncionarios: 0,
     agendamentoOnline: false,
+    gestaoAgendaInterna: false,
     lembretesAutomaticos: false,
     marcaDagua: true,
     fidelidade: false,
     relatoriosAvancados: false,
     exportacaoExcel: false,
+    tarefas: false,
+    contratos: false,
+    debito: false,
+    caixasAnteriores: false,
   },
   basico: {
     nome: "Básico",
@@ -106,12 +116,17 @@ export const planosInfo: Record<Plano, InfoPlano> = {
     limiteClientes: 200,
     limiteProdutos: null,
     limiteFuncionarios: 3,
-    agendamentoOnline: false,  // Gestão de agenda interna — sem link público
+    agendamentoOnline: false,       // apenas gestão interna, sem link público
+    gestaoAgendaInterna: true,
     lembretesAutomaticos: false,
     marcaDagua: false,
     fidelidade: false,
     relatoriosAvancados: true,
     exportacaoExcel: false,
+    tarefas: true,
+    contratos: true,
+    debito: true,
+    caixasAnteriores: true,
   },
   profissional: {
     nome: "Profissional",
@@ -120,11 +135,16 @@ export const planosInfo: Record<Plano, InfoPlano> = {
     limiteProdutos: null,
     limiteFuncionarios: null,
     agendamentoOnline: true,
+    gestaoAgendaInterna: true,
     lembretesAutomaticos: true,
     marcaDagua: false,
     fidelidade: true,
     relatoriosAvancados: true,
     exportacaoExcel: true,
+    tarefas: true,
+    contratos: true,
+    debito: true,
+    caixasAnteriores: true,
   },
   agenda: {
     nome: "Agenda",
@@ -133,11 +153,16 @@ export const planosInfo: Record<Plano, InfoPlano> = {
     limiteProdutos: null,
     limiteFuncionarios: 3,
     agendamentoOnline: true,
+    gestaoAgendaInterna: true,
     lembretesAutomaticos: false,
     marcaDagua: false,
     fidelidade: false,
     relatoriosAvancados: false,
     exportacaoExcel: false,
+    tarefas: true,
+    contratos: false,
+    debito: false,
+    caixasAnteriores: false,
   },
 }
 

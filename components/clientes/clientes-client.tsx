@@ -109,6 +109,8 @@ export function ClientesClient({
     defaultValues: { tipo_pessoa: "pf" },
   })
 
+  const temDebito = ["basico", "profissional"].includes(plano)
+
   const clientesFiltrados = clientes.filter((c) => {
     const termo = busca.toLowerCase()
     return (
@@ -253,7 +255,7 @@ export function ClientesClient({
           <p className="text-muted-foreground">{clientes.length} cliente{clientes.length !== 1 ? "s" : ""} cadastrado{clientes.length !== 1 ? "s" : ""}</p>
         </div>
         <div className="flex items-center gap-2">
-          {debitos.length > 0 && (
+          {temDebito && debitos.length > 0 && (
             <Button variant="outline" onClick={() => abrirQuitarDebito()} className="gap-2 border-amber-400 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10">
               <AlertTriangle className="w-4 h-4" />
               <span className="hidden sm:inline">Quitar Débitos</span>
@@ -270,10 +272,12 @@ export function ClientesClient({
       <Tabs defaultValue="clientes">
         <TabsList>
           <TabsTrigger value="clientes">Clientes</TabsTrigger>
-          <TabsTrigger value="debitos" className="gap-2">
-            Débitos
-            {debitos.length > 0 && <span className="bg-amber-500 text-white text-xs font-black px-1.5 py-0.5 rounded-full">{debitos.length}</span>}
-          </TabsTrigger>
+          {temDebito && (
+            <TabsTrigger value="debitos" className="gap-2">
+              Débitos
+              {debitos.length > 0 && <span className="bg-amber-500 text-white text-xs font-black px-1.5 py-0.5 rounded-full">{debitos.length}</span>}
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="clientes" className="mt-4 space-y-4">
@@ -317,7 +321,7 @@ export function ClientesClient({
                               <Star className="w-2.5 h-2.5" />{cliente.pontos_fidelidade} pts
                             </Badge>
                           )}
-                          {totalDebitoCliente(cliente.id) > 0 && (
+                          {temDebito && totalDebitoCliente(cliente.id) > 0 && (
                             <Badge className="text-xs gap-1 bg-amber-500/10 text-amber-600 border-amber-400/30 cursor-pointer hover:bg-amber-500/20"
                               onClick={(e) => { e.stopPropagation(); abrirQuitarDebito(cliente.id) }}>
                               <AlertTriangle className="w-2.5 h-2.5" />
