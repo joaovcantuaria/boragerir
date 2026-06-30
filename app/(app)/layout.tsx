@@ -3,16 +3,14 @@
 import { useState, useEffect } from "react"
 import { usePathname } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { Sidebar } from "@/components/layout/sidebar"
-import { Header } from "@/components/layout/header"
+import { Topbar } from "@/components/layout/topbar"
 import { MobileNav } from "@/components/layout/mobile-nav"
 import { ChatIA } from "@/components/chat/chat-ia"
 import { useEmpresa } from "@/hooks/use-empresa"
 import { useRealtimeRefresh } from "@/hooks/use-realtime-refresh"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
-import { cn } from "@/lib/utils"
 
-// Painel de atalhos — exibido com ?
+// Painel de atalhos
 function ShortcutPanel({ onClose }: { onClose: () => void }) {
   const shortcuts = [
     { key: "N", label: "Nova Venda" },
@@ -41,7 +39,7 @@ function ShortcutPanel({ onClose }: { onClose: () => void }) {
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="font-semibold text-sm mb-4 text-foreground">Atalhos de teclado</h3>
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           {shortcuts.map((s) => (
             <div key={s.key} className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">{s.label}</span>
@@ -56,7 +54,6 @@ function ShortcutPanel({ onClose }: { onClose: () => void }) {
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const [collapsed, setCollapsed] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
   const { empresa } = useEmpresa()
   const pathname = usePathname()
@@ -66,7 +63,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useRealtimeRefresh(empresa?.id)
   useKeyboardShortcuts()
 
-  // Atalho ? para mostrar painel de atalhos
+  // Atalho ? para mostrar painel
   useEffect(() => {
     function handler(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement).tagName
@@ -78,34 +75,30 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener("keydown", handler)
   }, [])
 
-  const sidebarW = collapsed ? 52 : 220
-
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
+
+      {/* Topbar — navegação no topo */}
       {!isPlanoAgenda && (
-        <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
+        <Topbar
+          empresaNome={empresa?.nome}
+          empresaLogoUrl={empresa?.logo_url}
+        />
       )}
 
-      <div
-        className="transition-all duration-200 flex flex-col min-h-screen"
-        style={{ marginLeft: isPlanoAgenda ? 0 : sidebarW }}
-      >
-        <Header empresaNome={empresa?.nome} empresaLogoUrl={empresa?.logo_url} />
-
-        {/* Animação de transição de página */}
-        <AnimatePresence mode="wait">
-          <motion.main
-            key={pathname}
-            initial={{ opacity: 0, y: 5 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -3 }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
-            className="flex-1 p-4 lg:p-5 pb-20 md:pb-5"
-          >
-            {children}
-          </motion.main>
-        </AnimatePresence>
-      </div>
+      {/* Conteúdo com animação de transição */}
+      <AnimatePresence mode="wait">
+        <motion.main
+          key={pathname}
+          initial={{ opacity: 0, y: 5 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -3 }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
+          className="flex-1 p-4 lg:p-5 pb-20 md:pb-5 max-w-[1600px] w-full mx-auto"
+        >
+          {children}
+        </motion.main>
+      </AnimatePresence>
 
       <MobileNav plano={plano} />
       {!isPlanoAgenda && <ChatIA />}
