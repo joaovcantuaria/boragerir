@@ -2,9 +2,8 @@ import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 import type { Database } from "@/types/database"
 
-// Permissões por perfil — quais rotas cada perfil pode acessar no admin
 const PERMISSOES: Record<string, string[]> = {
-  super_admin: ["/admin"],                                                        // tudo
+  super_admin: ["/admin"],
   quase_admin: ["/admin", "/admin/empresas", "/admin/assinaturas", "/admin/vendedores", "/admin/cupons", "/admin/atendimentos-ia", "/admin/suporte"],
   vendas:      ["/admin/empresas", "/admin/assinaturas"],
   atendimento: ["/admin/atendimentos-ia", "/admin/suporte"],
@@ -14,6 +13,36 @@ function temPermissao(perfil: string, pathname: string): boolean {
   if (perfil === "super_admin") return true
   const permitidas = PERMISSOES[perfil] ?? []
   return permitidas.some((r) => pathname === r || pathname.startsWith(r + "/"))
+}
+
+// Verifica admin usando service role (preferencial) ou RPC como fallback
+async function verificarAdmin(
+  email: string,
+  url: string,
+  key: string,
+  serviceKey: string | undefined
+): Promise<{ ativo: boolean; perfil: string } | null> {
+  try {
+    if (serviceKey) {
+      const { createClient } = await import("@supabase/supabase-js")
+      const admin = createClient(url, serviceKey, { auth: { persistSession: false } })
+      const { data } = await admin
+        .from("usuarios_admin")
+        .select("perfil, ativo")
+        .eq("email", email)
+        .maybeSingle()
+      return data ?? null
+    }
+
+    // Fallback: RPC com SECURITY DEFINER (não precisa de service role)
+    const { createClient } = await import("@supabase/supabase-js")
+    const client = createClient(url, key, { auth: { persistSession: false } })
+    const { data } = await client.rpc("verificar_usuario_admin", { p_email: email })
+    if (data && data.length > 0) return data[0]
+    return null
+  } catch {
+    return null
+  }
 }
 
 export async function updateSession(request: NextRequest) {
@@ -41,11 +70,10 @@ export async function updateSession(request: NextRequest) {
 
   const rotasPublicas = ["/login", "/cadastro", "/"]
   const eRotaPublica = rotasPublicas.some((r) => pathname === r || pathname.startsWith("/auth/"))
-  const eRotaAdmin = pathname.startsWith("/admin")
+  const eRotaAdmin   = pathname.startsWith("/admin")
   const eRotaAgendar = pathname.startsWith("/agendar/")
-  const eRotaApi = pathname.startsWith("/api/")
+  const eRotaApi     = pathname.startsWith("/api/")
 
-  // Rotas públicas de agendamento e APIs não precisam de redirect pelo middleware
   if (eRotaAgendar || eRotaApi) return supabaseResponse
 
   if (!user && !eRotaPublica) {
@@ -54,79 +82,52 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(redirectUrl)
   }
 
+  // Usuário logado tentando acessar login/cadastro
   if (user && (pathname === "/login" || pathname === "/cadastro")) {
-    // Checar se é admin ANTES de redirecionar para dashboard
-    if (serviceKey) {
-      const { createClient } = await import("@supabase/supabase-js")
-      const adminClient = createClient(url, serviceKey, { auth: { persistSession: false } })
-      const { data: usuarioAdmin } = await adminClient
-        .from("usuarios_admin")
-        .select("ativo")
-        .eq("email", user.email ?? "")
-        .maybeSingle()
-
-      if (usuarioAdmin?.ativo) {
-        const redirectUrl = request.nextUrl.clone()
-        redirectUrl.pathname = "/admin"
-        return NextResponse.redirect(redirectUrl)
-      }
+    const adminData = await verificarAdmin(user.email ?? "", url, key, serviceKey)
+    if (adminData?.ativo) {
+      const redirectUrl = request.nextUrl.clone()
+      redirectUrl.pathname = "/admin"
+      return NextResponse.redirect(redirectUrl)
     }
-
     const redirectUrl = request.nextUrl.clone()
     redirectUrl.pathname = "/dashboard"
     return NextResponse.redirect(redirectUrl)
   }
 
   // Proteção do painel admin
-  if (eRotaAdmin && user && serviceKey) {
-    const { createClient } = await import("@supabase/supabase-js")
-    const adminClient = createClient(url, serviceKey, { auth: { persistSession: false } })
-    const { data: usuarioAdmin } = await adminClient
-      .from("usuarios_admin")
-      .select("perfil, ativo")
-      .eq("email", user.email ?? "")
-      .single()
+  if (eRotaAdmin && user) {
+    const adminData = await verificarAdmin(user.email ?? "", url, key, serviceKey)
 
-    if (!usuarioAdmin || !usuarioAdmin.ativo) {
+    if (!adminData?.ativo) {
       const redirectUrl = request.nextUrl.clone()
       redirectUrl.pathname = "/dashboard"
       return NextResponse.redirect(redirectUrl)
     }
 
-    if (!temPermissao(usuarioAdmin.perfil, pathname)) {
-      // Redireciona para a primeira rota permitida
-      const permitidas = PERMISSOES[usuarioAdmin.perfil] ?? []
+    if (!temPermissao(adminData.perfil, pathname)) {
+      const permitidas = PERMISSOES[adminData.perfil] ?? []
       const redirectUrl = request.nextUrl.clone()
       redirectUrl.pathname = permitidas[0] ?? "/dashboard"
       return NextResponse.redirect(redirectUrl)
     }
-  } else if (eRotaAdmin && user && !serviceKey) {
-    // Sem service role configurada — bloqueia acesso ao admin por segurança
-    const redirectUrl = request.nextUrl.clone()
-    redirectUrl.pathname = "/dashboard"
-    return NextResponse.redirect(redirectUrl)
+
+    return supabaseResponse
   }
 
+  // Rotas normais do app
   if (user && !eRotaPublica && !eRotaAdmin && pathname !== "/onboarding") {
-    // Verificar se é usuário admin acessando rota normal — redirecionar para /admin
-    if (serviceKey) {
-      const { createClient } = await import("@supabase/supabase-js")
-      const adminClient = createClient(url, serviceKey, { auth: { persistSession: false } })
-      const { data: usuarioAdmin } = await adminClient
-        .from("usuarios_admin")
-        .select("ativo")
-        .eq("email", user.email ?? "")
-        .maybeSingle()
-
-      if (usuarioAdmin?.ativo) {
-        const redirectUrl = request.nextUrl.clone()
-        redirectUrl.pathname = "/admin"
-        return NextResponse.redirect(redirectUrl)
-      }
+    // Admin tentando acessar rota normal → redirecionar para /admin
+    const adminData = await verificarAdmin(user.email ?? "", url, key, serviceKey)
+    if (adminData?.ativo) {
+      const redirectUrl = request.nextUrl.clone()
+      redirectUrl.pathname = "/admin"
+      return NextResponse.redirect(redirectUrl)
     }
 
     const { data: empresa } = await supabase
       .from("empresas").select("id, plano, plano_ativo").eq("user_id", user.id).single()
+
     if (!empresa) {
       const redirectUrl = request.nextUrl.clone()
       redirectUrl.pathname = "/onboarding"
@@ -135,8 +136,6 @@ export async function updateSession(request: NextRequest) {
 
     const eRotaPlanos = pathname.startsWith("/planos")
 
-    // GATE DE PAGAMENTO — qualquer plano pago sem plano_ativo vai para pagamento
-    // Esta verificação vem ANTES de qualquer outra para garantir que nunca seja bypassada
     if (!empresa.plano_ativo && empresa.plano !== "gratuito" && !eRotaPlanos) {
       const redirectUrl = request.nextUrl.clone()
       redirectUrl.pathname = "/planos"
@@ -145,7 +144,6 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(redirectUrl)
     }
 
-    // Plano "agenda" ativo — acesso restrito apenas a agendamentos e configurações
     if (empresa.plano === "agenda" && empresa.plano_ativo) {
       const rotasPermitidas = ["/agendamentos", "/configuracoes"]
       const eRotaPermitida = rotasPermitidas.some(
