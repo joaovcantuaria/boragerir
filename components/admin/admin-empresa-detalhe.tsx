@@ -198,11 +198,14 @@ export function AdminEmpresaDetalhe({ empresa: empInit, assinaturas: assInit, no
       </div>
 
       {/* Abas */}
-      <div className={`flex gap-1 p-1 ${t.subBg} rounded-xl border ${t.border} overflow-x-auto`}>
+      <div className="flex gap-1 p-1 bg-muted rounded-xl border border-border overflow-x-auto">
         {abas.map((a) => (
           <button key={a.id} onClick={() => setAba(a.id)}
             className={cn("px-3 py-2 rounded-lg text-xs font-semibold transition-all shrink-0 whitespace-nowrap",
-              aba === a.id ? "bg-primary text-white" : `${t.textMuted3} hover:text-white ${t.hoverBg}`)}>
+              aba === a.id
+                ? "border border-primary bg-primary/10 text-primary"
+                : "text-muted-foreground hover:text-foreground hover:bg-background"
+            )}>
             {a.label}
           </button>
         ))}
@@ -285,8 +288,11 @@ export function AdminEmpresaDetalhe({ empresa: empInit, assinaturas: assInit, no
             <div className="flex gap-2">
               {(["teste", "pago"] as const).map((tipo) => (
                 <button key={tipo} onClick={() => setTipoAssinatura(tipo)}
-                  className={cn("flex-1 py-2.5 rounded-xl border text-sm font-bold transition-all capitalize",
-                    tipoAssinatura === tipo ? "bg-primary text-white border-primary" : `${t.subBg} ${t.textMuted4} border-${t.border} hover:border-primary/40`)}>
+                  className={cn("flex-1 py-2.5 rounded-xl border text-sm font-bold transition-all",
+                    tipoAssinatura === tipo
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:border-primary/40 bg-transparent"
+                  )}>
                   {tipo === "teste" ? "🎁 Período de Teste" : "💳 Plano Pago"}
                 </button>
               ))}
@@ -296,8 +302,8 @@ export function AdminEmpresaDetalhe({ empresa: empInit, assinaturas: assInit, no
             <div className="space-y-1.5">
               <label className={`text-xs font-semibold ${t.textMuted3}`}>Plano</label>
               <select value={planoManual} onChange={(e) => setPlanoManual(e.target.value)}
-                className={`w-full h-10 rounded-xl border ${t.border} ${t.subBg} px-3 text-sm ${t.text} focus:outline-none cursor-pointer`}>
-                {PLANOS_PAGOS.map((p) => <option key={p} value={p} className="capitalize">{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
+                className="w-full h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:border-primary cursor-pointer">
+                {PLANOS_PAGOS.map((p) => <option key={p} value={p} className="capitalize bg-white text-gray-900">{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
               </select>
             </div>
 
@@ -308,7 +314,10 @@ export function AdminEmpresaDetalhe({ empresa: empInit, assinaturas: assInit, no
                   {DIAS_TESTE.map((d) => (
                     <button key={d} onClick={() => setDiasTeste(d)}
                       className={cn("py-2.5 rounded-xl border text-sm font-bold transition-all",
-                        diasTeste === d ? "bg-primary text-white border-primary" : `${t.subBg} ${t.textMuted4} border-${t.border}`)}>
+                        diasTeste === d
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border text-muted-foreground hover:border-primary/40 bg-transparent"
+                      )}>
                       {d} dias
                     </button>
                   ))}
@@ -324,9 +333,9 @@ export function AdminEmpresaDetalhe({ empresa: empInit, assinaturas: assInit, no
                   <div className="space-y-1.5">
                     <label className={`text-xs font-semibold ${t.textMuted3}`}>Duração (meses)</label>
                     <select value={mesesManual} onChange={(e) => setMesesManual(parseInt(e.target.value))}
-                      className={`w-full h-10 rounded-xl border ${t.border} ${t.subBg} px-3 text-sm ${t.text} focus:outline-none cursor-pointer`}>
+                      className="w-full h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground focus:outline-none cursor-pointer">
                       {Array.from({ length: 48 }, (_, i) => i + 1).map((m) => (
-                        <option key={m} value={m}>{m} {m === 1 ? "mês" : "meses"}</option>
+                        <option key={m} value={m} className="bg-white text-gray-900">{m} {m === 1 ? "mês" : "meses"}</option>
                       ))}
                     </select>
                   </div>
