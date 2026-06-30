@@ -67,9 +67,22 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl }: TopbarPro
         setUserMenuAberto(false)
       }
     }
+    // mousedown em vez de click para não conflitar com o toggle do botão
     document.addEventListener("mousedown", handler)
     return () => document.removeEventListener("mousedown", handler)
   }, [])
+
+  function toggleMais(e: React.MouseEvent) {
+    e.stopPropagation()
+    setMaisAberto((v) => !v)
+    setUserMenuAberto(false)
+  }
+
+  function toggleUser(e: React.MouseEvent) {
+    e.stopPropagation()
+    setUserMenuAberto((v) => !v)
+    setMaisAberto(false)
+  }
 
   // Fechar ao navegar
   useEffect(() => {
@@ -138,9 +151,9 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl }: TopbarPro
         {/* Dropdown "Mais" */}
         <div ref={maisRef} className="relative">
           <button
-            onClick={() => setMaisAberto((v) => !v)}
+            onClick={toggleMais}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all whitespace-nowrap",
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all whitespace-nowrap select-none",
               (maisAberto || algumSecundarioAtivo)
                 ? "bg-[#F26E1D]/20 text-[#F26E1D]"
                 : "text-white/60 hover:text-white hover:bg-white/8"
@@ -162,9 +175,10 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl }: TopbarPro
                 exit={{ opacity: 0, y: -6, scale: 0.97 }}
                 transition={{ duration: 0.13 }}
                 className={cn(
-                  "absolute top-full left-0 mt-1.5 w-64 rounded-lg border shadow-xl z-50 overflow-hidden",
+                  "absolute top-full left-0 mt-1.5 w-64 rounded-lg border shadow-xl overflow-hidden",
                   "bg-card border-border"
                 )}
+                style={{ zIndex: 9999 }}
               >
                 <div className="p-1.5 grid grid-cols-2 gap-0.5">
                   {navSecundario.map((item) => {
@@ -227,8 +241,8 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl }: TopbarPro
         {/* Avatar + menu */}
         <div ref={userRef} className="relative">
           <button
-            onClick={() => setUserMenuAberto((v) => !v)}
-            className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-md hover:bg-white/8 transition-colors"
+            onClick={toggleUser}
+            className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-md hover:bg-white/8 transition-colors select-none"
           >
             <Avatar className="w-6 h-6 ring-1 ring-white/20">
               {empresaLogoUrl && <AvatarImage src={empresaLogoUrl} alt={empresaNome} />}
@@ -252,7 +266,8 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl }: TopbarPro
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -6, scale: 0.97 }}
                 transition={{ duration: 0.13 }}
-                className="absolute top-full right-0 mt-1.5 w-48 rounded-lg border shadow-xl z-50 overflow-hidden bg-card border-border"
+                className="absolute top-full right-0 mt-1.5 w-48 rounded-lg border shadow-xl overflow-hidden bg-card border-border"
+                style={{ zIndex: 9999 }}
               >
                 <div className="px-3 py-2 border-b border-border">
                   <p className="text-xs font-semibold text-foreground truncate">{empresaNome}</p>
