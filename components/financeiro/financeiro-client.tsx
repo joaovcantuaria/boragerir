@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
@@ -88,6 +89,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   const [loadingEdit, setLoadingEdit] = useState(false)
   const [loadingCancel, setLoadingCancel] = useState<string | null>(null)
   const supabase = createClient()
+  const router = useRouter()
 
   async function cancelarVenda(venda: Venda) {
     if (!confirm(`Cancelar a venda #${String(venda.numero_venda).padStart(4,"0")} de ${formatarMoeda(venda.total)}?`)) return
@@ -100,6 +102,8 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
     setVendas((prev) => prev.map((v) => v.id === venda.id ? { ...v, status: "cancelada" } : v))
     toast.success(`Venda #${String(venda.numero_venda).padStart(4,"0")} cancelada.`)
     setLoadingCancel(null)
+    // Forçar refresh do servidor para atualizar dados em todas as páginas (Caixa, Dashboard, etc.)
+    router.refresh()
   }
 
   function abrirEditar(venda: Venda) {
