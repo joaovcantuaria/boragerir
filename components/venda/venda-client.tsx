@@ -94,7 +94,7 @@ export function VendaClient({
   // Busca de clientes
   const clientesFiltrados = clientes.filter((c) => {
     const t = buscaCliente.toLowerCase()
-    return c.nome_completo.toLowerCase().includes(t) || c.cpf.includes(t) || c.telefone.includes(t)
+    return c.nome_completo.toLowerCase().includes(t) || (c.cpf ?? "").includes(t) || (c.telefone ?? "").includes(t)
   }).slice(0, 8)
 
   // Busca de produtos
