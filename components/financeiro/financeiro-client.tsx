@@ -79,6 +79,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   const [vendas, setVendas] = useState(vendasIniciais)
   const [contasPagar, setContasPagar] = useState<ContaPagar[]>(contasPagarIniciais)
   const [busca, setBusca] = useState("")
+  const [filtroVendas, setFiltroVendas] = useState<"todas" | "concluidas" | "canceladas" | "colaborador">("todas")
   const [modalEditar, setModalEditar] = useState<Venda | null>(null)
   const [editFormaPagamento, setEditFormaPagamento] = useState("")
   const [editDesconto, setEditDesconto] = useState("")
@@ -156,6 +157,10 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   const dadosPagamento = Object.entries(porPagamento).map(([name, value]) => ({ name, value }))
 
   const vendasFiltradas = vendas.filter((v) => {
+    // Filtro de status
+    if (filtroVendas === "concluidas" && v.status !== "concluida") return false
+    if (filtroVendas === "canceladas" && v.status !== "cancelada") return false
+    // Filtro de busca
     const t = busca.toLowerCase()
     return (
       String(v.numero_venda).includes(t) ||
@@ -271,55 +276,151 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
         </TabsContent>
 
         <TabsContent value="vendas" className="mt-4 space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Buscar por nº, cliente ou pagamento..." className="pl-9" value={busca} onChange={(e) => setBusca(e.target.value)} />
+          {/* Sub-filtros */}
+          <div className="flex flex-wrap gap-2">
+            {([
+              { id: "todas",        label: "Todas" },
+              { id: "concluidas",   label: "Concluídas" },
+              { id: "canceladas",   label: "Canceladas" },
+              { id: "colaborador",  label: "Por Colaborador" },
+            ] as const).map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setFiltroVendas(f.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
+                  filtroVendas === f.id
+                    ? "bg-primary text-white border-primary"
+                    : "bg-white border-gray-300 text-gray-700 hover:border-primary hover:text-primary"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
           </div>
-          {vendasFiltradas.length > 0 ? (
-            <div className="border border-border rounded-xl overflow-hidden">
-              <div className="grid grid-cols-6 gap-2 px-4 py-2 bg-muted text-xs font-medium text-muted-foreground">
-                <span>#</span><span>Cliente</span><span>Pagamento</span><span>Status</span><span className="text-right">Total / Pago</span><span className="text-right">Ações</span>
-              </div>
-              {vendasFiltradas.map((v) => (
-                <div key={v.id} className={`grid grid-cols-6 gap-2 px-4 py-3 border-t border-border text-sm items-center ${v.status === "cancelada" ? "opacity-50" : ""}`}>
-                  <span className="text-muted-foreground">{String(v.numero_venda).padStart(4, "0")}</span>
-                  <span className="truncate">{v.clientes?.nome_completo ?? "—"}</span>
-                  <span className="truncate text-xs">{labelsFormaPagamento[v.forma_pagamento] ?? v.forma_pagamento}</span>
-                  <span>
-                    <Badge className={`text-xs ${v.status === "cancelada" ? "bg-red-500/10 text-red-500 border-red-500/20" : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"}`}>
-                      {v.status === "cancelada" ? "Cancelada" : "Concluída"}
-                    </Badge>
-                  </span>
-                  <div className="text-right">
-                    <span className={`font-semibold ${v.status === "cancelada" ? "line-through text-muted-foreground" : "text-primary"}`}>{formatarMoeda(v.total)}</span>
-                    {/* Verificar se tem débito em aberto para essa venda */}
-                    {debitos.filter((d) => d.descricao?.includes(String(v.numero_venda).padStart(4,"0"))).map((d) => (
-                      <div key={d.id} className="text-xs text-amber-500 font-bold">
-                        {formatarMoeda(d.valor_aberto)} em aberto
-                      </div>
-                    ))}
+
+          {/* View por colaborador */}
+          {filtroVendas === "colaborador" ? (
+            <div className="space-y-3">
+              {funcionarios.length === 0 ? (
+                <p className="text-center text-muted-foreground py-12 text-sm">Nenhum colaborador cadastrado</p>
+              ) : (
+                <>
+                  {/* Cards de comissão por colaborador */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {funcionarios.map((func) => {
+                      const vendasFunc = vendasConcluidas.filter((v) =>
+                        (v as any).itens_venda?.some((i: any) => i.funcionario_id === func.id)
+                      )
+                      const totalVendas = vendasFunc.reduce((s, v) => s + v.total, 0)
+                      const totalComissao = vendasFunc.reduce((s, v) => {
+                        const itensFunc = ((v as any).itens_venda ?? []).filter((i: any) => i.funcionario_id === func.id)
+                        return s + itensFunc.reduce((si: number, i: any) => si + (i.comissao_valor ?? 0), 0)
+                      }, 0)
+                      const qtdVendas = vendasFunc.length
+
+                      return (
+                        <div key={func.id} className="border border-border rounded-xl p-4 bg-card space-y-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                              <span className="text-sm font-bold text-primary">{func.nome.charAt(0)}</span>
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-foreground">{func.nome}</p>
+                              <p className="text-xs text-muted-foreground">{qtdVendas} venda{qtdVendas !== 1 ? "s" : ""} no período</p>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border">
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Vendas</p>
+                              <p className="text-base font-bold text-foreground mt-0.5">{formatarMoeda(totalVendas)}</p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Comissão</p>
+                              <p className="text-base font-bold text-emerald-600 mt-0.5">{formatarMoeda(totalComissao)}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-                  <div className="flex gap-1 justify-end">
-                    {v.status === "concluida" && (
-                      <>
-                        <Button variant="ghost" size="xs" onClick={() => abrirEditar(v)} title="Editar">
-                          <Edit className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="xs" className="text-red-500 hover:text-red-600"
-                          onClick={() => cancelarVenda(v)} disabled={loadingCancel === v.id} title="Cancelar">
-                          {loadingCancel === v.id
-                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            : <XCircle className="w-3.5 h-3.5" />
-                          }
-                        </Button>
-                      </>
+
+                  {/* Tabela detalhada */}
+                  <div className="border border-border rounded-xl overflow-hidden">
+                    <div className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-3 px-4 py-2 bg-muted text-xs font-medium text-muted-foreground">
+                      <span>#</span><span>Cliente</span><span>Colaborador</span><span className="text-right">Total</span><span className="text-right">Comissão</span>
+                    </div>
+                    {vendasConcluidas.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-8 text-sm">Nenhuma venda concluída no período</p>
+                    ) : (
+                      vendasConcluidas.map((v) => {
+                        const itensVenda = (v as any).itens_venda ?? []
+                        const comissaoTotal = itensVenda.reduce((s: number, i: any) => s + (i.comissao_valor ?? 0), 0)
+                        const funcNome = itensVenda.find((i: any) => i.funcionario_id)
+                          ? funcionarios.find((f) => f.id === itensVenda.find((i: any) => i.funcionario_id)?.funcionario_id)?.nome
+                          : null
+                        return (
+                          <div key={v.id} className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-3 px-4 py-2.5 border-t border-border text-sm items-center">
+                            <span className="text-muted-foreground text-xs">{String(v.numero_venda).padStart(4, "0")}</span>
+                            <span className="truncate text-xs">{v.clientes?.nome_completo ?? "—"}</span>
+                            <span className="text-xs text-muted-foreground truncate max-w-[100px]">{funcNome ?? "—"}</span>
+                            <span className="text-right text-xs font-semibold text-primary">{formatarMoeda(v.total)}</span>
+                            <span className="text-right text-xs font-bold text-emerald-600">{formatarMoeda(comissaoTotal)}</span>
+                          </div>
+                        )
+                      })
                     )}
                   </div>
-                </div>
-              ))}
+                </>
+              )}
             </div>
           ) : (
-            <p className="text-center text-muted-foreground py-12 text-sm">Nenhuma venda encontrada</p>
+            /* View padrão — lista de vendas com filtro */
+            <div className="space-y-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input placeholder="Buscar por nº, cliente ou pagamento..." className="pl-9" value={busca} onChange={(e) => setBusca(e.target.value)} />
+              </div>
+              {vendasFiltradas.length > 0 ? (
+                <div className="border border-border rounded-xl overflow-hidden">
+                  <div className="grid grid-cols-6 gap-2 px-4 py-2 bg-muted text-xs font-medium text-muted-foreground">
+                    <span>#</span><span>Cliente</span><span>Pagamento</span><span>Status</span><span className="text-right">Total</span><span className="text-right">Ações</span>
+                  </div>
+                  {vendasFiltradas.map((v) => (
+                    <div key={v.id} className={`grid grid-cols-6 gap-2 px-4 py-3 border-t border-border text-sm items-center ${v.status === "cancelada" ? "opacity-50" : ""}`}>
+                      <span className="text-muted-foreground">{String(v.numero_venda).padStart(4, "0")}</span>
+                      <span className="truncate">{v.clientes?.nome_completo ?? "—"}</span>
+                      <span className="truncate text-xs">{labelsFormaPagamento[v.forma_pagamento] ?? v.forma_pagamento}</span>
+                      <span>
+                        <Badge className={`text-xs ${v.status === "cancelada" ? "bg-red-500/10 text-red-500 border-red-500/20" : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"}`}>
+                          {v.status === "cancelada" ? "Cancelada" : "Concluída"}
+                        </Badge>
+                      </span>
+                      <div className="text-right">
+                        <span className={`font-semibold ${v.status === "cancelada" ? "line-through text-muted-foreground" : "text-primary"}`}>{formatarMoeda(v.total)}</span>
+                        {debitos.filter((d) => d.descricao?.includes(String(v.numero_venda).padStart(4,"0"))).map((d) => (
+                          <div key={d.id} className="text-xs text-amber-500 font-bold">{formatarMoeda(d.valor_aberto)} em aberto</div>
+                        ))}
+                      </div>
+                      <div className="flex gap-1 justify-end">
+                        {v.status === "concluida" && (
+                          <>
+                            <Button variant="ghost" size="xs" onClick={() => abrirEditar(v)} title="Editar">
+                              <Edit className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="xs" className="text-red-500 hover:text-red-600"
+                              onClick={() => cancelarVenda(v)} disabled={loadingCancel === v.id} title="Cancelar">
+                              {loadingCancel === v.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-muted-foreground py-12 text-sm">Nenhuma venda encontrada</p>
+              )}
+            </div>
           )}
         </TabsContent>
 
