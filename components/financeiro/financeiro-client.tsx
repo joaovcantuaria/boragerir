@@ -65,7 +65,7 @@ const CATEGORIAS_CONTA = [
   { value: "outros", label: "Outros", emoji: "📋" },
 ]
 
-export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, movimentacoes, funcionarios, debitos, saldoCaixa = 0, caixaAberto = false, contasPagar: contasPagarIniciais = [], agendamentosFuturos = [] }: {
+export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, movimentacoes: movimentacoesIniciais, funcionarios, debitos, saldoCaixa = 0, caixaAberto = false, contasPagar: contasPagarIniciais = [], agendamentosFuturos = [] }: {
   empresaId: string; plano: string
   vendas: Venda[]
   movimentacoes: { id: string; tipo: string; categoria: string; descricao: string; valor: number; created_at: string }[]
@@ -77,6 +77,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   agendamentosFuturos?: { id: string; data_hora: string; status: string; produtos_servicos?: { preco: number; nome: string } | null }[]
 }) {
   const [vendas, setVendas] = useState(vendasIniciais)
+  const [movimentacoes, setMovimentacoes] = useState(movimentacoesIniciais)
   const [contasPagar, setContasPagar] = useState<ContaPagar[]>(contasPagarIniciais)
   const [busca, setBusca] = useState("")
   const [filtroVendas, setFiltroVendas] = useState<"todas" | "concluidas" | "canceladas" | "colaborador">("todas")
@@ -93,8 +94,9 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
     setLoadingCancel(venda.id)
     const { error } = await supabase.from("vendas").update({ status: "cancelada" }).eq("id", venda.id)
     if (error) { toast.error("Erro ao cancelar venda."); setLoadingCancel(null); return }
-    // Reverter movimentação de caixa
+    // Remover movimentação do caixa — banco e estado local
     await supabase.from("movimentacoes_caixa").delete().eq("venda_id", venda.id)
+    setMovimentacoes((prev) => prev.filter((m) => (m as any).venda_id !== venda.id))
     setVendas((prev) => prev.map((v) => v.id === venda.id ? { ...v, status: "cancelada" } : v))
     toast.success(`Venda #${String(venda.numero_venda).padStart(4,"0")} cancelada.`)
     setLoadingCancel(null)
