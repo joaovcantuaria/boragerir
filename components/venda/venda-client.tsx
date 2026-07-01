@@ -75,6 +75,7 @@ export function VendaClient({
   const [mostrarBuscaCliente, setMostrarBuscaCliente] = useState(false)
   const [mostrarBuscaProduto, setMostrarBuscaProduto] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [loadingRecibo, setLoadingRecibo] = useState(false)
   const [modalSucesso, setModalSucesso] = useState(false)
   const [vendaFinalizada, setVendaFinalizada] = useState<{ id: string; numero: number; total: number } | null>(null)
   const [valorRecebido, setValorRecebido] = useState("")
@@ -273,22 +274,30 @@ export function VendaClient({
     setBuscaProduto("")
   }
 
-  function imprimirRecibo() {
+  async function imprimirRecibo() {
     if (!vendaFinalizada) return
-    gerarReciboPDF({
-      empresa,
-      venda: {
-        numero: vendaFinalizada.numero,
-        total: vendaFinalizada.total,
-        subtotal,
-        desconto: descontoValor,
-        forma_pagamento: formaPagamento,
-        parcelas: parseInt(parcelas),
-        created_at: new Date().toISOString(),
-      },
-      cliente: clienteSelecionado,
-      itens,
-    })
+    setLoadingRecibo(true)
+    try {
+      await gerarReciboPDF({
+        empresa,
+        venda: {
+          numero: vendaFinalizada.numero,
+          total: vendaFinalizada.total,
+          subtotal,
+          desconto: descontoValor,
+          forma_pagamento: formaPagamento,
+          parcelas: parseInt(parcelas),
+          created_at: new Date().toISOString(),
+        },
+        cliente: clienteSelecionado,
+        itens,
+      })
+    } catch (err) {
+      console.error("Erro ao gerar recibo:", err)
+      toast.error("Erro ao gerar o recibo PDF.")
+    } finally {
+      setLoadingRecibo(false)
+    }
   }
 
   function enviarWhatsApp() {
@@ -650,8 +659,8 @@ export function VendaClient({
             )}
           </div>
           <DialogFooter className="flex-col gap-2 sm:flex-col">
-            <Button variant="outline" className="w-full gap-2" onClick={imprimirRecibo}>
-              🖨️ Imprimir Recibo (PDF)
+            <Button variant="outline" className="w-full gap-2" onClick={imprimirRecibo} disabled={loadingRecibo}>
+              {loadingRecibo ? <Loader2 className="w-4 h-4 animate-spin" /> : "🖨️"} Imprimir Recibo (PDF)
             </Button>
             {clienteSelecionado?.telefone && (
               <Button variant="outline" className="w-full gap-2" onClick={enviarWhatsApp}>
