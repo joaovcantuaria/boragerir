@@ -377,14 +377,26 @@ export function ConfiguracoesClient({
                   </div>
                 </div>
 
-                <Separator />
-                <div className="flex items-center gap-2">
-                  <Star className="w-4 h-4 text-primary" />
-                  <span className="font-bold text-sm">Programa de Fidelidade</span>
-                </div>
-                <p className="text-xs text-muted-foreground -mt-2">
-                  Configure como seus clientes acumulam e utilizam pontos de fidelidade.
-                </p>
+                <Button type="submit" disabled={loading} className="font-bold">
+                  {loading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Salvando...</> : "Salvar alterações"}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── ABA FIDELIDADE (Configuração + Brindes/Recompensas) ── */}
+        <TabsContent value="fidelidade" className="mt-4 space-y-5">
+          <Card>
+            <CardContent className="p-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <Star className="w-4 h-4 text-primary" />
+                <span className="font-bold text-sm">Programa de Fidelidade</span>
+              </div>
+              <p className="text-xs text-muted-foreground -mt-2">
+                Configure como seus clientes acumulam e utilizam pontos de fidelidade.
+              </p>
+              <form onSubmit={handleSubmit(salvarNegocio)} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label>Pontos ganhos por R$ 1 gasto</Label>
@@ -405,17 +417,12 @@ export function ConfiguracoesClient({
                     <p>• Desconto é aplicado automaticamente na tela de Nova Venda quando o cliente é selecionado</p>
                   </div>
                 </div>
-
                 <Button type="submit" disabled={loading} className="font-bold">
-                  {loading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Salvando...</> : "Salvar alterações"}
+                  {loading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Salvando...</> : "Salvar configuração"}
                 </Button>
               </form>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        {/* ── ABA FIDELIDADE (Brindes/Recompensas) ── */}
-        <TabsContent value="fidelidade" className="mt-4 space-y-5">
           <RecompensasFidelidade empresa={empresa} />
         </TabsContent>
 
