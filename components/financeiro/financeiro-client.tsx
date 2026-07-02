@@ -95,15 +95,40 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   async function cancelarVenda(venda: Venda) {
     if (!confirm(`Cancelar a venda #${String(venda.numero_venda).padStart(4,"0")} de ${formatarMoeda(venda.total)}?`)) return
     setLoadingCancel(venda.id)
+
+    // 1. Marcar venda como cancelada
     const { error } = await supabase.from("vendas").update({ status: "cancelada" }).eq("id", venda.id)
     if (error) { toast.error("Erro ao cancelar venda."); setLoadingCancel(null); return }
-    // Remover movimentação do caixa — banco e estado local
-    await supabase.from("movimentacoes_caixa").delete().eq("venda_id", venda.id)
-    setMovimentacoes((prev) => prev.filter((m) => (m as any).venda_id !== venda.id))
+
+    // 2. Buscar a movimentação original para saber o caixa_id e valor
+    const { data: movOriginal } = await supabase
+      .from("movimentacoes_caixa")
+      .select("id, caixa_id, valor, empresa_id")
+      .eq("venda_id", venda.id)
+      .maybeSingle()
+
+    if (movOriginal) {
+      // 3. Criar movimentação de ESTORNO (saída) — garante que o saldo atualiza em qualquer tela
+      await supabase.from("movimentacoes_caixa").insert({
+        empresa_id: movOriginal.empresa_id,
+        caixa_id: movOriginal.caixa_id,
+        tipo: "saida",
+        categoria: "estorno",
+        descricao: `Estorno — Venda #${String(venda.numero_venda).padStart(4, "0")} cancelada`,
+        valor: movOriginal.valor,
+        venda_id: venda.id,
+      })
+
+      // 4. Deletar a movimentação original de entrada (opcional — mantém auditoria limpa)
+      await supabase.from("movimentacoes_caixa").delete().eq("id", movOriginal.id)
+    }
+
+    // 5. Atualizar estado local
     setVendas((prev) => prev.map((v) => v.id === venda.id ? { ...v, status: "cancelada" } : v))
-    toast.success(`Venda #${String(venda.numero_venda).padStart(4,"0")} cancelada.`)
+    toast.success(`Venda #${String(venda.numero_venda).padStart(4,"0")} cancelada e estornada do caixa.`)
     setLoadingCancel(null)
-    // Forçar refresh do servidor para atualizar dados em todas as páginas (Caixa, Dashboard, etc.)
+
+    // 6. Forçar refresh para todas as páginas buscarem dados atualizados
     router.refresh()
   }
 

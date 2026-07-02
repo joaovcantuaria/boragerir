@@ -28,10 +28,15 @@ export default async function CaixaPage() {
   if (caixaAberto) {
     const { data } = await supabase
       .from("movimentacoes_caixa")
-      .select("*")
+      .select("*, vendas!movimentacoes_caixa_venda_id_fkey(status)")
       .eq("caixa_id", caixaAberto.id)
       .order("created_at")
-    movimentacoes = data ?? []
+    // Filtrar movimentações de vendas canceladas — só mostrar vendas ativas ou movimentações sem venda
+    movimentacoes = (data ?? []).filter((m: any) => {
+      if (!m.venda_id) return true // sangria, suprimento, despesa — sempre mostrar
+      if (m.vendas && m.vendas.status === "cancelada") return false // venda cancelada — ocultar
+      return true
+    })
   }
 
   // Caixas anteriores disponíveis apenas nos planos Básico e Profissional
