@@ -378,14 +378,27 @@ export function ConfiguracoesClient({
                   <Star className="w-4 h-4 text-primary" />
                   <span className="font-bold text-sm">Programa de Fidelidade</span>
                 </div>
+                <p className="text-xs text-muted-foreground -mt-2">
+                  Configure como seus clientes acumulam e utilizam pontos de fidelidade.
+                </p>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <Label>Pontos por R$ 1 gasto</Label>
+                    <Label>Pontos ganhos por R$ 1 gasto</Label>
                     <Input type="number" step="0.1" min="0" {...register("pontos_por_real")} />
+                    <p className="text-[10px] text-muted-foreground">Ex: 1 = cliente ganha 1 ponto por real gasto</p>
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Pontos para R$ 1 de desconto</Label>
+                    <Label>Pontos necessários para R$ 1 de desconto</Label>
                     <Input type="number" step="1" min="1" {...register("pontos_para_desconto")} />
+                    <p className="text-[10px] text-muted-foreground">Ex: 100 = a cada 100 pontos, R$ 1 de desconto</p>
+                  </div>
+                </div>
+                <div className="rounded-lg bg-muted/60 border border-border p-4 space-y-2">
+                  <p className="text-xs font-semibold text-foreground">Como funciona na prática:</p>
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <p>• Cliente compra R$ 100 → ganha <strong className="text-foreground">{watch("pontos_por_real") ? Math.floor(100 * parseFloat(watch("pontos_por_real") || "1")) : 100} pontos</strong></p>
+                    <p>• Ao usar {watch("pontos_para_desconto") || 100} pontos → ganha <strong className="text-foreground">R$ 1,00 de desconto</strong></p>
+                    <p>• Desconto é aplicado automaticamente na tela de Nova Venda quando o cliente é selecionado</p>
                   </div>
                 </div>
 
