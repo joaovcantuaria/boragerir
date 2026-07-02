@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -78,6 +78,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   agendamentosFuturos?: { id: string; data_hora: string; status: string; produtos_servicos?: { preco: number; nome: string } | null }[]
 }) {
   const [vendas, setVendas] = useState(vendasIniciais)
+  const vendasOrigRef = useRef(vendasIniciais)
   const [movimentacoes, setMovimentacoes] = useState(movimentacoesIniciais)
   const [contasPagar, setContasPagar] = useState<ContaPagar[]>(contasPagarIniciais)
   const [busca, setBusca] = useState("")
@@ -135,13 +136,18 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   }
 
   const vendasConcluidas = vendas.filter((v) => v.status === "concluida")
-  // Apenas o que efetivamente entrou no caixa (descontar débitos em aberto)
-  const totalRecebido = movimentacoes.filter((m) => m.tipo === "entrada" && m.categoria === "venda").reduce((s, m) => s + m.valor, 0)
+  // Recalcular baseado nas vendas concluídas — quando uma venda é cancelada, sai do cálculo automaticamente
+  const totalRecebido = vendasConcluidas.reduce((s, v) => s + v.total, 0)
   const totalAReceber = debitos.reduce((s, d) => s + d.valor_aberto, 0)
-  const totalReceitas = totalRecebido // apenas o que entrou
+  const totalReceitas = totalRecebido
   const totalDespesas = movimentacoes.filter((m) => m.tipo === "saida" && m.categoria === "despesa").reduce((s, m) => s + m.valor, 0)
   const lucroLiquido = totalReceitas - totalDespesas
   const ticketMedio = vendasConcluidas.length > 0 ? totalReceitas / vendasConcluidas.length : 0
+
+  // Saldo em caixa atualizado — desconta vendas que foram canceladas localmente
+  const vendasCanceladasNovamente = vendas.filter((v) => v.status === "cancelada").reduce((s, v) => s + v.total, 0)
+  const vendasJaCanceladasOriginal = vendasOrigRef.current.filter((v) => v.status === "cancelada").reduce((s, v) => s + v.total, 0)
+  const saldoCaixaLocal = saldoCaixa - (vendasCanceladasNovamente - vendasJaCanceladasOriginal)
 
   // Faturamento por dia (mês atual)
   const faturamentoDia: Record<string, number> = {}
@@ -190,7 +196,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
           { label: "Despesas", valor: totalDespesas, cor: "text-red-500", bg: "bg-red-500/10", Icon: TrendingDown },
           { label: "Lucro líquido", valor: lucroLiquido, cor: lucroLiquido >= 0 ? "text-primary" : "text-red-500", bg: "bg-primary/10", Icon: DollarSign },
           { label: "Ticket médio", valor: ticketMedio, cor: "text-blue-500", bg: "bg-blue-500/10", Icon: BarChart3 },
-          { label: "Saldo em caixa", valor: saldoCaixa, cor: caixaAberto ? "text-violet-500" : "text-muted-foreground", bg: caixaAberto ? "bg-violet-500/10" : "bg-muted", Icon: Wallet },
+          { label: "Saldo em caixa", valor: saldoCaixaLocal, cor: caixaAberto ? "text-violet-500" : "text-muted-foreground", bg: caixaAberto ? "bg-violet-500/10" : "bg-muted", Icon: Wallet },
         ].map(({ label, valor, cor, bg, Icon }) => (
           <Card key={label}>
             <CardContent className="p-4 flex items-center gap-3">
