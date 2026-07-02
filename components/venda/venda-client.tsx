@@ -41,6 +41,7 @@ interface ClienteSimples {
   nome_completo: string
   cpf: string
   telefone: string
+  pontos_fidelidade: number
 }
 
 interface FuncionarioSimples {
@@ -66,6 +67,7 @@ export function VendaClient({
   const [funcionarioId, setFuncionarioId] = useState<string>("")
   const [desconto, setDesconto] = useState<string>("0")
   const [tipoDesconto, setTipoDesconto] = useState<"reais" | "percentual">("reais")
+  const [pontosUsar, setPontosUsar] = useState<number>(0)
   const [formaPagamento, setFormaPagamento] = useState<string>("")
   const [parcelas, setParcelas] = useState<string>("1")
   const [observacoes, setObservacoes] = useState("")
@@ -86,7 +88,10 @@ export function VendaClient({
   const descontoValor = tipoDesconto === "reais"
     ? parseFloat(desconto) || 0
     : (subtotal * (parseFloat(desconto) || 0)) / 100
-  const total = Math.max(0, subtotal - descontoValor)
+  // Desconto de pontos de fidelidade
+  const pontosPorReal = empresa.pontos_para_desconto ?? 100
+  const descontoPontos = pontosUsar > 0 ? pontosUsar / pontosPorReal : 0
+  const total = Math.max(0, subtotal - descontoValor - descontoPontos)
   const troco = formaPagamento === "dinheiro" && valorRecebido
     ? Math.max(0, (parseFloat(valorRecebido) || 0) - total)
     : null
@@ -241,17 +246,18 @@ export function VendaClient({
     // Atualizar pontos de fidelidade do cliente
     if (clienteSelecionado) {
       const pontosGanhos = Math.floor(total * (empresa.pontos_por_real ?? 1))
-      if (pontosGanhos > 0) {
-        const { data: clienteAtual } = await supabase
-          .from("clientes")
-          .select("pontos_fidelidade")
-          .eq("id", clienteSelecionado.id)
-          .single()
-        await supabase
-          .from("clientes")
-          .update({ pontos_fidelidade: (clienteAtual?.pontos_fidelidade ?? 0) + pontosGanhos })
-          .eq("id", clienteSelecionado.id)
-      }
+      const { data: clienteAtual } = await supabase
+        .from("clientes")
+        .select("pontos_fidelidade")
+        .eq("id", clienteSelecionado.id)
+        .single()
+      const pontosAtuais = clienteAtual?.pontos_fidelidade ?? 0
+      // Subtrai pontos usados e soma pontos ganhos
+      const novoSaldo = Math.max(0, pontosAtuais - pontosUsar + pontosGanhos)
+      await supabase
+        .from("clientes")
+        .update({ pontos_fidelidade: novoSaldo })
+        .eq("id", clienteSelecionado.id)
     }
 
     setVendaFinalizada({ id: venda.id, numero: venda.numero_venda, total })
@@ -264,6 +270,7 @@ export function VendaClient({
     setClienteSelecionado(null)
     setFuncionarioId("")
     setDesconto("0")
+    setPontosUsar(0)
     setFormaPagamento("")
     setParcelas("1")
     setObservacoes("")
@@ -490,6 +497,58 @@ export function VendaClient({
                 <div className="flex justify-between text-sm text-red-500">
                   <span>Desconto</span>
                   <span>- {formatarMoeda(descontoValor)}</span>
+                </div>
+              )}
+
+              {/* Pontos de fidelidade */}
+              {clienteSelecionado && clienteSelecionado.pontos_fidelidade > 0 && (
+                <div className="rounded-lg border border-amber-200 dark:border-amber-700/40 bg-amber-50 dark:bg-amber-900/20 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                      ⭐ Pontos disponíveis
+                    </span>
+                    <span className="text-sm font-bold text-amber-600">
+                      {clienteSelecionado.pontos_fidelidade} pts
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min="0"
+                      max={clienteSelecionado.pontos_fidelidade}
+                      step="1"
+                      value={pontosUsar || ""}
+                      onChange={(e) => {
+                        const val = Math.min(
+                          parseInt(e.target.value) || 0,
+                          clienteSelecionado.pontos_fidelidade
+                        )
+                        setPontosUsar(val)
+                      }}
+                      placeholder="0"
+                      className="h-8 text-sm flex-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPontosUsar(clienteSelecionado.pontos_fidelidade)}
+                      className="text-[10px] font-bold text-amber-600 hover:text-amber-700 px-2 py-1 rounded bg-amber-100 dark:bg-amber-900/40 hover:bg-amber-200 transition-colors whitespace-nowrap"
+                    >
+                      Usar todos
+                    </button>
+                  </div>
+                  {pontosUsar > 0 && (
+                    <p className="text-xs text-amber-700 dark:text-amber-400">
+                      {pontosUsar} pts = <strong>{formatarMoeda(descontoPontos)}</strong> de desconto
+                      <span className="text-amber-500 ml-1">({pontosPorReal} pts = R$ 1,00)</span>
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {descontoPontos > 0 && (
+                <div className="flex justify-between text-sm text-amber-600">
+                  <span>Desconto (pontos)</span>
+                  <span>- {formatarMoeda(descontoPontos)}</span>
                 </div>
               )}
 
