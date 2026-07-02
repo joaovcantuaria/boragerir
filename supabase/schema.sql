@@ -430,6 +430,9 @@ CREATE INDEX IF NOT EXISTS idx_agendamentos_empresa ON public.agendamentos(empre
 CREATE INDEX IF NOT EXISTS idx_agendamentos_data ON public.agendamentos(empresa_id, data_hora);
 CREATE INDEX IF NOT EXISTS idx_movimentacoes_caixa ON public.movimentacoes_caixa(caixa_id);
 CREATE INDEX IF NOT EXISTS idx_produtos_empresa ON public.produtos_servicos(empresa_id);
+CREATE INDEX IF NOT EXISTS idx_recompensas_empresa ON public.recompensas_fidelidade(empresa_id);
+CREATE INDEX IF NOT EXISTS idx_resgates_empresa ON public.resgates_recompensas(empresa_id);
+CREATE INDEX IF NOT EXISTS idx_resgates_cliente ON public.resgates_recompensas(cliente_id);
 
 -- ============================================================
 -- STORAGE — Bucket para logos das empresas
@@ -443,6 +446,34 @@ CREATE POLICY "logos_upload" ON storage.objects
 
 CREATE POLICY "logos_select" ON storage.objects
   FOR SELECT USING (bucket_id = 'logos');
+
+-- ============================================================
+-- RECOMPENSAS / BRINDES DO PROGRAMA DE FIDELIDADE
+-- ============================================================
+
+-- Tabela: recompensas_fidelidade (brindes cadastrados pela empresa)
+CREATE TABLE IF NOT EXISTS public.recompensas_fidelidade (
+  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  empresa_id  UUID NOT NULL REFERENCES public.empresas(id) ON DELETE CASCADE,
+  nome        TEXT NOT NULL,
+  descricao   TEXT,
+  pontos_necessarios INTEGER NOT NULL CHECK (pontos_necessarios > 0),
+  estoque     INTEGER,
+  ativo       BOOLEAN NOT NULL DEFAULT true,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Tabela: resgates_recompensas (histórico de resgates por cliente)
+CREATE TABLE IF NOT EXISTS public.resgates_recompensas (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  empresa_id      UUID NOT NULL REFERENCES public.empresas(id) ON DELETE CASCADE,
+  cliente_id      UUID NOT NULL REFERENCES public.clientes(id) ON DELETE CASCADE,
+  recompensa_id   UUID NOT NULL REFERENCES public.recompensas_fidelidade(id) ON DELETE CASCADE,
+  venda_id        UUID REFERENCES public.vendas(id) ON DELETE SET NULL,
+  pontos_usados   INTEGER NOT NULL,
+  nome_recompensa TEXT NOT NULL,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
 -- ============================================================
 -- FIM DO SCHEMA

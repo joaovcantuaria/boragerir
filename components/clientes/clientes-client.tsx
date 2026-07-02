@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Plus, Search, UserPlus, Loader2, Cake, Phone, Mail, Edit, Star, User, Building2, AlertTriangle, CreditCard, CheckCircle } from "lucide-react"
+import { Plus, Search, UserPlus, Loader2, Cake, Phone, Mail, Edit, Star, User, Building2, AlertTriangle, CreditCard, CheckCircle, Gift } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,6 +22,7 @@ import {
   eAniversarianteHoje, eAniversarianteEstaSemana, formatarData, formatarMoeda
 } from "@/lib/utils"
 import type { Cliente } from "@/types"
+import { HistoricoResgates } from "@/components/clientes/historico-resgates"
 
 // ── Formatação de CNPJ ────────────────────────────────────────────────────────
 function formatarCNPJ(v: string) {
@@ -101,6 +102,10 @@ export function ClientesClient({
   const [formaPagQuite, setFormaPagQuite] = useState("")
   const [loadingQuite, setLoadingQuite] = useState(false)
   const [loadingDebitosCliente, setLoadingDebitosCliente] = useState(false)
+  // Modal histórico de resgates
+  const [modalResgatesAberto, setModalResgatesAberto] = useState(false)
+  const [clienteResgatesId, setClienteResgatesId] = useState<string>("")
+  const [clienteResgatesPontos, setClienteResgatesPontos] = useState(0)
   const supabase = createClient()
   const router = useRouter()
 
@@ -317,7 +322,13 @@ export function ClientesClient({
                           {aniversarioHoje && <Badge variant="warning" className="text-xs">🎂 Aniversário hoje!</Badge>}
                           {aniversarioSemana && <Badge variant="info" className="text-xs">🎂 Aniversário essa semana</Badge>}
                           {cliente.pontos_fidelidade > 0 && (
-                            <Badge variant="secondary" className="text-xs gap-1">
+                            <Badge variant="secondary" className="text-xs gap-1 cursor-pointer hover:bg-secondary/80"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setClienteResgatesId(cliente.id)
+                                setClienteResgatesPontos(cliente.pontos_fidelidade)
+                                setModalResgatesAberto(true)
+                              }}>
                               <Star className="w-2.5 h-2.5" />{cliente.pontos_fidelidade} pts
                             </Badge>
                           )}
@@ -616,6 +627,25 @@ export function ClientesClient({
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal histórico de resgates */}
+      <Dialog open={modalResgatesAberto} onOpenChange={setModalResgatesAberto}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Gift className="w-5 h-5 text-purple-600" />
+              Fidelidade &amp; Resgates
+            </DialogTitle>
+          </DialogHeader>
+          {clienteResgatesId && (
+            <HistoricoResgates
+              clienteId={clienteResgatesId}
+              empresaId={empresaId}
+              pontosAtuais={clienteResgatesPontos}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>

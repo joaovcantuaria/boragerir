@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Search, Plus, Minus, Trash2, ShoppingCart, Check, Loader2, X, User, ChevronDown } from "lucide-react"
+import { Search, Plus, Minus, Trash2, ShoppingCart, Check, Loader2, X, User, ChevronDown, Gift } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -49,6 +49,14 @@ interface FuncionarioSimples {
   nome: string
 }
 
+interface RecompensaDisponivel {
+  id: string
+  nome: string
+  descricao: string | null
+  pontos_necessarios: number
+  estoque: number | null
+}
+
 export function VendaClient({
   empresa,
   caixaId,
@@ -83,6 +91,25 @@ export function VendaClient({
   const [valorRecebido, setValorRecebido] = useState("")
   const supabase = createClient()
 
+  // Recompensas/brindes disponíveis
+  const [recompensas, setRecompensas] = useState<RecompensaDisponivel[]>([])
+  const [recompensaSelecionada, setRecompensaSelecionada] = useState<RecompensaDisponivel | null>(null)
+
+  // Carregar recompensas disponíveis
+  useEffect(() => {
+    async function carregarRecompensas() {
+      const { data } = await supabase
+        .from("recompensas_fidelidade")
+        .select("id, nome, descricao, pontos_necessarios, estoque")
+        .eq("empresa_id", empresa.id)
+        .eq("ativo", true)
+        .order("pontos_necessarios", { ascending: true })
+      setRecompensas(data ?? [])
+    }
+    carregarRecompensas()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Calcular totais
   const subtotal = itens.reduce((s, i) => s + i.subtotal, 0)
   const descontoValor = tipoDesconto === "reais"
@@ -91,6 +118,8 @@ export function VendaClient({
   // Desconto de pontos de fidelidade
   const pontosPorReal = empresa.pontos_para_desconto ?? 100
   const descontoPontos = pontosUsar > 0 ? pontosUsar / pontosPorReal : 0
+  // Pontos reservados para brinde (não contam como desconto, mas saem do saldo)
+  const pontosResgateBrinde = recompensaSelecionada?.pontos_necessarios ?? 0
   const total = Math.max(0, subtotal - descontoValor - descontoPontos)
   const troco = formaPagamento === "dinheiro" && valorRecebido
     ? Math.max(0, (parseFloat(valorRecebido) || 0) - total)
@@ -157,6 +186,12 @@ export function VendaClient({
     if (!formaPagamento) { toast.error("Selecione a forma de pagamento."); return }
     if (formaPagamento === "debito_cliente" && !clienteSelecionado) {
       toast.error("Selecione um cliente para lançar o débito."); return
+    }
+    if (recompensaSelecionada && clienteSelecionado) {
+      const totalPontosNecessarios = pontosUsar + pontosResgateBrinde
+      if (totalPontosNecessarios > clienteSelecionado.pontos_fidelidade) {
+        toast.error("Pontos insuficientes para desconto + brinde."); return
+      }
     }
     if (!caixaId) { toast.error("Abra o caixa antes de realizar vendas.", { action: { label: "Ir para o caixa", onClick: () => window.location.href = "/caixa" } }); return }
 
@@ -252,12 +287,32 @@ export function VendaClient({
         .eq("id", clienteSelecionado.id)
         .single()
       const pontosAtuais = clienteAtual?.pontos_fidelidade ?? 0
-      // Subtrai pontos usados e soma pontos ganhos
-      const novoSaldo = Math.max(0, pontosAtuais - pontosUsar + pontosGanhos)
+      // Subtrai pontos usados (desconto + brinde) e soma pontos ganhos
+      const totalPontosUsados = pontosUsar + pontosResgateBrinde
+      const novoSaldo = Math.max(0, pontosAtuais - totalPontosUsados + pontosGanhos)
       await supabase
         .from("clientes")
         .update({ pontos_fidelidade: novoSaldo })
         .eq("id", clienteSelecionado.id)
+
+      // Registrar resgate de brinde
+      if (recompensaSelecionada) {
+        await supabase.from("resgates_recompensas").insert({
+          empresa_id: empresa.id,
+          cliente_id: clienteSelecionado.id,
+          recompensa_id: recompensaSelecionada.id,
+          venda_id: venda.id,
+          pontos_usados: recompensaSelecionada.pontos_necessarios,
+          nome_recompensa: recompensaSelecionada.nome,
+        })
+        // Decrementar estoque do brinde se aplicável
+        if (recompensaSelecionada.estoque !== null) {
+          await supabase
+            .from("recompensas_fidelidade")
+            .update({ estoque: Math.max(0, recompensaSelecionada.estoque - 1) })
+            .eq("id", recompensaSelecionada.id)
+        }
+      }
     }
 
     setVendaFinalizada({ id: venda.id, numero: venda.numero_venda, total })
@@ -271,6 +326,7 @@ export function VendaClient({
     setFuncionarioId("")
     setDesconto("0")
     setPontosUsar(0)
+    setRecompensaSelecionada(null)
     setFormaPagamento("")
     setParcelas("1")
     setObservacoes("")
@@ -549,6 +605,78 @@ export function VendaClient({
                 <div className="flex justify-between text-sm text-amber-600">
                   <span>Desconto (pontos)</span>
                   <span>- {formatarMoeda(descontoPontos)}</span>
+                </div>
+              )}
+
+              {/* Trocar pontos por brinde */}
+              {clienteSelecionado && clienteSelecionado.pontos_fidelidade > 0 && recompensas.length > 0 && (
+                <div className="rounded-lg border border-purple-200 dark:border-purple-700/40 bg-purple-50 dark:bg-purple-900/20 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-purple-800 dark:text-purple-300 flex items-center gap-1.5">
+                      <Gift className="w-3.5 h-3.5" /> Resgatar brinde
+                    </span>
+                    {recompensaSelecionada && (
+                      <button
+                        type="button"
+                        onClick={() => setRecompensaSelecionada(null)}
+                        className="text-[10px] font-bold text-purple-600 hover:text-purple-700 px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-900/40 transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                    )}
+                  </div>
+                  {recompensaSelecionada ? (
+                    <div className="flex items-center gap-2 bg-purple-100 dark:bg-purple-900/40 rounded-md p-2">
+                      <Gift className="w-4 h-4 text-purple-600 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-purple-800 dark:text-purple-200 truncate">{recompensaSelecionada.nome}</p>
+                        <p className="text-[10px] text-purple-600">{recompensaSelecionada.pontos_necessarios} pontos serão debitados</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                      {recompensas
+                        .filter((r) => r.estoque === null || r.estoque > 0)
+                        .map((rec) => {
+                          const pontosDisponiveis = clienteSelecionado.pontos_fidelidade - pontosUsar
+                          const podeResgatar = pontosDisponiveis >= rec.pontos_necessarios
+                          const faltam = rec.pontos_necessarios - pontosDisponiveis
+                          return (
+                            <button
+                              key={rec.id}
+                              type="button"
+                              disabled={!podeResgatar}
+                              onClick={() => setRecompensaSelecionada(rec)}
+                              className={`w-full flex items-center justify-between gap-2 p-2 rounded-md border text-left transition-colors ${
+                                podeResgatar
+                                  ? "border-purple-200 hover:bg-purple-100 dark:hover:bg-purple-900/30 cursor-pointer"
+                                  : "border-border opacity-50 cursor-not-allowed"
+                              }`}
+                            >
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium truncate">{rec.nome}</p>
+                                {rec.descricao && (
+                                  <p className="text-[10px] text-muted-foreground truncate">{rec.descricao}</p>
+                                )}
+                              </div>
+                              <div className="text-right shrink-0">
+                                <p className="text-xs font-bold text-purple-600">{rec.pontos_necessarios} pts</p>
+                                {!podeResgatar && (
+                                  <p className="text-[10px] text-muted-foreground">faltam {faltam}</p>
+                                )}
+                              </div>
+                            </button>
+                          )
+                        })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {recompensaSelecionada && (
+                <div className="flex justify-between text-sm text-purple-600">
+                  <span>🎁 {recompensaSelecionada.nome}</span>
+                  <span className="text-xs">-{recompensaSelecionada.pontos_necessarios} pts</span>
                 </div>
               )}
 

@@ -296,6 +296,40 @@ export type Database = {
         }
         Update: Partial<Database["public"]["Tables"]["assinaturas"]["Insert"]>
       }
+      recompensas_fidelidade: {
+        Row: {
+          id: string
+          empresa_id: string
+          nome: string
+          descricao: string | null
+          pontos_necessarios: number
+          estoque: number | null
+          ativo: boolean
+          created_at: string
+        }
+        Insert: Omit<Database["public"]["Tables"]["recompensas_fidelidade"]["Row"], "id" | "created_at"> & {
+          id?: string
+          created_at?: string
+        }
+        Update: Partial<Database["public"]["Tables"]["recompensas_fidelidade"]["Insert"]>
+      }
+      resgates_recompensas: {
+        Row: {
+          id: string
+          empresa_id: string
+          cliente_id: string
+          recompensa_id: string
+          venda_id: string | null
+          pontos_usados: number
+          nome_recompensa: string
+          created_at: string
+        }
+        Insert: Omit<Database["public"]["Tables"]["resgates_recompensas"]["Row"], "id" | "created_at"> & {
+          id?: string
+          created_at?: string
+        }
+        Update: Partial<Database["public"]["Tables"]["resgates_recompensas"]["Insert"]>
+      }
     }
     Views: {
       [_ in never]: never

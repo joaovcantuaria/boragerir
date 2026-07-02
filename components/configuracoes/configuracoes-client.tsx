@@ -6,7 +6,7 @@ import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import {
   Loader2, Store, CreditCard, Tag, Star, Lock,
-  Plus, Trash2, Check, Upload, Camera, FileText, Database
+  Plus, Trash2, Check, Upload, Camera, FileText, Database, Gift
 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -26,6 +26,7 @@ import { AreaAtuacaoSelect } from "@/components/ui/area-atuacao-select"
 import { planosInfo } from "@/types"
 import type { Empresa, Categoria } from "@/types"
 import { BackupClient } from "@/components/configuracoes/backup-client"
+import { RecompensasFidelidade } from "@/components/configuracoes/recompensas-fidelidade"
 
 const schemaNegocio = z.object({
   nome: z.string().min(2),
@@ -221,9 +222,12 @@ export function ConfiguracoesClient({
       </div>
 
       <Tabs defaultValue="negocio">
-        <TabsList className="grid grid-cols-6 w-full">
+        <TabsList className="grid grid-cols-7 w-full">
           <TabsTrigger value="negocio" className="gap-1.5 text-xs font-semibold">
             <Store className="w-3.5 h-3.5" /><span className="hidden sm:inline">Negócio</span>
+          </TabsTrigger>
+          <TabsTrigger value="fidelidade" className="gap-1.5 text-xs font-semibold">
+            <Gift className="w-3.5 h-3.5" /><span className="hidden sm:inline">Fidelidade</span>
           </TabsTrigger>
           <TabsTrigger value="plano" className="gap-1.5 text-xs font-semibold">
             <CreditCard className="w-3.5 h-3.5" /><span className="hidden sm:inline">Plano</span>
@@ -408,6 +412,11 @@ export function ConfiguracoesClient({
               </form>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ── ABA FIDELIDADE (Brindes/Recompensas) ── */}
+        <TabsContent value="fidelidade" className="mt-4 space-y-5">
+          <RecompensasFidelidade empresa={empresa} />
         </TabsContent>
 
         {/* ── ABA PLANO ── */}
