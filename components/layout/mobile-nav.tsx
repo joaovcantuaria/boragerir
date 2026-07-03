@@ -143,7 +143,7 @@ export function MobileNav({ prefix = "", plano = "gratuito" }: { prefix?: string
         }}
         className="md:hidden"
       >
-        <div className="flex items-start h-20 pt-4">
+        <div className="flex items-start h-20 pt-5">
           {navPrincipalFiltrado.map((item) => {
             const href = `${prefix}${item.href}`
             const isActive = pathname === href || pathname.startsWith(href + "/")
