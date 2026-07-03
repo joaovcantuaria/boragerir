@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import {
   LayoutDashboard, Wallet, ShoppingCart, Calendar,
   Users, ShoppingBag, FileText, UserCheck, BarChart3,
-  CreditCard, Settings, X, CheckSquare, ClipboardList
+  CreditCard, Settings, X, CheckSquare, ClipboardList, MoreHorizontal
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState } from "react"
@@ -143,7 +143,7 @@ export function MobileNav({ prefix = "", plano = "gratuito" }: { prefix?: string
         }}
         className="md:hidden"
       >
-        <div className="flex items-start h-20 pt-2.5">
+        <div className="flex items-start h-20 pt-4">
           {navPrincipalFiltrado.map((item) => {
             const href = `${prefix}${item.href}`
             const isActive = pathname === href || pathname.startsWith(href + "/")
@@ -169,16 +169,7 @@ export function MobileNav({ prefix = "", plano = "gratuito" }: { prefix?: string
             >
               {menuAberto
                 ? <X className="w-6 h-6" strokeWidth={2.5} />
-                : <div className="flex flex-col gap-0.5 items-center">
-                    <div className="flex gap-0.5">
-                      <div className="w-1 h-1 rounded-full bg-current" />
-                      <div className="w-1 h-1 rounded-full bg-current" />
-                    </div>
-                    <div className="flex gap-0.5">
-                      <div className="w-1 h-1 rounded-full bg-current" />
-                      <div className="w-1 h-1 rounded-full bg-current" />
-                    </div>
-                  </div>
+                : <MoreHorizontal className="w-6 h-6" strokeWidth={1.8} />
               }
               <span>Mais</span>
             </button>
