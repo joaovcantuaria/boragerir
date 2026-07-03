@@ -1,15 +1,16 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   LayoutDashboard, Wallet, ShoppingCart, Calendar,
   Users, ShoppingBag, FileText, UserCheck, BarChart3,
-  CreditCard, Settings, X, CheckSquare, ClipboardList, MoreHorizontal
+  CreditCard, Settings, X, CheckSquare, ClipboardList, MoreHorizontal, LogOut
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import { createClient } from "@/lib/supabase/client"
 
 // Itens principais (5 na barra inferior)
 const navPrincipal = [
@@ -34,7 +35,14 @@ const navExtras = [
 
 export function MobileNav({ prefix = "", plano = "gratuito" }: { prefix?: string; plano?: string }) {
   const pathname = usePathname()
+  const router = useRouter()
   const [menuAberto, setMenuAberto] = useState(false)
+
+  async function handleLogout() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push("/login")
+  }
 
   const isPlanoAgenda = plano === "agenda"
 
@@ -101,6 +109,13 @@ export function MobileNav({ prefix = "", plano = "gratuito" }: { prefix?: string
                     </Link>
                   )
                 })}
+                <button
+                  onClick={() => { setMenuAberto(false); handleLogout() }}
+                  className="flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-xs font-semibold transition-colors bg-white text-red-500 hover:bg-red-50"
+                >
+                  <LogOut className="w-5 h-5" />
+                  <span className="text-center leading-tight">Sair</span>
+                </button>
               </div>
               <div className="hidden dark:grid grid-cols-3 gap-px p-1"
                 style={{ backgroundColor: "#1a1a2e", border: "none" }}>
@@ -123,6 +138,13 @@ export function MobileNav({ prefix = "", plano = "gratuito" }: { prefix?: string
                     </Link>
                   )
                 })}
+                <button
+                  onClick={() => { setMenuAberto(false); handleLogout() }}
+                  className="flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-xs font-semibold transition-colors text-red-400 hover:bg-white/10"
+                >
+                  <LogOut className="w-5 h-5" />
+                  <span className="text-center leading-tight">Sair</span>
+                </button>
               </div>
             </motion.div>
           </>
