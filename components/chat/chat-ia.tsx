@@ -560,10 +560,13 @@ export function ChatIA() {
         )}
       </AnimatePresence>
 
-      {/* Botão flutuante — sempre visível no canto inferior direito */}
+      {/* Botão flutuante — arrastável para qualquer posição */}
       <AnimatePresence>
         {!aberto && (
           <motion.button
+            drag
+            dragMomentum={false}
+            dragElastic={0.1}
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
@@ -572,14 +575,15 @@ export function ChatIA() {
             onClick={() => setAberto(true)}
             style={{
               position: "fixed",
-              bottom: "72px",
+              bottom: "85px",
               right: "16px",
               width: 52, height: 52, borderRadius: "50%",
               background: "linear-gradient(135deg, #F26E1D, #e05e10)",
-              border: "none", cursor: "pointer",
+              border: "none", cursor: "grab",
               display: "flex", alignItems: "center", justifyContent: "center",
               boxShadow: "0 4px 20px rgba(242,110,29,0.45)",
               fontSize: 22, zIndex: 9999,
+              touchAction: "none",
             }}
             title="Falar com a Mel"
           >

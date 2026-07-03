@@ -77,7 +77,7 @@ export function MobileNav({ prefix = "", plano = "gratuito" }: { prefix?: string
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
               transition={{ duration: 0.15 }}
-              className="md:hidden fixed bottom-[73px] left-3 right-3 z-50 rounded-2xl overflow-hidden shadow-xl"
+              className="md:hidden fixed bottom-[85px] left-3 right-3 z-50 rounded-2xl overflow-hidden shadow-xl"
               style={{ backgroundColor: "#ffffff", border: "1px solid #e5e7eb" }}
             >
               <div className="dark:hidden grid grid-cols-3 gap-px bg-gray-100 p-1"
@@ -143,7 +143,7 @@ export function MobileNav({ prefix = "", plano = "gratuito" }: { prefix?: string
         }}
         className="md:hidden"
       >
-        <div className="flex items-center h-16 pt-1">
+        <div className="flex items-start h-20 pt-2.5">
           {navPrincipalFiltrado.map((item) => {
             const href = `${prefix}${item.href}`
             const isActive = pathname === href || pathname.startsWith(href + "/")
@@ -151,7 +151,7 @@ export function MobileNav({ prefix = "", plano = "gratuito" }: { prefix?: string
             return (
               <Link key={href} href={href}
                 prefetch={true}
-                className="flex-1 flex flex-col items-center justify-center gap-1 h-full text-[10px] font-semibold transition-colors"
+                className="flex-1 flex flex-col items-center justify-start gap-1 text-[10px] font-semibold transition-colors"
                 style={{ color: isActive ? "#F26E1D" : "#9ca3af" }}
               >
                 <Icon className="w-6 h-6" strokeWidth={isActive ? 2.5 : 1.8} />
@@ -164,7 +164,7 @@ export function MobileNav({ prefix = "", plano = "gratuito" }: { prefix?: string
           {!isPlanoAgenda && (
             <button
               onClick={() => setMenuAberto(!menuAberto)}
-              className="flex-1 flex flex-col items-center justify-center gap-1 h-full text-[10px] font-semibold transition-colors"
+              className="flex-1 flex flex-col items-center justify-start gap-1 text-[10px] font-semibold transition-colors"
               style={{ color: (menuAberto || algumExtraAtivo) ? "#F26E1D" : "#9ca3af" }}
             >
               {menuAberto
