@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Topbar } from "@/components/layout/topbar"
 import { MobileNav } from "@/components/layout/mobile-nav"
 import { ChatIA } from "@/components/chat/chat-ia"
+import { PullToRefresh } from "@/components/layout/pull-to-refresh"
 import { useEmpresa } from "@/hooks/use-empresa"
 import { useRealtimeRefresh } from "@/hooks/use-realtime-refresh"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
@@ -98,7 +99,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           transition={{ duration: 0.18, ease: "easeOut" }}
           className="flex-1 p-4 lg:p-5 pb-20 md:pb-5 max-w-[1600px] w-full mx-auto"
         >
-          {children}
+          <PullToRefresh>
+            {children}
+          </PullToRefresh>
         </motion.main>
       </AnimatePresence>
 
