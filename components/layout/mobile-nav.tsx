@@ -77,7 +77,7 @@ export function MobileNav({ prefix = "", plano = "gratuito" }: { prefix?: string
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
               transition={{ duration: 0.15 }}
-              className="md:hidden fixed bottom-[85px] left-3 right-3 z-50 rounded-2xl overflow-hidden shadow-xl"
+              className="md:hidden fixed bottom-[100px] left-3 right-3 z-50 rounded-2xl overflow-hidden shadow-xl"
               style={{ backgroundColor: "#ffffff", border: "1px solid #e5e7eb" }}
             >
               <div className="dark:hidden grid grid-cols-3 gap-px bg-gray-100 p-1"
@@ -143,7 +143,7 @@ export function MobileNav({ prefix = "", plano = "gratuito" }: { prefix?: string
         }}
         className="md:hidden"
       >
-        <div className="flex items-start h-20 pt-5">
+        <div className="flex items-start h-24 pt-3">
           {navPrincipalFiltrado.map((item) => {
             const href = `${prefix}${item.href}`
             const isActive = pathname === href || pathname.startsWith(href + "/")

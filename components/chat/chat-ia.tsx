@@ -575,7 +575,7 @@ export function ChatIA() {
             onClick={() => setAberto(true)}
             style={{
               position: "fixed",
-              bottom: "85px",
+              bottom: "100px",
               right: "16px",
               width: 52, height: 52, borderRadius: "50%",
               background: "linear-gradient(135deg, #F26E1D, #e05e10)",
