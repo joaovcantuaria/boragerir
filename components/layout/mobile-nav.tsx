@@ -277,6 +277,15 @@ export function MobileNav({ prefix = "", plano = "gratuito", empresas = [], empr
                   </button>
                 ))}
               </div>
+              <div className="p-2 border-t border-gray-100">
+                <button
+                  onClick={() => { setEmpresasAberto(false); router.push("/empresas") }}
+                  className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl text-xs font-bold text-primary hover:bg-primary/5 transition-colors"
+                >
+                  <Building2 className="w-4 h-4" />
+                  Gerenciar empresas
+                </button>
+              </div>
             </motion.div>
           </>
         )}

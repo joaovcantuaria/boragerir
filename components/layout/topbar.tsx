@@ -265,6 +265,18 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl, plano, empr
                 </button>
               ))}
             </div>
+            <div style={{ borderTop: "1px solid #e5e7eb", padding: "6px" }}>
+              <button
+                onClick={() => { setEmpresasAberto(false); router.push("/empresas") }}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md text-xs font-bold transition-colors"
+                style={{ color: "#F26E1D" }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(242,110,29,0.08)" }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
+              >
+                <Settings className="w-3.5 h-3.5" />
+                Gerenciar empresas
+              </button>
+            </div>
           </Dropdown>
         )}
 
