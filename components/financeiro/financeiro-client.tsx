@@ -660,6 +660,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
             vendas={vendas}
             contasPagar={contasPagar}
             agendamentosFuturos={agendamentosFuturos}
+            valoresReceber={valoresReceber}
           />
         </TabsContent>
 
@@ -1429,18 +1430,22 @@ function FluxoCaixaTab({
   vendas,
   contasPagar,
   agendamentosFuturos,
+  valoresReceber = [],
 }: {
   vendas: Venda[]
   contasPagar: ContaPagar[]
   agendamentosFuturos: { id: string; data_hora: string; status: string; produtos_servicos?: { preco: number; nome: string } | null }[]
+  valoresReceber?: { id: string; devedor: string; valor: number; data_vencimento: string; status: string }[]
 }) {
-  const [periodo, setPeriodo] = useState<"hoje" | "semana" | "mes">("mes")
+  const [periodo, setPeriodo] = useState<"hoje" | "semana" | "mes" | "custom">("mes")
+  const [dataCustom, setDataCustom] = useState("")
   const hoje = new Date()
   hoje.setHours(0, 0, 0, 0)
 
   const { inicio, fim } = (() => {
     if (periodo === "hoje") return { inicio: hoje, fim: new Date(hoje.getTime() + 86399999) }
     if (periodo === "semana") return { inicio: startOfWeek(hoje, { locale: ptBR }), fim: endOfWeek(hoje, { locale: ptBR }) }
+    if (periodo === "custom" && dataCustom) return { inicio: hoje, fim: new Date(dataCustom + "T23:59:59") }
     return { inicio: startOfMonth(hoje), fim: endOfMonth(hoje) }
   })()
 
@@ -1451,14 +1456,23 @@ function FluxoCaixaTab({
     .filter((v) => v.status === "concluida" && new Date(v.created_at) >= inicio && new Date(v.created_at) <= fim)
     .reduce((s, v) => s + v.total, 0)
 
-  // Receitas previstas (agendamentos futuros no período com preço)
-  const receitasPrevistas = agendamentosFuturos
+  // Receitas previstas (agendamentos futuros no período com preço + valores a receber pendentes)
+  const receitasAgendamentos = agendamentosFuturos
     .filter((a) => {
       const d = new Date(a.data_hora)
       return d >= inicio && d <= fim && a.produtos_servicos?.preco
     })
     .reduce((s, a) => s + (a.produtos_servicos?.preco ?? 0), 0)
 
+  const receitasValoresReceber = valoresReceber
+    .filter((v) => {
+      if (v.status !== "pendente") return false
+      const dv = v.data_vencimento
+      return dv >= fmtDate(inicio) && dv <= fmtDate(fim)
+    })
+    .reduce((s, v) => s + v.valor, 0)
+
+  const receitasPrevistas = receitasAgendamentos + receitasValoresReceber
   const totalReceitas = receitasConfirmadas + receitasPrevistas
 
   // Despesas previstas (contas a pagar pendentes/atrasadas no período)
@@ -1483,8 +1497,10 @@ function FluxoCaixaTab({
       const desp = contasPagar.filter((c) => c.data_vencimento === diaStr && (c.status === "pendente" || c.status === "atrasado")).reduce((s, c) => s + c.valor, 0)
       dadosGrafico.push({ label: format(dia, "EEE", { locale: ptBR }), receita: rec, despesa: desp })
     }
-  } else if (periodo === "mes") {
-    for (let semana = 0; semana < 5; semana++) {
+  } else if (periodo === "mes" || periodo === "custom") {
+    const totalDias = Math.ceil((fim.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24))
+    const numSemanas = Math.min(Math.ceil(totalDias / 7), 6)
+    for (let semana = 0; semana < numSemanas; semana++) {
       const iniSem = addDays(inicio, semana * 7)
       const fimSem = addDays(iniSem, 6)
       if (iniSem > fim) break
@@ -1511,13 +1527,31 @@ function FluxoCaixaTab({
           <ArrowRightLeft className="w-4 h-4 text-primary" />
           Fluxo de Caixa Projetado
         </h2>
-        <div className="flex gap-1">
+        <div className="flex items-center gap-2 flex-wrap">
           {(["hoje", "semana", "mes"] as const).map((p) => (
-            <button key={p} onClick={() => setPeriodo(p)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${periodo === p ? "bg-primary text-white" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
+            <button key={p} onClick={() => { setPeriodo(p); setDataCustom("") }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border-2 ${
+                periodo === p
+                  ? "border-[#F26E1D] bg-[#F26E1D]/10 text-[#F26E1D]"
+                  : "border-transparent bg-muted text-muted-foreground hover:text-foreground"
+              }`}>
               {p === "hoje" ? "Hoje" : p === "semana" ? "Esta semana" : "Este mês"}
             </button>
           ))}
+          <div className="flex items-center gap-1.5">
+            <input
+              type="date"
+              value={dataCustom}
+              onChange={(e) => { setDataCustom(e.target.value); if (e.target.value) setPeriodo("custom") }}
+              className={`h-8 px-2 rounded-lg text-xs border-2 bg-background transition-all ${
+                periodo === "custom"
+                  ? "border-[#F26E1D] text-[#F26E1D]"
+                  : "border-transparent bg-muted text-muted-foreground"
+              }`}
+              title="Projeção até uma data específica"
+              min={fmtDate(hoje)}
+            />
+          </div>
         </div>
       </div>
 
@@ -1525,7 +1559,7 @@ function FluxoCaixaTab({
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label: "Receitas confirmadas", valor: receitasConfirmadas, cor: "text-emerald-500", bg: "bg-emerald-500/10", desc: "Vendas já realizadas" },
-          { label: "Receitas previstas", valor: receitasPrevistas, cor: "text-blue-500", bg: "bg-blue-500/10", desc: "Agendamentos futuros" },
+          { label: "Receitas previstas", valor: receitasPrevistas, cor: "text-blue-500", bg: "bg-blue-500/10", desc: "Agendamentos + A receber" },
           { label: "Despesas previstas", valor: despesasPrevistas, cor: "text-red-500", bg: "bg-red-500/10", desc: "Contas a pagar" },
           { label: "Saldo projetado", valor: saldoProjetado, cor: saldoProjetado >= 0 ? "text-emerald-500" : "text-red-500", bg: saldoProjetado >= 0 ? "bg-emerald-500/10" : "bg-red-500/10", desc: saldoProjetado >= 0 ? "Resultado positivo" : "Atenção: déficit" },
         ].map(({ label, valor, cor, bg, desc }) => (
