@@ -75,7 +75,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
 
   // Formulário abrir caixa
   const formAbrirCaixa = useForm({
-    defaultValues: { valor_abertura: "0", observacoes: "" },
+    defaultValues: { valor_abertura: "0", observacoes: "", tipo_caixa: "diario", nome_caixa: "" },
   })
 
   // Formulário movimentação
@@ -83,7 +83,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
     defaultValues: { valor: "", descricao: "" },
   })
 
-  async function abrirCaixa(data: { valor_abertura: string; observacoes: string }) {
+  async function abrirCaixa(data: { valor_abertura: string; observacoes: string; tipo_caixa: string; nome_caixa: string }) {
     setLoading(true)
     const { data: novoCaixa, error } = await supabase
       .from("caixas")
@@ -94,6 +94,8 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
         aberto_por: userId,
         observacoes_abertura: data.observacoes || null,
         data_abertura: new Date().toISOString(),
+        tipo_caixa: data.tipo_caixa || "diario",
+        nome_caixa: data.nome_caixa.trim() || null,
       })
       .select()
       .single()
@@ -243,6 +245,20 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
       ) : (
         // Caixa aberto
         <div className="space-y-4">
+          {/* Nome/tipo do caixa */}
+          {((caixa as any).nome_caixa || (caixa as any).tipo_caixa) && (
+            <div className="flex items-center gap-2">
+              {(caixa as any).tipo_caixa && (
+                <Badge variant="outline" className="text-xs capitalize">
+                  {{ diario: "Diário", semanal: "Semanal", mensal: "Mensal" }[(caixa as any).tipo_caixa] ?? (caixa as any).tipo_caixa}
+                </Badge>
+              )}
+              {(caixa as any).nome_caixa && (
+                <span className="text-sm font-semibold text-muted-foreground">{(caixa as any).nome_caixa}</span>
+              )}
+            </div>
+          )}
+
           {/* Resumo */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
@@ -438,6 +454,37 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
             <DialogTitle>Abrir Caixa</DialogTitle>
           </DialogHeader>
           <form onSubmit={formAbrirCaixa.handleSubmit(abrirCaixa)} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Tipo de caixa</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {(["diario", "semanal", "mensal"] as const).map((tipo) => {
+                  const labels = { diario: "Diário", semanal: "Semanal", mensal: "Mensal" }
+                  const selected = formAbrirCaixa.watch("tipo_caixa") === tipo
+                  return (
+                    <button
+                      key={tipo}
+                      type="button"
+                      onClick={() => formAbrirCaixa.setValue("tipo_caixa", tipo)}
+                      className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all ${
+                        selected
+                          ? "border-[#F26E1D] bg-[#F26E1D]/10 text-[#F26E1D]"
+                          : "border-border text-muted-foreground hover:border-primary/50"
+                      }`}
+                    >
+                      {labels[tipo]}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Nome do caixa (opcional)</Label>
+              <Input
+                placeholder="Ex: Julho 2026, Semana 1..."
+                {...formAbrirCaixa.register("nome_caixa")}
+              />
+              <p className="text-[10px] text-muted-foreground">Deixe em branco para usar o nome automático</p>
+            </div>
             <div className="space-y-2">
               <Label>Valor de abertura (R$)</Label>
               <Input
