@@ -56,10 +56,11 @@ function ShortcutPanel({ onClose }: { onClose: () => void }) {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [showShortcuts, setShowShortcuts] = useState(false)
-  const { empresa } = useEmpresa()
+  const { empresa, empresas, selecionarEmpresa } = useEmpresa()
   const pathname = usePathname()
   const plano = empresa?.plano ?? "gratuito"
   const isPlanoAgenda = plano === "agenda"
+  const isPlanoGestao = plano === "gestao"
 
   useRealtimeRefresh(empresa?.id)
   useKeyboardShortcuts()
@@ -85,6 +86,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <Topbar
             empresaNome={empresa?.nome}
             empresaLogoUrl={empresa?.logo_url}
+            plano={plano}
+            empresas={empresas}
+            empresaAtualId={empresa?.id}
+            onSelecionarEmpresa={selecionarEmpresa}
           />
         </div>
       )}
@@ -105,7 +110,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </motion.main>
       </AnimatePresence>
 
-      <MobileNav plano={plano} />
+      <MobileNav plano={plano} empresas={empresas} empresaAtualId={empresa?.id} onSelecionarEmpresa={selecionarEmpresa} />
       {!isPlanoAgenda && <ChatIA />}
 
       {/* Painel de atalhos */}

@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { email, senha, nome_empresa, telefone, area_atuacao, plano } = body
+  const { email, senha, nome_empresa, telefone, area_atuacao, plano, max_empresas } = body
 
   if (!email || !senha || !nome_empresa || !telefone || !area_atuacao) {
     return NextResponse.json({ erro: "Campos obrigatórios: email, senha, nome_empresa, telefone, area_atuacao" }, { status: 400 })
@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
     email,
     plano: plano || "gratuito",
     plano_ativo: true,
+    max_empresas: max_empresas ? parseInt(max_empresas) : null,
   }).select().single()
 
   if (empresaError) {

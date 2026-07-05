@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation"
 import {
   LayoutDashboard, Wallet, ShoppingCart, Calendar,
   Users, ShoppingBag, FileText, UserCheck, BarChart3,
-  CreditCard, Settings, X, CheckSquare, ClipboardList, MoreHorizontal, LogOut
+  CreditCard, Settings, X, CheckSquare, ClipboardList, MoreHorizontal, LogOut, Building2
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState } from "react"
@@ -33,10 +33,17 @@ const navExtras = [
   { href: "/configuracoes",     icon: Settings,     label: "Configurações" },
 ]
 
-export function MobileNav({ prefix = "", plano = "gratuito" }: { prefix?: string; plano?: string }) {
+export function MobileNav({ prefix = "", plano = "gratuito", empresas = [], empresaAtualId, onSelecionarEmpresa }: {
+  prefix?: string
+  plano?: string
+  empresas?: { id: string; nome: string; logo_url: string | null }[]
+  empresaAtualId?: string
+  onSelecionarEmpresa?: (id: string) => void
+}) {
   const pathname = usePathname()
   const router = useRouter()
   const [menuAberto, setMenuAberto] = useState(false)
+  const [empresasAberto, setEmpresasAberto] = useState(false)
 
   async function handleLogout() {
     const supabase = createClient()
@@ -59,7 +66,8 @@ export function MobileNav({ prefix = "", plano = "gratuito" }: { prefix?: string
         { href: "/dashboard",    icon: LayoutDashboard, label: "Início" },
         { href: "/caixa",        icon: Wallet,          label: "Caixa" },
         { href: "/financeiro",   icon: BarChart3,       label: "Financeiro" },
-        { href: "/configuracoes", icon: Settings,       label: "Config." },
+        { href: "/funcionarios", icon: UserCheck,       label: "Equipe" },
+        { href: "/tarefas",      icon: CheckSquare,     label: "Tarefas" },
       ]
     : navPrincipal
 
@@ -205,8 +213,74 @@ export function MobileNav({ prefix = "", plano = "gratuito" }: { prefix?: string
               <span>Mais</span>
             </button>
           )}
+
+          {/* Seletor empresas — plano gestão com multi-empresa */}
+          {isPlanoGestao && empresas.length > 1 && (
+            <button
+              onClick={() => setEmpresasAberto(!empresasAberto)}
+              className="flex-1 flex flex-col items-center justify-start gap-1 text-[10px] font-semibold transition-colors"
+              style={{ color: empresasAberto ? "#F26E1D" : "#9ca3af" }}
+            >
+              <Building2 className="w-6 h-6" strokeWidth={1.8} />
+              <span>Empresas</span>
+            </button>
+          )}
         </div>
       </nav>
+
+      {/* Popup seleção de empresas — mobile gestão */}
+      <AnimatePresence>
+        {empresasAberto && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+              onClick={() => setEmpresasAberto(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              transition={{ duration: 0.15 }}
+              className="md:hidden fixed bottom-[100px] left-3 right-3 z-50 rounded-2xl overflow-hidden shadow-xl"
+              style={{ backgroundColor: "#ffffff", border: "1px solid #e5e7eb" }}
+            >
+              <div className="px-4 py-3 border-b border-gray-100">
+                <p className="text-xs font-bold text-gray-700">Selecionar empresa</p>
+                <p className="text-[10px] text-gray-400">{empresas.length} empresa(s)</p>
+              </div>
+              <div className="p-2 space-y-1 max-h-60 overflow-y-auto">
+                {empresas.map((emp) => (
+                  <button
+                    key={emp.id}
+                    onClick={() => {
+                      onSelecionarEmpresa?.(emp.id)
+                      setEmpresasAberto(false)
+                      router.refresh()
+                    }}
+                    className={cn(
+                      "w-full flex items-center gap-3 p-3 rounded-xl text-sm font-semibold transition-colors",
+                      emp.id === empresaAtualId
+                        ? "bg-primary/10 text-primary"
+                        : "text-gray-700 hover:bg-gray-50"
+                    )}
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <span className="text-xs font-bold text-primary">{emp.nome.charAt(0)}</span>
+                    </div>
+                    <span className="truncate flex-1 text-left">{emp.nome}</span>
+                    {emp.id === empresaAtualId && (
+                      <div className="w-2.5 h-2.5 rounded-full bg-primary shrink-0" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </>
   )
 }

@@ -31,6 +31,7 @@ export type Database = {
           plano_ativo: boolean
           pontos_por_real: number
           pontos_para_desconto: number
+          max_empresas: number | null
           recibo_template: "padrao" | "moderno" | "minimalista" | "colorido" | null
           recibo_cor_primaria: string | null
           recibo_rodape: string | null

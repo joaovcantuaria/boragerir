@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Wallet, ShoppingCart, Calendar, Users,
   ShoppingBag, FileText, UserCheck, BarChart3, Settings,
   CreditCard, HeadphonesIcon, CheckSquare, ClipboardList,
-  ChevronDown, Moon, Sun, Bell, Search, LogOut, Grid3X3,
+  ChevronDown, Moon, Sun, Bell, Search, LogOut, Grid3X3, Building2,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { cn } from "@/lib/utils"
@@ -40,6 +40,10 @@ const navSecundario = [
 interface TopbarProps {
   empresaNome?: string
   empresaLogoUrl?: string | null
+  plano?: string
+  empresas?: { id: string; nome: string; logo_url: string | null }[]
+  empresaAtualId?: string
+  onSelecionarEmpresa?: (id: string) => void
 }
 
 // Dropdown genérico com portal — renderiza fora do stacking context do header
@@ -109,14 +113,16 @@ function Dropdown({
   )
 }
 
-export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl }: TopbarProps) {
+export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl, plano, empresas = [], empresaAtualId, onSelecionarEmpresa }: TopbarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const [maisAberto, setMaisAberto] = useState(false)
   const [userAberto, setUserAberto] = useState(false)
+  const [empresasAberto, setEmpresasAberto] = useState(false)
   const supabase = createClient()
+  const isPlanoGestao = plano === "gestao"
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -124,11 +130,25 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl }: TopbarPro
   useEffect(() => {
     setMaisAberto(false)
     setUserAberto(false)
+    setEmpresasAberto(false)
   }, [pathname])
 
-  const algumSecundarioAtivo = navSecundario.some(
-    (i) => pathname === i.path || pathname.startsWith(i.path + "/")
-  )
+  // Nav filtrada para plano gestão
+  const navPrincipalFiltrado = isPlanoGestao
+    ? [
+        { path: "/dashboard",    icon: LayoutDashboard, label: "Dashboard",    shortcut: "D" },
+        { path: "/caixa",        icon: Wallet,          label: "Caixa",        shortcut: "C" },
+        { path: "/financeiro",   icon: BarChart3,       label: "Financeiro",   shortcut: "F" },
+        { path: "/funcionarios", icon: UserCheck,       label: "Colaboradores", shortcut: "" },
+        { path: "/tarefas",      icon: CheckSquare,     label: "Tarefas",      shortcut: "" },
+      ]
+    : navPrincipal
+
+  const algumSecundarioAtivo = isPlanoGestao
+    ? false
+    : navSecundario.some(
+      (i) => pathname === i.path || pathname.startsWith(i.path + "/")
+    )
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -155,7 +175,7 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl }: TopbarPro
 
       {/* Nav principal */}
       <nav className="flex items-center gap-0.5 flex-1 overflow-x-auto">
-        {navPrincipal.map((item) => {
+        {navPrincipalFiltrado.map((item) => {
           const isActive = item.path === "/dashboard"
             ? pathname === item.path
             : pathname === item.path || pathname.startsWith(item.path + "/")
@@ -184,7 +204,72 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl }: TopbarPro
           )
         })}
 
-        {/* Botão Mais */}
+        {/* Seletor de Empresas — para plano gestão com multi-empresa */}
+        {isPlanoGestao && empresas.length > 0 && (
+          <Dropdown
+            open={empresasAberto}
+            onClose={() => setEmpresasAberto(false)}
+            width={240}
+            trigger={(ref) => (
+              <div ref={ref}>
+                <button
+                  onClick={() => { setEmpresasAberto((v) => !v); setMaisAberto(false); setUserAberto(false) }}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all whitespace-nowrap"
+                  style={{
+                    background: empresasAberto ? "rgba(242,110,29,0.18)" : "transparent",
+                    color: empresasAberto ? "#F26E1D" : "rgba(255,255,255,0.6)",
+                  }}
+                >
+                  <Building2 className="w-3.5 h-3.5 shrink-0" />
+                  <span className="hidden lg:inline">Empresas</span>
+                  <ChevronDown className={cn(
+                    "w-3 h-3 transition-transform hidden lg:block",
+                    empresasAberto && "rotate-180"
+                  )} />
+                </button>
+              </div>
+            )}
+          >
+            <div className="px-3 py-2.5" style={{ borderBottom: "1px solid #e5e7eb" }}>
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                Suas empresas ({empresas.length})
+              </p>
+            </div>
+            <div className="p-1.5 space-y-0.5 max-h-60 overflow-y-auto">
+              {empresas.map((emp) => (
+                <button
+                  key={emp.id}
+                  onClick={() => {
+                    onSelecionarEmpresa?.(emp.id)
+                    setEmpresasAberto(false)
+                    router.refresh()
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-colors text-left"
+                  style={{
+                    color: emp.id === empresaAtualId ? "#F26E1D" : "#374151",
+                    background: emp.id === empresaAtualId ? "rgba(242,110,29,0.08)" : "transparent",
+                  }}
+                  onMouseEnter={(e) => { if (emp.id !== empresaAtualId) e.currentTarget.style.background = "#f3f4f6" }}
+                  onMouseLeave={(e) => { if (emp.id !== empresaAtualId) e.currentTarget.style.background = "transparent" }}
+                >
+                  <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
+                    {emp.logo_url
+                      ? <img src={emp.logo_url} alt="" className="w-full h-full object-cover" />
+                      : <span className="text-[9px] font-bold text-primary">{emp.nome.charAt(0)}</span>
+                    }
+                  </div>
+                  <span className="truncate flex-1">{emp.nome}</span>
+                  {emp.id === empresaAtualId && (
+                    <div className="w-2 h-2 rounded-full bg-primary shrink-0" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </Dropdown>
+        )}
+
+        {/* Botão Mais — oculto no plano gestão */}
+        {!isPlanoGestao && (
         <Dropdown
           open={maisAberto}
           onClose={() => setMaisAberto(false)}
@@ -242,6 +327,7 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl }: TopbarPro
             })}
           </div>
         </Dropdown>
+        )}
       </nav>
 
       {/* Ações direita */}

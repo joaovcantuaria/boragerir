@@ -30,7 +30,7 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
   const [modalCadastro, setModalCadastro] = useState(false)
   const [cadastroLoading, setCadastroLoading] = useState(false)
   const [formCadastro, setFormCadastro] = useState({
-    email: "", senha: "", nome_empresa: "", telefone: "", area_atuacao: "", plano: "gestao"
+    email: "", senha: "", nome_empresa: "", telefone: "", area_atuacao: "", plano: "gestao", max_empresas: "1"
   })
   const router = useRouter()
   const t = useAdminTema()
@@ -108,7 +108,7 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
       const res = await fetch("/api/admin/empresas/cadastrar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, senha, nome_empresa, telefone, area_atuacao, plano }),
+        body: JSON.stringify({ email, senha, nome_empresa, telefone, area_atuacao, plano, max_empresas: formCadastro.max_empresas }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -117,7 +117,7 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
       }
       toast.success(`Empresa "${nome_empresa}" cadastrada com sucesso!`)
       setModalCadastro(false)
-      setFormCadastro({ email: "", senha: "", nome_empresa: "", telefone: "", area_atuacao: "", plano: "gestao" })
+      setFormCadastro({ email: "", senha: "", nome_empresa: "", telefone: "", area_atuacao: "", plano: "gestao", max_empresas: "1" })
       router.refresh()
     } catch {
       toast.error("Erro de conexão.")
@@ -356,6 +356,23 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
                   <option value="gestao">Gestão</option>
                 </select>
               </div>
+              {formCadastro.plano === "gestao" && (
+                <div>
+                  <label className={`text-xs font-semibold ${t.textMuted} block mb-1`}>Qtd. de empresas liberadas</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="50"
+                    className={`w-full ${t.inputBg} border ${t.inputBorder} rounded-xl px-3 py-2.5 text-sm ${t.inputText} focus:outline-none`}
+                    placeholder="1"
+                    value={formCadastro.max_empresas}
+                    onChange={(e) => setFormCadastro((f) => ({ ...f, max_empresas: e.target.value }))}
+                  />
+                  <p className={`text-[10px] ${t.textMuted} mt-1`}>
+                    Valor total: R$ {((parseFloat(formCadastro.max_empresas) || 1) * 29.9).toFixed(2).replace(".", ",")}/mês
+                  </p>
+                </div>
+              )}
             </div>
             <div className="flex gap-3 mt-5">
               <button
