@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { format, parseISO } from "date-fns"
-import { Search, Building2, Eye, Shield, ShieldOff, Trash2, Bell } from "lucide-react"
+import { Search, Building2, Eye, Shield, ShieldOff, Trash2, Bell, Plus, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { formatarCNPJ, formatarCPF, formatarTelefone } from "@/lib/utils"
 import { useAdminTema } from "@/components/admin/admin-tema-context"
@@ -27,6 +27,11 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
   const [empresas, setEmpresas] = useState(init)
   const [busca, setBusca] = useState("")
   const [filtroPlano, setFiltroPlano] = useState("todos")
+  const [modalCadastro, setModalCadastro] = useState(false)
+  const [cadastroLoading, setCadastroLoading] = useState(false)
+  const [formCadastro, setFormCadastro] = useState({
+    email: "", senha: "", nome_empresa: "", telefone: "", area_atuacao: "", plano: "gestao"
+  })
   const router = useRouter()
   const t = useAdminTema()
 
@@ -88,11 +93,53 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
     }
   }
 
+  async function cadastrarEmpresa() {
+    const { email, senha, nome_empresa, telefone, area_atuacao, plano } = formCadastro
+    if (!email || !senha || !nome_empresa || !telefone || !area_atuacao) {
+      toast.error("Preencha todos os campos obrigatórios.")
+      return
+    }
+    if (senha.length < 6) {
+      toast.error("A senha deve ter no mínimo 6 caracteres.")
+      return
+    }
+    setCadastroLoading(true)
+    try {
+      const res = await fetch("/api/admin/empresas/cadastrar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, senha, nome_empresa, telefone, area_atuacao, plano }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.erro || "Erro ao cadastrar empresa.")
+        return
+      }
+      toast.success(`Empresa "${nome_empresa}" cadastrada com sucesso!`)
+      setModalCadastro(false)
+      setFormCadastro({ email: "", senha: "", nome_empresa: "", telefone: "", area_atuacao: "", plano: "gestao" })
+      router.refresh()
+    } catch {
+      toast.error("Erro de conexão.")
+    } finally {
+      setCadastroLoading(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className={`text-2xl font-black ${t.text}`}>Empresas</h1>
-        <p className={`${t.textMuted} text-sm`}>{empresas.length} empresas cadastradas</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className={`text-2xl font-black ${t.text}`}>Empresas</h1>
+          <p className={`${t.textMuted} text-sm`}>{empresas.length} empresas cadastradas</p>
+        </div>
+        <button
+          onClick={() => setModalCadastro(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90 transition-opacity"
+        >
+          <Plus className="w-4 h-4" />
+          Nova Empresa
+        </button>
       </div>
 
       {/* Filtros */}
@@ -234,6 +281,101 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
           </div>
         )}
       </div>
+
+      {/* Modal Cadastrar Empresa */}
+      {modalCadastro && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setModalCadastro(false)}>
+          <div
+            className={`${t.cardBg} border ${t.border} rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className={`text-lg font-black ${t.text} mb-4`}>Nova Empresa</h2>
+            <div className="space-y-3">
+              <div>
+                <label className={`text-xs font-semibold ${t.textMuted} block mb-1`}>Nome da empresa *</label>
+                <input
+                  className={`w-full ${t.inputBg} border ${t.inputBorder} rounded-xl px-3 py-2.5 text-sm ${t.inputText} focus:outline-none`}
+                  placeholder="Ex: Salão da Maria"
+                  value={formCadastro.nome_empresa}
+                  onChange={(e) => setFormCadastro((f) => ({ ...f, nome_empresa: e.target.value }))}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={`text-xs font-semibold ${t.textMuted} block mb-1`}>E-mail (login) *</label>
+                  <input
+                    type="email"
+                    className={`w-full ${t.inputBg} border ${t.inputBorder} rounded-xl px-3 py-2.5 text-sm ${t.inputText} focus:outline-none`}
+                    placeholder="email@exemplo.com"
+                    value={formCadastro.email}
+                    onChange={(e) => setFormCadastro((f) => ({ ...f, email: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className={`text-xs font-semibold ${t.textMuted} block mb-1`}>Senha *</label>
+                  <input
+                    type="text"
+                    className={`w-full ${t.inputBg} border ${t.inputBorder} rounded-xl px-3 py-2.5 text-sm ${t.inputText} focus:outline-none`}
+                    placeholder="Mín. 6 caracteres"
+                    value={formCadastro.senha}
+                    onChange={(e) => setFormCadastro((f) => ({ ...f, senha: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={`text-xs font-semibold ${t.textMuted} block mb-1`}>Telefone *</label>
+                  <input
+                    className={`w-full ${t.inputBg} border ${t.inputBorder} rounded-xl px-3 py-2.5 text-sm ${t.inputText} focus:outline-none`}
+                    placeholder="(11) 99999-9999"
+                    value={formCadastro.telefone}
+                    onChange={(e) => setFormCadastro((f) => ({ ...f, telefone: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className={`text-xs font-semibold ${t.textMuted} block mb-1`}>Área de atuação *</label>
+                  <input
+                    className={`w-full ${t.inputBg} border ${t.inputBorder} rounded-xl px-3 py-2.5 text-sm ${t.inputText} focus:outline-none`}
+                    placeholder="Ex: Barbearia"
+                    value={formCadastro.area_atuacao}
+                    onChange={(e) => setFormCadastro((f) => ({ ...f, area_atuacao: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className={`text-xs font-semibold ${t.textMuted} block mb-1`}>Plano</label>
+                <select
+                  className={`w-full ${t.inputBg} border ${t.inputBorder} rounded-xl px-3 py-2.5 text-sm ${t.inputText} focus:outline-none`}
+                  value={formCadastro.plano}
+                  onChange={(e) => setFormCadastro((f) => ({ ...f, plano: e.target.value }))}
+                >
+                  <option value="gratuito">Gratuito</option>
+                  <option value="basico">Básico</option>
+                  <option value="profissional">Profissional</option>
+                  <option value="agenda">Agenda</option>
+                  <option value="gestao">Gestão</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => setModalCadastro(false)}
+                className={`flex-1 py-2.5 rounded-xl border ${t.border} ${t.text} text-sm font-semibold hover:opacity-80 transition-opacity`}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={cadastrarEmpresa}
+                disabled={cadastroLoading}
+                className="flex-1 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+              >
+                {cadastroLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                Cadastrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
