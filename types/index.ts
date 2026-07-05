@@ -66,11 +66,15 @@ export type ItemVendaForm = {
 }
 
 // Planos
-export type Plano = "gratuito" | "basico" | "profissional" | "agenda"
+export type Plano = "gratuito" | "basico" | "profissional" | "agenda" | "gestao"
 
 // Plano "agenda" — módulo simplificado de agendamento online
 // Acesso restrito a: /agendamentos e /configuracoes
 export const PLANO_AGENDA_ROTAS = ["/agendamentos", "/configuracoes"]
+
+// Plano "gestao" — gestão financeira simplificada
+// Acesso restrito a: /dashboard, /caixa, /financeiro e /configuracoes
+export const PLANO_GESTAO_ROTAS = ["/dashboard", "/caixa", "/financeiro", "/configuracoes"]
 
 export type InfoPlano = {
   nome: string
@@ -163,6 +167,24 @@ export const planosInfo: Record<Plano, InfoPlano> = {
     contratos: false,
     debito: false,
     caixasAnteriores: false,
+  },
+  gestao: {
+    nome: "Gestão",
+    preco: 29.9,
+    limiteClientes: null,
+    limiteProdutos: null,
+    limiteFuncionarios: null,
+    agendamentoOnline: false,
+    gestaoAgendaInterna: false,
+    lembretesAutomaticos: false,
+    marcaDagua: false,
+    fidelidade: false,
+    relatoriosAvancados: true,
+    exportacaoExcel: true,
+    tarefas: false,
+    contratos: false,
+    debito: true,
+    caixasAnteriores: true,
   },
 }
 

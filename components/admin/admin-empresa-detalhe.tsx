@@ -24,8 +24,8 @@ interface Empresa {
 
 type Aba = "dados" | "assinaturas" | "notas" | "email" | "perigo"
 
-const PLANOS = ["gratuito", "basico", "profissional", "agenda"]
-const PLANOS_PAGOS = ["basico", "profissional", "agenda"]
+const PLANOS = ["gratuito", "basico", "profissional", "agenda", "gestao"]
+const PLANOS_PAGOS = ["basico", "profissional", "agenda", "gestao"]
 const DIAS_TESTE = [7, 15, 30]
 const BADGE_STATUS: Record<string, string> = {
   ativa:     "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",

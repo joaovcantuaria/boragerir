@@ -19,6 +19,8 @@ const badgePlano: Record<string, string> = {
   gratuito: "bg-gray-500/10 text-gray-400 border-gray-500/20",
   basico: "bg-blue-500/10 text-blue-400 border-blue-500/20",
   profissional: "bg-orange-500/10 text-orange-400 border-orange-500/20",
+  agenda: "bg-purple-500/10 text-purple-400 border-purple-500/20",
+  gestao: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
 }
 
 export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] }) {
@@ -105,7 +107,7 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
           />
         </div>
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-          {["todos", "gratuito", "basico", "profissional", "agenda"].map((p) => (
+          {["todos", "gratuito", "basico", "profissional", "agenda", "gestao"].map((p) => (
             <button key={p} onClick={() => setFiltroPlano(p)}
               className={`px-3 py-2 rounded-xl text-xs font-bold transition-all capitalize shrink-0 ${
                 filtroPlano === p ? "bg-primary text-white" : "bg-white border border-gray-300 text-gray-700 hover:border-primary hover:text-primary"

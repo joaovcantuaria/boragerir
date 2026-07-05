@@ -45,20 +45,29 @@ export function MobileNav({ prefix = "", plano = "gratuito" }: { prefix?: string
   }
 
   const isPlanoAgenda = plano === "agenda"
+  const isPlanoGestao = plano === "gestao"
 
   // Plano agenda: apenas agenda e configurações na barra inferior
+  // Plano gestão: apenas dashboard, caixa, financeiro e configurações
   const navPrincipalFiltrado = isPlanoAgenda
     ? [
         { href: "/agendamentos", icon: Calendar,  label: "Agenda" },
         { href: "/configuracoes", icon: Settings, label: "Config." },
       ]
+    : isPlanoGestao
+    ? [
+        { href: "/dashboard",    icon: LayoutDashboard, label: "Início" },
+        { href: "/caixa",        icon: Wallet,          label: "Caixa" },
+        { href: "/financeiro",   icon: BarChart3,       label: "Financeiro" },
+        { href: "/configuracoes", icon: Settings,       label: "Config." },
+      ]
     : navPrincipal
 
-  const todosItens = isPlanoAgenda
+  const todosItens = (isPlanoAgenda || isPlanoGestao)
     ? navPrincipalFiltrado
     : [...navPrincipal, ...navExtras]
 
-  const algumExtraAtivo = isPlanoAgenda
+  const algumExtraAtivo = (isPlanoAgenda || isPlanoGestao)
     ? false
     : navExtras.some((item) => {
         const href = `${prefix}${item.href}`
@@ -183,7 +192,7 @@ export function MobileNav({ prefix = "", plano = "gratuito" }: { prefix?: string
           })}
 
           {/* Botão Mais */}
-          {!isPlanoAgenda && (
+          {!(isPlanoAgenda || isPlanoGestao) && (
             <button
               onClick={() => setMenuAberto(!menuAberto)}
               className="flex-1 flex flex-col items-center justify-start gap-1 text-[10px] font-semibold transition-colors"

@@ -156,6 +156,19 @@ export async function updateSession(request: NextRequest) {
       }
       return supabaseResponse
     }
+
+    if (empresa.plano === "gestao" && empresa.plano_ativo) {
+      const rotasPermitidas = ["/dashboard", "/caixa", "/financeiro", "/configuracoes"]
+      const eRotaPermitida = rotasPermitidas.some(
+        (r) => pathname === r || pathname.startsWith(r + "/")
+      )
+      if (!eRotaPermitida) {
+        const redirectUrl = request.nextUrl.clone()
+        redirectUrl.pathname = "/dashboard"
+        return NextResponse.redirect(redirectUrl)
+      }
+      return supabaseResponse
+    }
   }
 
   return supabaseResponse

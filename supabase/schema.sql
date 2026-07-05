@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS public.empresas (
   endereco_cidade     TEXT NOT NULL DEFAULT '',
   endereco_estado     TEXT NOT NULL DEFAULT '',
   endereco_cep        TEXT NOT NULL DEFAULT '',
-  plano               TEXT NOT NULL DEFAULT 'gratuito' CHECK (plano IN ('gratuito', 'basico', 'profissional')),
+  plano               TEXT NOT NULL DEFAULT 'gratuito' CHECK (plano IN ('gratuito', 'basico', 'profissional', 'agenda', 'gestao')),
   plano_ativo         BOOLEAN NOT NULL DEFAULT true,
   pontos_por_real     DECIMAL(10,2) NOT NULL DEFAULT 1,
   pontos_para_desconto DECIMAL(10,2) NOT NULL DEFAULT 100,
