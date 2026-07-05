@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -89,8 +89,28 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   const [editObservacoes, setEditObservacoes] = useState("")
   const [loadingEdit, setLoadingEdit] = useState(false)
   const [loadingCancel, setLoadingCancel] = useState<string | null>(null)
+  const [mesSelecionado, setMesSelecionado] = useState(format(new Date(), "yyyy-MM"))
+  // Valores a receber manual (plano gestão)
+  const [valoresReceber, setValoresReceber] = useState<{ id: string; devedor: string; valor: number; data_vencimento: string; observacoes: string | null; status: string }[]>([])
+  const [modalNovoReceber, setModalNovoReceber] = useState(false)
+  const [formReceber, setFormReceber] = useState({ devedor: "", valor: "", data_vencimento: "", observacoes: "" })
+  const [loadingReceber, setLoadingReceber] = useState(false)
   const supabase = createClient()
   const router = useRouter()
+  const isGestao = plano === "gestao"
+
+  // Carregar valores a receber na montagem
+  useEffect(() => {
+    if (isGestao) {
+      supabase
+        .from("valores_receber")
+        .select("*")
+        .eq("empresa_id", empresaId)
+        .order("data_vencimento", { ascending: true })
+        .then(({ data }) => setValoresReceber(data ?? []))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function cancelarVenda(venda: Venda) {
     if (!confirm(`Cancelar a venda #${String(venda.numero_venda).padStart(4,"0")} de ${formatarMoeda(venda.total)}?`)) return
@@ -130,6 +150,44 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
 
     // 6. Forçar refresh para todas as páginas buscarem dados atualizados
     router.refresh()
+  }
+
+  // ── Valores a receber (manual — plano gestão) ──
+  async function adicionarValorReceber() {
+    const { devedor, valor, data_vencimento, observacoes } = formReceber
+    if (!devedor.trim() || !valor || !data_vencimento) {
+      toast.error("Preencha devedor, valor e data de vencimento.")
+      return
+    }
+    setLoadingReceber(true)
+    const { data, error } = await supabase.from("valores_receber").insert({
+      empresa_id: empresaId,
+      devedor: devedor.trim(),
+      valor: parseFloat(valor),
+      data_vencimento,
+      observacoes: observacoes.trim() || null,
+      status: "pendente",
+    }).select().single()
+
+    if (error) { toast.error("Erro ao adicionar."); setLoadingReceber(false); return }
+    setValoresReceber((prev) => [...prev, data])
+    setFormReceber({ devedor: "", valor: "", data_vencimento: "", observacoes: "" })
+    setModalNovoReceber(false)
+    setLoadingReceber(false)
+    toast.success("Valor a receber adicionado!")
+  }
+
+  async function marcarRecebido(id: string) {
+    await supabase.from("valores_receber").update({ status: "recebido" }).eq("id", id)
+    setValoresReceber((prev) => prev.map((v) => v.id === id ? { ...v, status: "recebido" } : v))
+    toast.success("Marcado como recebido!")
+  }
+
+  async function excluirValorReceber(id: string) {
+    if (!confirm("Excluir este valor a receber?")) return
+    await supabase.from("valores_receber").delete().eq("id", id)
+    setValoresReceber((prev) => prev.filter((v) => v.id !== id))
+    toast.success("Removido!")
   }
 
   function abrirEditar(venda: Venda) {
@@ -208,9 +266,21 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Financeiro</h1>
-        <p className="text-muted-foreground">Resumo do mês de {format(new Date(), "MMMM yyyy", { locale: ptBR })}</p>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Financeiro</h1>
+          <p className="text-muted-foreground">Resumo do mês de {format(new Date(), "MMMM yyyy", { locale: ptBR })}</p>
+        </div>
+        {/* Seletor de mês */}
+        <div className="flex items-center gap-2">
+          <Label className="text-xs text-muted-foreground whitespace-nowrap">Mês:</Label>
+          <Input
+            type="month"
+            value={mesSelecionado}
+            onChange={(e) => setMesSelecionado(e.target.value)}
+            className="h-9 w-40 text-sm"
+          />
+        </div>
       </div>
 
       {/* Cards */}
@@ -237,19 +307,19 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
         ))}
       </div>
 
-      <Tabs defaultValue="faturamento">
+      <Tabs defaultValue={isGestao ? "areceber" : "faturamento"}>
         {/* Mobile: grid 2 colunas. Desktop: scroll horizontal */}
         <div className="block sm:hidden">
           <TabsList className="w-full grid grid-cols-2 h-auto gap-1 p-1">
-            <TabsTrigger value="faturamento" className="text-xs py-2">Faturamento</TabsTrigger>
-            <TabsTrigger value="vendas" className="text-xs py-2">Vendas</TabsTrigger>
+            {!isGestao && <TabsTrigger value="faturamento" className="text-xs py-2">Faturamento</TabsTrigger>}
+            {!isGestao && <TabsTrigger value="vendas" className="text-xs py-2">Vendas</TabsTrigger>}
             {plano !== "gratuito" && (
               <TabsTrigger value="areceber" className="text-xs py-2 gap-1">
                 A Receber
                 {totalAReceber > 0 && <span className="bg-amber-500 text-white text-[10px] font-black px-1 py-0.5 rounded-full">{debitos.length}</span>}
               </TabsTrigger>
             )}
-            <TabsTrigger value="formas" className="text-xs py-2">Pagamentos</TabsTrigger>
+            {!isGestao && <TabsTrigger value="formas" className="text-xs py-2">Pagamentos</TabsTrigger>}
             <TabsTrigger value="contaspagar" className="text-xs py-2 gap-1">
               Contas
               {contasPagar.filter((c) => c.status === "atrasado").length > 0 && (
@@ -259,7 +329,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
               )}
             </TabsTrigger>
             <TabsTrigger value="fluxo" className="text-xs py-2">Fluxo</TabsTrigger>
-            {plano !== "gratuito" && (
+            {plano !== "gratuito" && !isGestao && (
               <TabsTrigger value="relatorios" className="text-xs py-2">Relatórios</TabsTrigger>
             )}
           </TabsList>
@@ -268,15 +338,15 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
         {/* Desktop: scroll horizontal */}
         <div className="hidden sm:block overflow-x-auto">
           <TabsList className="inline-flex min-w-max">
-            <TabsTrigger value="faturamento">Faturamento</TabsTrigger>
-            <TabsTrigger value="vendas">Vendas</TabsTrigger>
+            {!isGestao && <TabsTrigger value="faturamento">Faturamento</TabsTrigger>}
+            {!isGestao && <TabsTrigger value="vendas">Vendas</TabsTrigger>}
             {plano !== "gratuito" && (
               <TabsTrigger value="areceber" className="gap-2">
                 A Receber
                 {totalAReceber > 0 && <span className="bg-amber-500 text-white text-xs font-black px-1.5 py-0.5 rounded-full">{debitos.length}</span>}
               </TabsTrigger>
             )}
-            <TabsTrigger value="formas">Formas de pagamento</TabsTrigger>
+            {!isGestao && <TabsTrigger value="formas">Formas de pagamento</TabsTrigger>}
             <TabsTrigger value="contaspagar" className="gap-2">
               Contas a Pagar
               {contasPagar.filter((c) => c.status === "atrasado").length > 0 && (
@@ -286,7 +356,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
               )}
             </TabsTrigger>
             <TabsTrigger value="fluxo">Fluxo de Caixa</TabsTrigger>
-            {plano !== "gratuito" && (
+            {plano !== "gratuito" && !isGestao && (
               <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
             )}
           </TabsList>
@@ -462,12 +532,55 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
         </TabsContent>
 
         <TabsContent value="areceber" className="mt-4 space-y-3">
-          {debitos.length === 0 ? (
+          {/* Botão adicionar — plano gestão */}
+          {isGestao && (
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold">Valores a receber</p>
+              <Button size="sm" onClick={() => setModalNovoReceber(true)} className="gap-1.5">
+                <Plus className="w-4 h-4" /> Adicionar
+              </Button>
+            </div>
+          )}
+
+          {/* Lista manual de valores a receber (gestão) */}
+          {isGestao && valoresReceber.filter((v) => v.status !== "recebido").length > 0 && (
+            <div className="border border-border rounded-xl overflow-hidden">
+              <div className="grid grid-cols-5 gap-2 px-4 py-2 bg-muted text-xs font-medium text-muted-foreground">
+                <span>Devedor</span><span>Valor</span><span>Vencimento</span><span>Obs</span><span className="text-right">Ações</span>
+              </div>
+              {valoresReceber.filter((v) => v.status !== "recebido").map((v) => {
+                const vencido = new Date(v.data_vencimento) < new Date() && v.status === "pendente"
+                return (
+                  <div key={v.id} className="grid grid-cols-5 gap-2 px-4 py-3 border-t border-border text-sm items-center">
+                    <span className="truncate font-medium">{v.devedor}</span>
+                    <span className="font-bold text-amber-500">{formatarMoeda(v.valor)}</span>
+                    <span className={`text-xs ${vencido ? "text-red-500 font-bold" : "text-muted-foreground"}`}>
+                      {format(parseISO(v.data_vencimento), "dd/MM/yyyy")}
+                      {vencido && " ⚠️"}
+                    </span>
+                    <span className="text-xs text-muted-foreground truncate">{v.observacoes ?? "—"}</span>
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={() => marcarRecebido(v.id)} className="p-1.5 rounded-md hover:bg-emerald-50 text-emerald-500" title="Marcar recebido">
+                        <CheckCircle2 className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => excluirValorReceber(v.id)} className="p-1.5 rounded-md hover:bg-red-50 text-red-400" title="Excluir">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Débitos de vendas (planos normais) */}
+          {!isGestao && debitos.length === 0 && (
             <div className="py-12 text-center text-muted-foreground">
               <Clock className="w-10 h-10 mx-auto mb-2 opacity-30" />
               <p className="text-sm">Nenhum valor a receber</p>
             </div>
-          ) : (
+          )}
+          {!isGestao && debitos.length > 0 && (
             <>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm text-muted-foreground">{debitos.length} débito(s) em aberto</p>
@@ -487,6 +600,15 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
                 ))}
               </div>
             </>
+          )}
+
+          {/* Gestão: mensagem vazia */}
+          {isGestao && valoresReceber.filter((v) => v.status !== "recebido").length === 0 && (
+            <div className="py-12 text-center text-muted-foreground">
+              <Clock className="w-10 h-10 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">Nenhum valor a receber</p>
+              <p className="text-xs mt-1">Clique em "Adicionar" para registrar valores pendentes.</p>
+            </div>
           )}
         </TabsContent>
 
@@ -594,6 +716,61 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
             <Button onClick={salvarEdicao} disabled={loadingEdit}>
               {loadingEdit ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Salvar alterações
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal adicionar valor a receber */}
+      <Dialog open={modalNovoReceber} onOpenChange={setModalNovoReceber}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adicionar Valor a Receber</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nome do devedor *</Label>
+              <Input
+                placeholder="Ex: João da Silva"
+                value={formReceber.devedor}
+                onChange={(e) => setFormReceber((f) => ({ ...f, devedor: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Valor (R$) *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  placeholder="0,00"
+                  value={formReceber.valor}
+                  onChange={(e) => setFormReceber((f) => ({ ...f, valor: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Data de vencimento *</Label>
+                <Input
+                  type="date"
+                  value={formReceber.data_vencimento}
+                  onChange={(e) => setFormReceber((f) => ({ ...f, data_vencimento: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Observação (opcional)</Label>
+              <Textarea
+                placeholder="Detalhes sobre o valor..."
+                value={formReceber.observacoes}
+                onChange={(e) => setFormReceber((f) => ({ ...f, observacoes: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setModalNovoReceber(false)}>Cancelar</Button>
+            <Button onClick={adicionarValorReceber} disabled={loadingReceber} className="gap-2">
+              {loadingReceber ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              Adicionar
             </Button>
           </DialogFooter>
         </DialogContent>
