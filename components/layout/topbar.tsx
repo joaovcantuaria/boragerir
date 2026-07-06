@@ -204,8 +204,8 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl, plano, empr
           )
         })}
 
-        {/* Seletor de Empresas — para plano gestão com multi-empresa */}
-        {isPlanoGestao && empresas.length > 0 && (
+        {/* Seletor de Empresas — para plano gestão */}
+        {isPlanoGestao && (
           <Dropdown
             open={empresasAberto}
             onClose={() => setEmpresasAberto(false)}

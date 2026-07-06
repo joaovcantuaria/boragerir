@@ -214,8 +214,8 @@ export function MobileNav({ prefix = "", plano = "gratuito", empresas = [], empr
             </button>
           )}
 
-          {/* Seletor empresas — plano gestão com multi-empresa */}
-          {isPlanoGestao && empresas.length > 1 && (
+          {/* Seletor empresas — plano gestão */}
+          {isPlanoGestao && (
             <button
               onClick={() => setEmpresasAberto(!empresasAberto)}
               className="flex-1 flex flex-col items-center justify-start gap-1 text-[10px] font-semibold transition-colors"
