@@ -97,6 +97,9 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   const [editandoReceberId, setEditandoReceberId] = useState<string | null>(null)
   const [formReceber, setFormReceber] = useState({ devedor: "", valor: "", data_vencimento: "", observacoes: "" })
   const [loadingReceber, setLoadingReceber] = useState(false)
+  // Baixa modal — pergunta de qual caixa
+  const [modalBaixa, setModalBaixa] = useState<{ tipo: "receber" | "pagar"; id: string; valor: number; descricao: string } | null>(null)
+  const [baixaCaixaTipo, setBaixaCaixaTipo] = useState<"especie" | "banco">("especie")
   const supabase = createClient()
   const router = useRouter()
   const isGestao = plano === "gestao"
@@ -180,9 +183,81 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   }
 
   async function marcarRecebido(id: string) {
-    await supabase.from("valores_receber").update({ status: "recebido" }).eq("id", id)
-    setValoresReceber((prev) => prev.map((v) => v.id === id ? { ...v, status: "recebido" } : v))
-    toast.success("Marcado como recebido!")
+    const item = valoresReceber.find((v) => v.id === id)
+    if (!item) return
+    if (isGestao) {
+      // Abrir modal para selecionar caixa destino
+      setModalBaixa({ tipo: "receber", id, valor: item.valor, descricao: `Recebimento: ${item.devedor}` })
+    } else {
+      await supabase.from("valores_receber").update({ status: "recebido" }).eq("id", id)
+      setValoresReceber((prev) => prev.map((v) => v.id === id ? { ...v, status: "recebido" } : v))
+      toast.success("Marcado como recebido!")
+    }
+  }
+
+  async function confirmarBaixa() {
+    if (!modalBaixa) return
+    setLoadingReceber(true)
+
+    // Buscar caixa aberto do tipo selecionado
+    const { data: caixaAlvo } = await supabase
+      .from("caixas")
+      .select("id")
+      .eq("empresa_id", empresaId)
+      .eq("status", "aberto")
+      .order("created_at", { ascending: true })
+
+    // Filtrar pelo tipo_conta
+    let caixaId: string | null = null
+    if (caixaAlvo && caixaAlvo.length > 0) {
+      // Buscar o caixa certo por tipo_conta
+      const { data: caixasComTipo } = await supabase
+        .from("caixas")
+        .select("id, tipo_conta")
+        .eq("empresa_id", empresaId)
+        .eq("status", "aberto")
+
+      const caixaFiltrado = (caixasComTipo ?? []).find((c: any) => {
+        if (baixaCaixaTipo === "banco") return c.tipo_conta === "banco"
+        return c.tipo_conta !== "banco"
+      })
+      caixaId = caixaFiltrado?.id ?? caixaAlvo[0]?.id ?? null
+    }
+
+    if (!caixaId) {
+      toast.error("Nenhum caixa aberto. Abra o caixa primeiro.")
+      setLoadingReceber(false)
+      return
+    }
+
+    if (modalBaixa.tipo === "receber") {
+      // Marcar como recebido + registrar entrada no caixa
+      await supabase.from("valores_receber").update({ status: "recebido" }).eq("id", modalBaixa.id)
+      await supabase.from("movimentacoes_caixa").insert({
+        empresa_id: empresaId,
+        caixa_id: caixaId,
+        tipo: "entrada",
+        categoria: "suprimento",
+        descricao: modalBaixa.descricao,
+        valor: modalBaixa.valor,
+      } as any)
+      setValoresReceber((prev) => prev.map((v) => v.id === modalBaixa.id ? { ...v, status: "recebido" } : v))
+      toast.success("Recebimento registrado no caixa!")
+    } else {
+      // Conta a pagar — registrar saída no caixa
+      await supabase.from("movimentacoes_caixa").insert({
+        empresa_id: empresaId,
+        caixa_id: caixaId,
+        tipo: "saida",
+        categoria: "despesa",
+        descricao: modalBaixa.descricao,
+        valor: modalBaixa.valor,
+      } as any)
+      toast.success("Pagamento registrado no caixa!")
+    }
+
+    setModalBaixa(null)
+    setLoadingReceber(false)
   }
 
   function editarValorReceber(v: { id: string; devedor: string; valor: number; data_vencimento: string; observacoes: string | null }) {
@@ -686,6 +761,8 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
             empresaId={empresaId}
             contas={contasPagar}
             setContas={setContasPagar}
+            isGestao={isGestao}
+            onBaixaGestao={(id, valor, descricao) => setModalBaixa({ tipo: "pagar", id, valor, descricao })}
           />
         </TabsContent>
 
@@ -810,6 +887,70 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
             <Button onClick={editandoReceberId ? salvarEdicaoReceber : adicionarValorReceber} disabled={loadingReceber} className="gap-2">
               {loadingReceber ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
               {editandoReceberId ? "Salvar" : "Adicionar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de baixa — selecionar caixa destino/origem */}
+      <Dialog open={!!modalBaixa} onOpenChange={(open) => { if (!open) setModalBaixa(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {modalBaixa?.tipo === "receber" ? "Registrar Recebimento" : "Registrar Pagamento"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-lg bg-muted/50 p-3">
+              <p className="text-xs text-muted-foreground">{modalBaixa?.descricao}</p>
+              <p className="text-lg font-bold text-primary mt-1">{formatarMoeda(modalBaixa?.valor ?? 0)}</p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">
+                {modalBaixa?.tipo === "receber"
+                  ? "Como vai receber?"
+                  : "De onde sai o pagamento?"
+                }
+              </Label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setBaixaCaixaTipo("especie")}
+                  className={`p-4 rounded-xl border-2 text-center transition-all ${
+                    baixaCaixaTipo === "especie"
+                      ? "border-[#F26E1D] bg-[#F26E1D]/10"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                >
+                  <span className="text-2xl block mb-1">💵</span>
+                  <span className={`text-xs font-bold ${baixaCaixaTipo === "especie" ? "text-[#F26E1D]" : "text-muted-foreground"}`}>
+                    Dinheiro
+                  </span>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Caixa espécie</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBaixaCaixaTipo("banco")}
+                  className={`p-4 rounded-xl border-2 text-center transition-all ${
+                    baixaCaixaTipo === "banco"
+                      ? "border-[#F26E1D] bg-[#F26E1D]/10"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                >
+                  <span className="text-2xl block mb-1">🏦</span>
+                  <span className={`text-xs font-bold ${baixaCaixaTipo === "banco" ? "text-[#F26E1D]" : "text-muted-foreground"}`}>
+                    Banco / Pix
+                  </span>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Conta digital</p>
+                </button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setModalBaixa(null)}>Cancelar</Button>
+            <Button onClick={confirmarBaixa} disabled={loadingReceber} className="gap-2">
+              {loadingReceber ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              Confirmar
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1195,10 +1336,14 @@ function ContasPagarTab({
   empresaId,
   contas,
   setContas,
+  isGestao = false,
+  onBaixaGestao,
 }: {
   empresaId: string
   contas: ContaPagar[]
   setContas: React.Dispatch<React.SetStateAction<ContaPagar[]>>
+  isGestao?: boolean
+  onBaixaGestao?: (id: string, valor: number, descricao: string) => void
 }) {
   const hoje = new Date()
   hoje.setHours(0, 0, 0, 0)
@@ -1259,6 +1404,21 @@ function ContasPagarTab({
   }
 
   async function pagar(id: string) {
+    // Para plano gestão: abrir modal para selecionar caixa
+    if (isGestao && onBaixaGestao) {
+      const conta = contas.find((c) => c.id === id)
+      if (conta) {
+        onBaixaGestao(id, conta.valor, `Pagamento: ${conta.descricao}`)
+      }
+      // Marcar como pago na API também
+      await fetch("/api/financeiro/contas-pagar", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ _acao: "pagar", id }),
+      })
+      setContas((prev) => prev.map((c) => c.id === id ? { ...c, status: "pago", data_pagamento: new Date().toISOString() } : c))
+      return
+    }
+
     const res = await fetch("/api/financeiro/contas-pagar", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ _acao: "pagar", id }),
