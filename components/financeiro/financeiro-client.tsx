@@ -25,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { formatarMoeda, labelsFormaPagamento, coresStatus, labelsStatus } from "@/lib/utils"
+import { RelatoriosGestaoTab } from "@/components/financeiro/relatorios-gestao"
 
 const CORES = ["#10B981", "#3B82F6", "#F59E0B", "#8B5CF6", "#EF4444"]
 
@@ -701,7 +702,10 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
         {/* ── ABA RELATÓRIOS — disponível apenas nos planos pagos ── */}
         {plano !== "gratuito" && (
           <TabsContent value="relatorios" className="mt-4">
-            <RelatoriosTab vendas={vendas} movimentacoes={movimentacoes} funcionarios={funcionarios} debitos={debitos} empresaId={empresaId} />
+            {isGestao
+              ? <RelatoriosGestaoTab empresaId={empresaId} />
+              : <RelatoriosTab vendas={vendas} movimentacoes={movimentacoes} funcionarios={funcionarios} debitos={debitos} empresaId={empresaId} />
+            }
           </TabsContent>
         )}
       </Tabs>
