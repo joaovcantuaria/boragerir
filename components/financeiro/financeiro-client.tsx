@@ -346,7 +346,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   const vendasCanceladasNovamente = vendas.filter((v) => v.status === "cancelada").reduce((s, v) => s + v.total, 0)
   const vendasJaCanceladasOriginal = vendasOrigRef.current.filter((v) => v.status === "cancelada").reduce((s, v) => s + v.total, 0)
   const saldoCaixaLocal = isGestao
-    ? (saldoCaixa + totalReceitasGestao - totalDespesasGestao)
+    ? saldoCaixa
     : saldoCaixa - (vendasCanceladasNovamente - vendasJaCanceladasOriginal)
 
   // Faturamento por dia (mês atual)
