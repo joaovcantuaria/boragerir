@@ -170,8 +170,8 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
     setMovimentacoes([])
     setModalFecharCaixa(false)
     toast.success("Caixa fechado com sucesso!")
-    router.refresh()
     setLoading(false)
+    window.location.reload()
   }
 
   async function registrarMovimentacao(data: { valor: string; descricao: string }) {
@@ -206,7 +206,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
     setLoading(false)
   }
 
-  const temCaixasAnteriores = ["basico", "profissional"].includes(plano)
+  const temCaixasAnteriores = ["basico", "profissional", "gestao"].includes(plano)
 
   return (
     <div className="space-y-6">
