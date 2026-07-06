@@ -30,7 +30,7 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
   const [modalCadastro, setModalCadastro] = useState(false)
   const [cadastroLoading, setCadastroLoading] = useState(false)
   const [formCadastro, setFormCadastro] = useState({
-    email: "", senha: "", nome_empresa: "", telefone: "", area_atuacao: "", plano: "gestao", max_empresas: "1"
+    email: "", senha: "", nome_empresa: "", nome_titular: "", telefone: "", area_atuacao: "", plano: "gestao", max_empresas: "1"
   })
   const router = useRouter()
   const t = useAdminTema()
@@ -94,9 +94,17 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
   }
 
   async function cadastrarEmpresa() {
-    const { email, senha, nome_empresa, telefone, area_atuacao, plano } = formCadastro
-    if (!email || !senha || !nome_empresa || !telefone || !area_atuacao) {
-      toast.error("Preencha todos os campos obrigatórios.")
+    const { email, senha, nome_empresa, nome_titular, telefone, area_atuacao, plano } = formCadastro
+    if (!email || !senha || !telefone) {
+      toast.error("Preencha email, senha e telefone.")
+      return
+    }
+    if (plano !== "gestao" && (!nome_empresa || !area_atuacao)) {
+      toast.error("Preencha nome da empresa e área de atuação.")
+      return
+    }
+    if (plano === "gestao" && !nome_titular) {
+      toast.error("Preencha o nome do titular.")
       return
     }
     if (senha.length < 6) {
@@ -108,7 +116,7 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
       const res = await fetch("/api/admin/empresas/cadastrar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, senha, nome_empresa, telefone, area_atuacao, plano, max_empresas: formCadastro.max_empresas }),
+        body: JSON.stringify({ email, senha, nome_empresa, nome_titular: formCadastro.nome_titular, telefone, area_atuacao, plano, max_empresas: formCadastro.max_empresas }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -117,7 +125,7 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
       }
       toast.success(`Empresa "${nome_empresa}" cadastrada com sucesso!`)
       setModalCadastro(false)
-      setFormCadastro({ email: "", senha: "", nome_empresa: "", telefone: "", area_atuacao: "", plano: "gestao", max_empresas: "1" })
+      setFormCadastro({ email: "", senha: "", nome_empresa: "", nome_titular: "", telefone: "", area_atuacao: "", plano: "gestao", max_empresas: "1" })
       router.refresh()
     } catch {
       toast.error("Erro de conexão.")
@@ -291,15 +299,28 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
           >
             <h2 className={`text-lg font-black ${t.text} mb-4`}>Nova Empresa</h2>
             <div className="space-y-3">
-              <div>
-                <label className={`text-xs font-semibold ${t.textMuted} block mb-1`}>Nome da empresa *</label>
-                <input
-                  className={`w-full ${t.inputBg} border ${t.inputBorder} rounded-xl px-3 py-2.5 text-sm ${t.inputText} focus:outline-none`}
-                  placeholder="Ex: Salão da Maria"
-                  value={formCadastro.nome_empresa}
-                  onChange={(e) => setFormCadastro((f) => ({ ...f, nome_empresa: e.target.value }))}
-                />
-              </div>
+              {/* Plano gestão: nome do titular em vez de nome da empresa */}
+              {formCadastro.plano === "gestao" ? (
+                <div>
+                  <label className={`text-xs font-semibold ${t.textMuted} block mb-1`}>Nome do titular *</label>
+                  <input
+                    className={`w-full ${t.inputBg} border ${t.inputBorder} rounded-xl px-3 py-2.5 text-sm ${t.inputText} focus:outline-none`}
+                    placeholder="Nome completo do cliente"
+                    value={formCadastro.nome_titular}
+                    onChange={(e) => setFormCadastro((f) => ({ ...f, nome_titular: e.target.value }))}
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className={`text-xs font-semibold ${t.textMuted} block mb-1`}>Nome da empresa *</label>
+                  <input
+                    className={`w-full ${t.inputBg} border ${t.inputBorder} rounded-xl px-3 py-2.5 text-sm ${t.inputText} focus:outline-none`}
+                    placeholder="Ex: Salão da Maria"
+                    value={formCadastro.nome_empresa}
+                    onChange={(e) => setFormCadastro((f) => ({ ...f, nome_empresa: e.target.value }))}
+                  />
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={`text-xs font-semibold ${t.textMuted} block mb-1`}>E-mail (login) *</label>
