@@ -3,15 +3,30 @@ import { createClient } from "@/lib/supabase/server"
 
 /**
  * Busca a empresa ativa do usuário logado para uso em server components.
- * Para plano gestão com multi-empresa, retorna a primeira empresa encontrada
- * (o client-side hook cuida da seleção correta via localStorage).
+ * Lê o cookie "empresa_ativa_id" para saber qual empresa o usuário selecionou.
+ * Valida que a empresa pertence ao usuário antes de retornar.
  */
 export async function getEmpresaAtiva() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { user: null, empresa: null }
 
-  // Buscar todas as empresas do usuário (ordenadas por criação)
+  const cookieStore = await cookies()
+  const empresaIdCookie = cookieStore.get("empresa_ativa_id")?.value
+
+  // Se tem cookie, buscar diretamente essa empresa (validando que pertence ao user)
+  if (empresaIdCookie) {
+    const { data: empresa } = await supabase
+      .from("empresas")
+      .select("*")
+      .eq("id", empresaIdCookie)
+      .eq("user_id", user.id)
+      .maybeSingle()
+
+    if (empresa) return { user, empresa }
+  }
+
+  // Fallback: buscar a primeira empresa do usuário
   const { data: empresas } = await supabase
     .from("empresas")
     .select("*")
@@ -20,7 +35,7 @@ export async function getEmpresaAtiva() {
 
   if (!empresas || empresas.length === 0) return { user, empresa: null }
 
-  // Para plano gestão: a primeira é o container, usar a segunda se existir
+  // Para plano gestão: a primeira é o container, preferir a segunda
   const isGestao = empresas[0]?.plano === "gestao"
   if (isGestao && empresas.length > 1) {
     return { user, empresa: empresas[1] }

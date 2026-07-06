@@ -1,19 +1,17 @@
 import { createClient } from "@/lib/supabase/server"
 import { FinanceiroClient } from "@/components/financeiro/financeiro-client"
 import { redirect } from "next/navigation"
+import { getEmpresaAtiva } from "@/lib/get-empresa-ativa"
 
 export const dynamic = "force-dynamic"
 export const metadata = { title: "Financeiro" }
 
 export default async function FinanceiroPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user, empresa } = await getEmpresaAtiva()
   if (!user) redirect("/login")
-
-  const { data: empresas } = await supabase
-    .from("empresas").select("*").eq("user_id", user.id).order("created_at", { ascending: true })
-  const empresa = empresas?.[0] ?? null
   if (!empresa) redirect("/onboarding")
+
+  const supabase = await createClient()
 
   const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
   const fimMes = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59).toISOString()

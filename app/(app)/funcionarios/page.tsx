@@ -1,19 +1,17 @@
 import { createClient } from "@/lib/supabase/server"
 import { FuncionariosClient } from "@/components/funcionarios/funcionarios-client"
 import { redirect } from "next/navigation"
+import { getEmpresaAtiva } from "@/lib/get-empresa-ativa"
 
 export const dynamic = "force-dynamic"
 export const metadata = { title: "Colaboradores" }
 
 export default async function FuncionariosPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user, empresa } = await getEmpresaAtiva()
   if (!user) redirect("/login")
-
-  const { data: empresas } = await supabase
-    .from("empresas").select("*").eq("user_id", user.id).order("created_at", { ascending: true })
-  const empresa = empresas?.[0] ?? null
   if (!empresa) redirect("/onboarding")
+
+  const supabase = await createClient()
 
   const { data: funcionarios } = await supabase
     .from("funcionarios")

@@ -2,22 +2,20 @@ import { createClient } from "@/lib/supabase/server"
 import { TarefasClient } from "@/components/tarefas/tarefas-client"
 import { redirect } from "next/navigation"
 import Link from "next/link"
+import { getEmpresaAtiva } from "@/lib/get-empresa-ativa"
 
 export const dynamic = "force-dynamic"
 export const metadata = { title: "Tarefas" }
 
 export default async function TarefasPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user, empresa } = await getEmpresaAtiva()
   if (!user) redirect("/login")
-
-  const { data: empresas } = await supabase
-    .from("empresas").select("id, plano, plano_ativo").eq("user_id", user.id).order("created_at", { ascending: true })
-  const empresa = empresas?.[0] ?? null
   if (!empresa) redirect("/onboarding")
 
-  // Tarefas disponível apenas nos planos pagos: agenda, basico, profissional
-  const planosComTarefas = ["agenda", "basico", "profissional"]
+  const supabase = await createClient()
+
+  // Tarefas disponível apenas nos planos pagos: agenda, basico, profissional, gestao
+  const planosComTarefas = ["agenda", "basico", "profissional", "gestao"]
   if (!planosComTarefas.includes(empresa.plano) || !empresa.plano_ativo) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 text-center px-4">

@@ -5,6 +5,16 @@ import { createClient } from "@/lib/supabase/client"
 import type { Empresa } from "@/types"
 
 const STORAGE_KEY = "boragerir_empresa_selecionada"
+const COOKIE_KEY = "empresa_ativa_id"
+
+function setCookie(name: string, value: string) {
+  document.cookie = `${name}=${value};path=/;max-age=${60 * 60 * 24 * 365};SameSite=Lax`
+}
+
+function getCookie(name: string): string | null {
+  const match = document.cookie.match(new RegExp(`(^| )${name}=([^;]+)`))
+  return match ? match[2] : null
+}
 
 export function useEmpresa() {
   const [empresa, setEmpresa] = useState<Empresa | null>(null)
@@ -40,12 +50,16 @@ export function useEmpresa() {
       const empresasVisiveis = isGestao ? lista.filter((_, i) => i > 0) : lista
 
       if (empresasVisiveis.length > 0) {
-        const salvoId = localStorage.getItem(STORAGE_KEY)
+        const salvoId = getCookie(COOKIE_KEY) || localStorage.getItem(STORAGE_KEY)
         const salva = empresasVisiveis.find((e) => e.id === salvoId)
-        setEmpresa(salva ?? empresasVisiveis[0])
+        const selecionada = salva ?? empresasVisiveis[0]
+        setEmpresa(selecionada)
+        // Garantir que cookie está sincronizado
+        setCookie(COOKIE_KEY, selecionada.id)
       } else {
         // Gestão sem empresas reais ainda — usar o container pra não quebrar
         setEmpresa(lista[0])
+        setCookie(COOKIE_KEY, lista[0].id)
       }
 
       setLoading(false)
@@ -56,10 +70,12 @@ export function useEmpresa() {
   }, [])
 
   const selecionarEmpresa = useCallback((id: string) => {
-    const found = empresas.find((e) => e.id === id)
+    const allEmpresas = empresas
+    const found = allEmpresas.find((e) => e.id === id)
     if (found) {
       setEmpresa(found)
       localStorage.setItem(STORAGE_KEY, id)
+      setCookie(COOKIE_KEY, id)
     }
   }, [empresas])
 

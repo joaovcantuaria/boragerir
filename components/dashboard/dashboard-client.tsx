@@ -10,7 +10,7 @@ import {
   Wallet, TrendingUp, Users, ShoppingCart, Calendar, CheckSquare,
   Package, AlertTriangle, ArrowRight, Clock, RefreshCw, Moon, Sun,
   ShoppingBag, FileText, BarChart3, Settings, CreditCard,
-  HeadphonesIcon, ClipboardList, UserCheck,
+  HeadphonesIcon, ClipboardList, UserCheck, ArrowDownUp,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Badge } from "@/components/ui/badge"
@@ -167,6 +167,128 @@ export function DashboardClient({
       onClick: () => router.push("/caixa"),
     },
   ]
+
+  // ── DASHBOARD PLANO GESTÃO — simplificada ──
+  if (empresa.plano === "gestao") {
+    return (
+      <div className="space-y-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-lg font-semibold text-foreground">
+              Olá, {empresa.nome.split(" ")[0]} 👋
+            </h1>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
+            </p>
+          </div>
+        </div>
+
+        {/* KPIs Gestão */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            {
+              label: "Resumo Geral",
+              value: formatarMoeda(totalVendas),
+              icon: TrendingUp,
+              color: "#10b981",
+              bg: "#10b98115",
+              trend: "receitas do dia",
+              onClick: () => router.push("/financeiro"),
+            },
+            {
+              label: "Entradas e Saídas",
+              value: `${qtdAtend} mov.`,
+              icon: ArrowDownUp,
+              color: "#6366f1",
+              bg: "#6366f115",
+              trend: "movimentações hoje",
+              onClick: () => router.push("/caixa"),
+            },
+            {
+              label: "Caixa",
+              value: caixaAberto ? "Aberto" : "Fechado",
+              icon: Wallet,
+              color: caixaAberto ? "#10b981" : "#6b7280",
+              bg: caixaAberto ? "#10b98115" : "#6b728015",
+              trend: caixaAberto ? "Em operação" : "Clique para abrir",
+              onClick: () => router.push("/caixa"),
+            },
+            {
+              label: "Tarefas",
+              value: `${tarefasPendentes?.length ?? 0}`,
+              icon: CheckSquare,
+              color: "#F26E1D",
+              bg: "#F26E1D15",
+              trend: "pendentes",
+              onClick: () => router.push("/tarefas"),
+            },
+          ].map((kpi, i) => (
+            <Card key={i} className={`cursor-pointer hover:border-primary/40 transition-all ${pulsing ? "ring-1 ring-primary/30" : ""}`}
+              onClick={kpi.onClick}>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2.5 rounded-xl" style={{ background: kpi.bg }}>
+                  <kpi.icon className="w-5 h-5" style={{ color: kpi.color }} />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{kpi.label}</p>
+                  <p className="text-xl font-bold" style={{ color: kpi.color }}>{kpi.value}</p>
+                  <p className="text-[10px] text-muted-foreground">{kpi.trend}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Acesso rápido */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            { label: "Caixa", icon: Wallet, href: "/caixa", color: "#10b981" },
+            { label: "Financeiro", icon: BarChart3, href: "/financeiro", color: "#6366f1" },
+            { label: "Colaboradores", icon: Users, href: "/funcionarios", color: "#14b8a6" },
+            { label: "Tarefas", icon: CheckSquare, href: "/tarefas", color: "#F26E1D" },
+          ].map((item) => (
+            <Card key={item.href} className="cursor-pointer hover:border-primary/40 transition-all"
+              onClick={() => router.push(item.href)}>
+              <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: item.color + "15" }}>
+                  <item.icon className="w-5 h-5" style={{ color: item.color }} />
+                </div>
+                <span className="text-xs font-semibold">{item.label}</span>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Tarefas pendentes */}
+        {tarefasPendentes && tarefasPendentes.length > 0 && (
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold flex items-center gap-2">
+                  <CheckSquare className="w-4 h-4 text-primary" /> Tarefas
+                </h3>
+                <button onClick={() => router.push("/tarefas")} className="text-xs text-primary font-semibold hover:underline">
+                  Ver todas →
+                </button>
+              </div>
+              <div className="space-y-2">
+                {tarefasPendentes.slice(0, 5).map((t: any) => (
+                  <div key={t.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+                    <span className="text-xs font-medium truncate">{t.titulo}</span>
+                    {t.prazo && (
+                      <span className="text-[10px] text-muted-foreground shrink-0">
+                        {format(new Date(t.prazo), "dd/MM")}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-5">
