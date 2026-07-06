@@ -290,7 +290,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
 
           {/* Multi-caixa gestão: mostrar caixas abertos lado a lado */}
           {plano === "gestao" && caixasAbertos.length > 1 && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {caixasAbertos.map((cx) => {
                 const movsDosCaixa = movimentacoes.filter((m: any) => m.caixa_id === cx.id)
                 const entradas = movsDosCaixa.filter((m) => m.tipo === "entrada").reduce((s, m) => s + m.valor, 0)
@@ -298,19 +298,23 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
                 const saldo = cx.valor_abertura + entradas - saidas
                 const tipoConta = (cx as any).tipo_conta
                 return (
-                  <Card key={cx.id} className="border-primary/20">
-                    <CardContent className="p-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-base">{tipoConta === "banco" ? "🏦" : "💵"}</span>
-                        <span className="text-xs font-bold">{tipoConta === "banco" ? "Banco" : "Dinheiro"}</span>
-                        {(cx as any).nome_caixa && (
-                          <span className="text-[10px] text-muted-foreground">({(cx as any).nome_caixa})</span>
-                        )}
+                  <Card key={cx.id} className={`overflow-hidden ${saldo < 0 ? "border-red-200" : "border-border"}`}>
+                    <div className={`px-4 py-2 flex items-center justify-between ${tipoConta === "banco" ? "bg-blue-50 dark:bg-blue-900/10" : "bg-emerald-50 dark:bg-emerald-900/10"}`}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{tipoConta === "banco" ? "🏦" : "💵"}</span>
+                        <span className="text-sm font-bold">{tipoConta === "banco" ? "Banco" : "Dinheiro"}</span>
+                        {(cx as any).nome_caixa && <span className="text-xs text-muted-foreground">· {(cx as any).nome_caixa}</span>}
                       </div>
-                      <p className="text-lg font-black text-primary">{formatarMoeda(saldo)}</p>
-                      <div className="flex gap-3 mt-1 text-[10px] text-muted-foreground">
-                        <span className="text-emerald-500">+{formatarMoeda(entradas)}</span>
-                        <span className="text-red-500">-{formatarMoeda(saidas)}</span>
+                      <Button variant="ghost" size="sm" className="text-xs text-red-500 hover:text-red-600 hover:bg-red-50 h-7 px-2"
+                        onClick={() => { setCaixa(cx as any); setModalFecharCaixa(true) }}>
+                        <X className="w-3 h-3 mr-1" /> Fechar
+                      </Button>
+                    </div>
+                    <CardContent className="p-4">
+                      <p className={`text-2xl font-black ${saldo < 0 ? "text-red-500" : "text-foreground"}`}>{formatarMoeda(saldo)}</p>
+                      <div className="flex gap-4 mt-2 text-xs">
+                        <span className="text-emerald-500">↑ {formatarMoeda(entradas)}</span>
+                        <span className="text-red-500">↓ {formatarMoeda(saidas)}</span>
                       </div>
                     </CardContent>
                   </Card>
@@ -327,58 +331,22 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
             </Button>
           )}
 
-          {/* Resumo — gestão multi-caixa: Dinheiro + Banco + Geral */}
+          {/* Resumo — gestão multi-caixa: só geral compacto */}
           {plano === "gestao" && caixasAbertos.length > 1 ? (
-            <div className="space-y-3">
-              {/* Cards individuais por caixa */}
-              {caixasAbertos.map((cx) => {
-                const movsDosCaixa = movimentacoes.filter((m: any) => m.caixa_id === cx.id)
-                const entradas = movsDosCaixa.filter((m) => m.tipo === "entrada").reduce((s, m) => s + m.valor, 0)
-                const saidas = movsDosCaixa.filter((m) => m.tipo === "saida").reduce((s, m) => s + m.valor, 0)
-                const saldo = cx.valor_abertura + entradas - saidas
-                const tipoConta = (cx as any).tipo_conta
-                const label = tipoConta === "banco" ? "🏦 Banco" : "💵 Dinheiro"
-                return (
-                  <div key={cx.id}>
-                    <p className="text-xs font-bold text-muted-foreground mb-2">{label} {(cx as any).nome_caixa ? `— ${(cx as any).nome_caixa}` : ""}</p>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                      {[
-                        { label: "Abertura", valor: cx.valor_abertura, cor: "text-foreground" },
-                        { label: "Entradas", valor: entradas, cor: "text-emerald-500" },
-                        { label: "Saídas", valor: saidas, cor: "text-red-500" },
-                        { label: "Saldo", valor: saldo, cor: "text-primary" },
-                      ].map((item) => (
-                        <Card key={item.label}>
-                          <CardContent className="p-3">
-                            <p className="text-[10px] text-muted-foreground">{item.label}</p>
-                            <p className={`text-lg font-bold ${item.cor}`}>{formatarMoeda(item.valor)}</p>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
+            <Card className="border-primary/20 bg-primary/5">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground font-semibold">📊 Saldo Geral</p>
+                    <p className="text-2xl font-black text-primary">{formatarMoeda(saldoAtual)}</p>
                   </div>
-                )
-              })}
-              {/* Geral */}
-              <div>
-                <p className="text-xs font-bold text-muted-foreground mb-2">📊 Geral (todos os caixas)</p>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  {[
-                    { label: "Abertura total", valor: caixasAbertos.reduce((s, cx) => s + cx.valor_abertura, 0), cor: "text-foreground" },
-                    { label: "Total entradas", valor: totalEntradas, cor: "text-emerald-500" },
-                    { label: "Total saídas", valor: totalSaidas, cor: "text-red-500" },
-                    { label: "Saldo geral", valor: saldoAtual, cor: "text-primary" },
-                  ].map((item) => (
-                    <Card key={item.label} className="border-primary/20">
-                      <CardContent className="p-3">
-                        <p className="text-[10px] text-muted-foreground">{item.label}</p>
-                        <p className={`text-lg font-bold ${item.cor}`}>{formatarMoeda(item.valor)}</p>
-                      </CardContent>
-                    </Card>
-                  ))}
+                  <div className="text-right text-xs space-y-0.5">
+                    <p className="text-emerald-500 font-semibold">Entradas: {formatarMoeda(totalEntradas)}</p>
+                    <p className="text-red-500 font-semibold">Saídas: {formatarMoeda(totalSaidas)}</p>
+                  </div>
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           ) : (
           /* Resumo padrão (caixa único) */
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -798,7 +766,10 @@ function CaixasAnterioresTab({
     const dataFc = cx.data_fechamento
       ? format(new Date(cx.data_fechamento), "dd/MM/yyyy", { locale: ptBR })
       : ""
-    return dataAb.includes(t) || dataFc.includes(t)
+    const nome = ((cx as any).nome_caixa ?? "").toLowerCase()
+    const tipo = ((cx as any).tipo_caixa ?? "").toLowerCase()
+    const tipoConta = ((cx as any).tipo_conta ?? "").toLowerCase()
+    return dataAb.includes(t) || dataFc.includes(t) || nome.includes(t) || tipo.includes(t) || tipoConta.includes(t)
   })
 
   if (caixas.length === 0) {
@@ -815,7 +786,7 @@ function CaixasAnterioresTab({
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
-          placeholder="Buscar por data..."
+          placeholder="Buscar por nome, data ou tipo..."
           className="pl-9"
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
@@ -825,49 +796,47 @@ function CaixasAnterioresTab({
       {filtrados.length === 0 ? (
         <p className="text-center text-muted-foreground text-sm py-8">Nenhum resultado para a busca</p>
       ) : (
-        <div className="border border-border rounded-xl overflow-hidden">
-          <div className="grid grid-cols-5 gap-2 px-4 py-2 bg-muted text-xs font-medium text-muted-foreground">
-            <span>Abertura</span>
-            <span>Fechamento</span>
-            <span className="text-right">Abertura (R$)</span>
-            <span className="text-right">Fechamento (R$)</span>
-            <span className="text-right">Ações</span>
-          </div>
+        <div className="space-y-2">
           {filtrados.map((cx) => {
             const diferenca = cx.diferenca ?? 0
+            const nomeCaixa = (cx as any).nome_caixa
+            const tipoConta = (cx as any).tipo_conta
             return (
-              <div key={cx.id} className="grid grid-cols-5 gap-2 px-4 py-3 border-t border-border text-sm items-center">
-                <span className="text-xs">
-                  {format(new Date(cx.data_abertura), "dd/MM/yyyy HH:mm", { locale: ptBR })}
-                </span>
-                <span className="text-xs">
-                  {cx.data_fechamento
-                    ? format(new Date(cx.data_fechamento), "dd/MM/yyyy HH:mm", { locale: ptBR })
-                    : "—"}
-                </span>
-                <span className="text-right text-xs">{formatarMoeda(cx.valor_abertura)}</span>
-                <div className="text-right">
-                  <span className="text-xs font-semibold">
-                    {cx.valor_fechamento != null ? formatarMoeda(cx.valor_fechamento) : "—"}
-                  </span>
-                  {cx.diferenca != null && (
-                    <p className={`text-[10px] font-bold ${diferenca >= 0 ? "text-emerald-500" : "text-red-500"}`}>
-                      {diferenca >= 0 ? "+" : ""}{formatarMoeda(diferenca)}
-                    </p>
-                  )}
-                </div>
-                <div className="flex justify-end">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-xs h-7 px-3"
-                    onClick={() => onVerDetalhe(cx)}
-                    disabled={loadingDetalhe}
-                  >
-                    {loadingDetalhe ? <Loader2 className="w-3 h-3 animate-spin" /> : "Ver detalhes"}
-                  </Button>
-                </div>
-              </div>
+              <Card key={cx.id} className="hover:border-primary/30 transition-colors">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                        <span className="text-sm">{tipoConta === "banco" ? "🏦" : "💵"}</span>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold truncate">
+                          {nomeCaixa ?? format(new Date(cx.data_abertura), "dd/MM/yyyy")}
+                        </p>
+                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
+                          <span>{format(new Date(cx.data_abertura), "dd/MM HH:mm")}</span>
+                          <span>→</span>
+                          <span>{cx.data_fechamento ? format(new Date(cx.data_fechamento), "dd/MM HH:mm") : "—"}</span>
+                          {tipoConta && <Badge variant="outline" className="text-[9px] px-1 py-0">{tipoConta === "banco" ? "Banco" : "Espécie"}</Badge>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="text-right">
+                        <p className="text-sm font-bold">{cx.valor_fechamento != null ? formatarMoeda(cx.valor_fechamento) : "—"}</p>
+                        {cx.diferenca != null && (
+                          <p className={`text-[10px] font-bold ${diferenca >= 0 ? "text-emerald-500" : "text-red-500"}`}>
+                            {diferenca >= 0 ? "+" : ""}{formatarMoeda(diferenca)}
+                          </p>
+                        )}
+                      </div>
+                      <Button variant="outline" size="sm" className="text-xs h-8" onClick={() => onVerDetalhe(cx)} disabled={loadingDetalhe}>
+                        Ver detalhes
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             )
           })}
         </div>
