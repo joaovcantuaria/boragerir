@@ -22,7 +22,7 @@ interface Empresa {
   created_at: string; logo_url: string | null
 }
 
-type Aba = "dados" | "assinaturas" | "notas" | "email" | "perigo"
+type Aba = "dados" | "assinaturas" | "notas" | "email" | "perigo" | "empresas"
 
 const PLANOS = ["gratuito", "basico", "profissional", "agenda", "gestao"]
 const PLANOS_PAGOS = ["basico", "profissional", "agenda", "gestao"]
@@ -34,15 +34,17 @@ const BADGE_STATUS: Record<string, string> = {
   pausada:   "bg-gray-500/10 text-gray-400 border-gray-500/20",
 }
 
-export function AdminEmpresaDetalhe({ empresa: empInit, assinaturas: assInit, notas: notasInit, tickets }: {
+export function AdminEmpresaDetalhe({ empresa: empInit, assinaturas: assInit, notas: notasInit, tickets, subEmpresas: subEmpInit = [] }: {
   empresa: Empresa
   assinaturas: { id: string; plano: string; periodicidade: string; status: string; valor_total: number; forma_pagamento: string | null; created_at: string; data_fim: string | null }[]
   notas: { id: string; nota: string; created_at: string }[]
   tickets: { id: string; assunto: string; status: string; mensagem: string; resposta_admin: string | null; created_at: string }[]
+  subEmpresas?: Empresa[]
 }) {
   const [empresa, setEmpresa] = useState(empInit)
   const [assinaturas, setAssinaturas] = useState(assInit)
   const [notas, setNotas] = useState(notasInit)
+  const [subEmpresas, setSubEmpresas] = useState(subEmpInit)
   const [aba, setAba] = useState<Aba>("dados")
   const [loading, setLoading] = useState(false)
   const [t] = [useAdminTema()]
@@ -167,6 +169,9 @@ export function AdminEmpresaDetalhe({ empresa: empInit, assinaturas: assInit, no
   const abas: { id: Aba; label: string }[] = [
     { id: "dados",        label: "Dados" },
     { id: "assinaturas",  label: "Assinaturas" },
+    ...(subEmpresas.length > 0 || empresa.plano === "gestao"
+      ? [{ id: "empresas" as Aba, label: `Empresas (${subEmpresas.length})` }]
+      : []),
     { id: "notas",        label: `Notas${notas.length ? ` (${notas.length})` : ""}` },
     { id: "email",        label: "E-mail" },
     { id: "perigo",       label: "⚠️ Perigo" },
@@ -476,6 +481,60 @@ export function AdminEmpresaDetalhe({ empresa: empInit, assinaturas: assInit, no
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             Enviar e-mail
           </button>
+        </div>
+      )}
+
+      {/* ── ABA EMPRESAS DEPENDENTES ── */}
+      {aba === "empresas" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className={`text-base font-bold ${t.text}`}>Empresas vinculadas</h3>
+              <p className={`text-xs ${t.textMuted}`}>
+                {subEmpresas.length} empresa(s) dependente(s) deste cadastro
+                {(empresa as any).max_empresas && ` · Limite: ${(empresa as any).max_empresas}`}
+              </p>
+            </div>
+          </div>
+
+          {subEmpresas.length === 0 ? (
+            <div className={`rounded-xl border ${t.border} p-8 text-center`}>
+              <p className={`text-sm ${t.textMuted}`}>Nenhuma empresa dependente cadastrada.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {subEmpresas.map((sub) => (
+                <div key={sub.id} className={`rounded-xl border ${t.border} ${t.cardBg} p-4`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
+                        <span className="text-sm font-bold text-primary">{sub.nome.charAt(0)}</span>
+                      </div>
+                      <div className="min-w-0">
+                        <p className={`text-sm font-semibold ${t.text} truncate`}>{sub.nome}</p>
+                        <div className={`flex items-center gap-3 text-xs ${t.textMuted2} mt-0.5`}>
+                          <span>{sub.area_atuacao}</span>
+                          <span>{sub.telefone}</span>
+                          {sub.documento && <span>{sub.tipo_documento === "cnpj" ? formatarCNPJ(sub.documento) : sub.documento}</span>}
+                        </div>
+                        {(sub.endereco_cidade || sub.endereco_estado) && (
+                          <p className={`text-[10px] ${t.textMuted} mt-0.5`}>
+                            {[sub.endereco_rua, sub.endereco_numero, sub.endereco_bairro, sub.endereco_cidade, sub.endereco_estado].filter(Boolean).join(", ")}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => router.push(`/admin/empresas/${sub.id}`)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                    >
+                      Ver detalhes
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

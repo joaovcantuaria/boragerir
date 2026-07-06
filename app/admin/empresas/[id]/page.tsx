@@ -18,5 +18,13 @@ export default async function AdminEmpresaDetalhePage({ params }: { params: Prom
 
   if (!empresa) notFound()
 
-  return <AdminEmpresaDetalhe empresa={empresa} assinaturas={assinaturas ?? []} notas={notas ?? []} tickets={tickets ?? []} />
+  // Buscar sub-empresas do mesmo user_id (dependentes)
+  const { data: subEmpresas } = await supabase
+    .from("empresas")
+    .select("*")
+    .eq("user_id", empresa.user_id)
+    .neq("id", id)
+    .order("created_at", { ascending: true })
+
+  return <AdminEmpresaDetalhe empresa={empresa} assinaturas={assinaturas ?? []} notas={notas ?? []} tickets={tickets ?? []} subEmpresas={subEmpresas ?? []} />
 }
