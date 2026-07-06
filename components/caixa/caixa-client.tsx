@@ -327,7 +327,60 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
             </Button>
           )}
 
-          {/* Resumo */}
+          {/* Resumo — gestão multi-caixa: Dinheiro + Banco + Geral */}
+          {plano === "gestao" && caixasAbertos.length > 1 ? (
+            <div className="space-y-3">
+              {/* Cards individuais por caixa */}
+              {caixasAbertos.map((cx) => {
+                const movsDosCaixa = movimentacoes.filter((m: any) => m.caixa_id === cx.id)
+                const entradas = movsDosCaixa.filter((m) => m.tipo === "entrada").reduce((s, m) => s + m.valor, 0)
+                const saidas = movsDosCaixa.filter((m) => m.tipo === "saida").reduce((s, m) => s + m.valor, 0)
+                const saldo = cx.valor_abertura + entradas - saidas
+                const tipoConta = (cx as any).tipo_conta
+                const label = tipoConta === "banco" ? "🏦 Banco" : "💵 Dinheiro"
+                return (
+                  <div key={cx.id}>
+                    <p className="text-xs font-bold text-muted-foreground mb-2">{label} {(cx as any).nome_caixa ? `— ${(cx as any).nome_caixa}` : ""}</p>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                      {[
+                        { label: "Abertura", valor: cx.valor_abertura, cor: "text-foreground" },
+                        { label: "Entradas", valor: entradas, cor: "text-emerald-500" },
+                        { label: "Saídas", valor: saidas, cor: "text-red-500" },
+                        { label: "Saldo", valor: saldo, cor: "text-primary" },
+                      ].map((item) => (
+                        <Card key={item.label}>
+                          <CardContent className="p-3">
+                            <p className="text-[10px] text-muted-foreground">{item.label}</p>
+                            <p className={`text-lg font-bold ${item.cor}`}>{formatarMoeda(item.valor)}</p>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+              {/* Geral */}
+              <div>
+                <p className="text-xs font-bold text-muted-foreground mb-2">📊 Geral (todos os caixas)</p>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  {[
+                    { label: "Abertura total", valor: caixasAbertos.reduce((s, cx) => s + cx.valor_abertura, 0), cor: "text-foreground" },
+                    { label: "Total entradas", valor: totalEntradas, cor: "text-emerald-500" },
+                    { label: "Total saídas", valor: totalSaidas, cor: "text-red-500" },
+                    { label: "Saldo geral", valor: saldoAtual, cor: "text-primary" },
+                  ].map((item) => (
+                    <Card key={item.label} className="border-primary/20">
+                      <CardContent className="p-3">
+                        <p className="text-[10px] text-muted-foreground">{item.label}</p>
+                        <p className={`text-lg font-bold ${item.cor}`}>{formatarMoeda(item.valor)}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+          /* Resumo padrão (caixa único) */
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { label: "Valor de abertura", valor: caixa.valor_abertura, cor: "text-foreground" },
@@ -343,6 +396,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
               </Card>
             ))}
           </div>
+          )}
 
           {/* Ações rápidas */}
           <div className="flex flex-wrap gap-2">

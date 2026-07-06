@@ -6,7 +6,18 @@ export async function GET(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ erro: "Não autenticado" }, { status: 401 })
 
-  const { data: empresa } = await supabase.from("empresas").select("id").eq("user_id", user.id).single()
+  // Tentar usar empresa do cookie, senão pegar a primeira
+  const empresaIdCookie = req.cookies.get("empresa_ativa_id")?.value
+  let empresa: { id: string } | null = null
+
+  if (empresaIdCookie) {
+    const { data } = await supabase.from("empresas").select("id").eq("id", empresaIdCookie).eq("user_id", user.id).maybeSingle()
+    empresa = data
+  }
+  if (!empresa) {
+    const { data: empresas } = await supabase.from("empresas").select("id").eq("user_id", user.id).order("created_at", { ascending: true })
+    empresa = empresas?.[0] ?? null
+  }
   if (!empresa) return NextResponse.json({ erro: "Empresa não encontrada" }, { status: 404 })
 
   const { searchParams } = req.nextUrl
@@ -32,7 +43,18 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ erro: "Não autenticado" }, { status: 401 })
 
-  const { data: empresa } = await supabase.from("empresas").select("id").eq("user_id", user.id).single()
+  // Tentar usar empresa do cookie, senão pegar a primeira
+  const empresaIdCookie = req.cookies.get("empresa_ativa_id")?.value
+  let empresa: { id: string } | null = null
+
+  if (empresaIdCookie) {
+    const { data } = await supabase.from("empresas").select("id").eq("id", empresaIdCookie).eq("user_id", user.id).maybeSingle()
+    empresa = data
+  }
+  if (!empresa) {
+    const { data: empresas } = await supabase.from("empresas").select("id").eq("user_id", user.id).order("created_at", { ascending: true })
+    empresa = empresas?.[0] ?? null
+  }
   if (!empresa) return NextResponse.json({ erro: "Empresa não encontrada" }, { status: 404 })
 
   const body = await req.json()
