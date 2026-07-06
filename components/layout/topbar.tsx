@@ -242,7 +242,7 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl, plano, empr
                   onClick={() => {
                     onSelecionarEmpresa?.(emp.id)
                     setEmpresasAberto(false)
-                    router.refresh()
+                    window.location.reload()
                   }}
                   className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-colors text-left"
                   style={{
