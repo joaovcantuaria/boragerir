@@ -1,14 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
-  <!-- Fundo laranja arredondado — igual ao LogoIcon do app -->
+<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
   <rect width="40" height="40" rx="10" fill="#F26E1D"/>
-  <!-- Letra B em branco, bold, centralizada -->
-  <text
-    x="20"
-    y="28"
-    text-anchor="middle"
-    font-family="Arial, Helvetica, sans-serif"
-    font-weight="900"
-    font-size="24"
-    fill="white"
-  >B</text>
+  <text x="20" y="28" text-anchor="middle" font-family="Arial, sans-serif" font-weight="900" font-size="24" fill="white">B</text>
 </svg>
