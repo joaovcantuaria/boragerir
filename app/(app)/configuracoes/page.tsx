@@ -10,10 +10,10 @@ export default async function ConfiguracoesPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const [{ data: empresa }, { data: categorias }] = await Promise.all([
-    supabase.from("empresas").select("*").eq("user_id", user.id).single(),
-    supabase.from("categorias").select("*").eq("empresa_id", "").order("nome"),
-  ])
+  const { data: empresasArr } = await supabase.from("empresas").select("*").eq("user_id", user.id).order("created_at", { ascending: true })
+  const empresa = empresasArr?.[0] ?? null
+
+  const { data: categorias } = await supabase.from("categorias").select("*").eq("empresa_id", "").order("nome")
 
   if (!empresa) redirect("/onboarding")
 
