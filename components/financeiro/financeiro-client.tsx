@@ -93,6 +93,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   // Valores a receber manual (plano gestão)
   const [valoresReceber, setValoresReceber] = useState<{ id: string; devedor: string; valor: number; data_vencimento: string; observacoes: string | null; status: string }[]>([])
   const [modalNovoReceber, setModalNovoReceber] = useState(false)
+  const [editandoReceberId, setEditandoReceberId] = useState<string | null>(null)
   const [formReceber, setFormReceber] = useState({ devedor: "", valor: "", data_vencimento: "", observacoes: "" })
   const [loadingReceber, setLoadingReceber] = useState(false)
   const supabase = createClient()
@@ -181,6 +182,36 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
     await supabase.from("valores_receber").update({ status: "recebido" }).eq("id", id)
     setValoresReceber((prev) => prev.map((v) => v.id === id ? { ...v, status: "recebido" } : v))
     toast.success("Marcado como recebido!")
+  }
+
+  function editarValorReceber(v: { id: string; devedor: string; valor: number; data_vencimento: string; observacoes: string | null }) {
+    setFormReceber({ devedor: v.devedor, valor: String(v.valor), data_vencimento: v.data_vencimento, observacoes: v.observacoes ?? "" })
+    setEditandoReceberId(v.id)
+    setModalNovoReceber(true)
+  }
+
+  async function salvarEdicaoReceber() {
+    if (!editandoReceberId) return
+    const { devedor, valor, data_vencimento, observacoes } = formReceber
+    if (!devedor.trim() || !valor || !data_vencimento) {
+      toast.error("Preencha devedor, valor e data.")
+      return
+    }
+    setLoadingReceber(true)
+    await supabase.from("valores_receber").update({
+      devedor: devedor.trim(),
+      valor: parseFloat(valor),
+      data_vencimento,
+      observacoes: observacoes.trim() || null,
+    }).eq("id", editandoReceberId)
+    setValoresReceber((prev) => prev.map((v) => v.id === editandoReceberId
+      ? { ...v, devedor: devedor.trim(), valor: parseFloat(valor), data_vencimento, observacoes: observacoes.trim() || null }
+      : v))
+    setFormReceber({ devedor: "", valor: "", data_vencimento: "", observacoes: "" })
+    setEditandoReceberId(null)
+    setModalNovoReceber(false)
+    setLoadingReceber(false)
+    toast.success("Atualizado!")
   }
 
   async function excluirValorReceber(id: string) {
@@ -329,7 +360,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
               )}
             </TabsTrigger>
             <TabsTrigger value="fluxo" className="text-xs py-2">Fluxo</TabsTrigger>
-            {plano !== "gratuito" && !isGestao && (
+            {plano !== "gratuito" && (
               <TabsTrigger value="relatorios" className="text-xs py-2">Relatórios</TabsTrigger>
             )}
           </TabsList>
@@ -356,7 +387,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
               )}
             </TabsTrigger>
             <TabsTrigger value="fluxo">Fluxo de Caixa</TabsTrigger>
-            {plano !== "gratuito" && !isGestao && (
+            {plano !== "gratuito" && (
               <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
             )}
           </TabsList>
@@ -560,7 +591,10 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
                     </span>
                     <span className="text-xs text-muted-foreground truncate">{v.observacoes ?? "—"}</span>
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => marcarRecebido(v.id)} className="p-1.5 rounded-md hover:bg-emerald-50 text-emerald-500" title="Marcar recebido">
+                      <button onClick={() => editarValorReceber(v)} className="p-1.5 rounded-md hover:bg-blue-50 text-blue-500" title="Editar">
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => marcarRecebido(v.id)} className="p-1.5 rounded-md hover:bg-emerald-50 text-emerald-500" title="Dar baixa">
                         <CheckCircle2 className="w-4 h-4" />
                       </button>
                       <button onClick={() => excluirValorReceber(v.id)} className="p-1.5 rounded-md hover:bg-red-50 text-red-400" title="Excluir">
@@ -722,11 +756,11 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
         </DialogContent>
       </Dialog>
 
-      {/* Modal adicionar valor a receber */}
-      <Dialog open={modalNovoReceber} onOpenChange={setModalNovoReceber}>
+      {/* Modal adicionar/editar valor a receber */}
+      <Dialog open={modalNovoReceber} onOpenChange={(open) => { if (!open) { setModalNovoReceber(false); setEditandoReceberId(null); setFormReceber({ devedor: "", valor: "", data_vencimento: "", observacoes: "" }) } }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Adicionar Valor a Receber</DialogTitle>
+            <DialogTitle>{editandoReceberId ? "Editar Valor a Receber" : "Adicionar Valor a Receber"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -768,10 +802,10 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setModalNovoReceber(false)}>Cancelar</Button>
-            <Button onClick={adicionarValorReceber} disabled={loadingReceber} className="gap-2">
+            <Button variant="outline" onClick={() => { setModalNovoReceber(false); setEditandoReceberId(null) }}>Cancelar</Button>
+            <Button onClick={editandoReceberId ? salvarEdicaoReceber : adicionarValorReceber} disabled={loadingReceber} className="gap-2">
               {loadingReceber ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-              Adicionar
+              {editandoReceberId ? "Salvar" : "Adicionar"}
             </Button>
           </DialogFooter>
         </DialogContent>
