@@ -38,8 +38,8 @@ export default async function CaixaPage() {
     })
   }
 
-  // Caixas anteriores disponíveis apenas nos planos Básico e Profissional
-  const planosComCaixasAnteriores = ["basico", "profissional"]
+  // Caixas anteriores disponíveis nos planos Básico, Profissional e Gestão
+  const planosComCaixasAnteriores = ["basico", "profissional", "gestao"]
   let caixasAnteriores: any[] = []
   if (planosComCaixasAnteriores.includes(empresa.plano)) {
     const { data } = await supabase
