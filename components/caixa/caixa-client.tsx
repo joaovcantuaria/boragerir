@@ -94,11 +94,22 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
         aberto_por: userId,
         observacoes_abertura: data.observacoes || null,
         data_abertura: new Date().toISOString(),
-        tipo_caixa: data.tipo_caixa || "diario",
-        nome_caixa: data.nome_caixa.trim() || null,
-      })
+      } as any)
       .select()
       .single()
+
+    if (error) { toast.error("Erro ao abrir caixa."); setLoading(false); return }
+
+    // Atualizar tipo e nome do caixa separadamente (campos novos)
+    if (data.tipo_caixa || data.nome_caixa.trim()) {
+      await supabase
+        .from("caixas")
+        .update({
+          tipo_caixa: data.tipo_caixa || "diario",
+          nome_caixa: data.nome_caixa.trim() || null,
+        } as any)
+        .eq("id", novoCaixa.id)
+    }
 
     if (error) { toast.error("Erro ao abrir caixa."); setLoading(false); return }
 
