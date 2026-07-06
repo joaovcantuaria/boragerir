@@ -2,13 +2,12 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Building2, Plus, Loader2, Check, Settings, Trash2 } from "lucide-react"
+import { Building2, Plus, Loader2, Check, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { createClient } from "@/lib/supabase/client"
 import type { Empresa } from "@/types"
@@ -31,7 +30,10 @@ export function EmpresasGestaoClient({
   const router = useRouter()
   const supabase = createClient()
 
-  const podeAdicionar = empresas.length < maxEmpresas
+  // A primeira empresa é o "container" do plano — não conta como empresa real
+  const empresaPrincipal = empresas[0]
+  const empresasReais = empresas.filter((_, idx) => idx > 0)
+  const podeAdicionar = empresasReais.length < maxEmpresas
 
   async function criarEmpresa() {
     if (!nome.trim()) { toast.error("Informe o nome da empresa"); return }
@@ -44,9 +46,6 @@ export function EmpresasGestaoClient({
     }
 
     setLoading(true)
-
-    // Pegar dados da empresa principal para herdar o plano
-    const empresaPrincipal = empresas[0]
 
     const { data, error } = await supabase.from("empresas").insert({
       user_id: userId,
@@ -75,10 +74,6 @@ export function EmpresasGestaoClient({
   }
 
   async function excluirEmpresa(empresa: Empresa) {
-    if (empresas.length <= 1) {
-      toast.error("Não é possível excluir a única empresa.")
-      return
-    }
     if (!confirm(`Excluir "${empresa.nome}"? Todos os dados desta empresa serão removidos permanentemente.`)) return
 
     const { error } = await supabase.from("empresas").delete().eq("id", empresa.id)
@@ -108,7 +103,7 @@ export function EmpresasGestaoClient({
             Minhas Empresas
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {empresas.length} de {maxEmpresas} empresa(s) cadastrada(s)
+            {empresasReais.length} de {maxEmpresas} empresa(s) cadastrada(s)
           </p>
         </div>
         {podeAdicionar && (
@@ -123,12 +118,12 @@ export function EmpresasGestaoClient({
       <div className="space-y-1.5">
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>Empresas utilizadas</span>
-          <span className="font-bold">{empresas.length}/{maxEmpresas}</span>
+          <span className="font-bold">{empresasReais.length}/{maxEmpresas}</span>
         </div>
         <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
           <div
             className="h-full rounded-full bg-primary transition-all"
-            style={{ width: `${(empresas.length / maxEmpresas) * 100}%` }}
+            style={{ width: `${(empresasReais.length / maxEmpresas) * 100}%` }}
           />
         </div>
         {!podeAdicionar && (
@@ -138,42 +133,53 @@ export function EmpresasGestaoClient({
         )}
       </div>
 
-      {/* Lista de empresas */}
-      <div className="space-y-3">
-        {empresas.map((emp, idx) => (
-          <Card key={emp.id} className="hover:border-primary/40 transition-colors">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                    <span className="text-base font-bold text-primary">
-                      {emp.nome.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-sm truncate">{emp.nome}</span>
-                      {idx === 0 && (
-                        <Badge variant="secondary" className="text-[10px]">Principal</Badge>
-                      )}
+      {/* Lista de empresas reais */}
+      {empresasReais.length === 0 ? (
+        <Card className="border-dashed">
+          <CardContent className="py-12 flex flex-col items-center gap-4 text-center">
+            <Building2 className="w-12 h-12 text-muted-foreground opacity-30" />
+            <div>
+              <p className="font-semibold">Nenhuma empresa cadastrada</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Cadastre sua primeira empresa para começar a usar o sistema.
+              </p>
+            </div>
+            <Button onClick={() => setModalAberto(true)} className="gap-2">
+              <Plus className="w-4 h-4" />
+              Cadastrar Empresa
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {empresasReais.map((emp) => (
+            <Card key={emp.id} className="hover:border-primary/40 transition-colors">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                      <span className="text-base font-bold text-primary">
+                        {emp.nome.charAt(0).toUpperCase()}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-                      <span>{emp.area_atuacao}</span>
-                      <span>{emp.telefone}</span>
+                    <div className="min-w-0">
+                      <span className="font-semibold text-sm truncate block">{emp.nome}</span>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                        <span>{emp.area_atuacao}</span>
+                        <span>{emp.telefone}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => selecionarEmpresa(emp.id)}
-                    className="gap-1.5 text-xs"
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                    Abrir
-                  </Button>
-                  {idx > 0 && (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => selecionarEmpresa(emp.id)}
+                      className="gap-1.5 text-xs"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      Abrir
+                    </Button>
                     <Button
                       size="sm"
                       variant="ghost"
@@ -182,13 +188,13 @@ export function EmpresasGestaoClient({
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
-                  )}
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Modal nova empresa */}
       <Dialog open={modalAberto} onOpenChange={setModalAberto}>

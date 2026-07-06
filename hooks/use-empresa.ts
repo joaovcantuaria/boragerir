@@ -35,12 +35,16 @@ export function useEmpresa() {
         return
       }
 
-      // Se tem mais de uma, tentar restaurar a seleção salva
-      if (lista.length > 1) {
+      // Para plano gestão: a primeira empresa é o container, selecionar a segunda se existir
+      const isGestao = lista[0]?.plano === "gestao"
+      const empresasVisiveis = isGestao ? lista.filter((_, i) => i > 0) : lista
+
+      if (empresasVisiveis.length > 0) {
         const salvoId = localStorage.getItem(STORAGE_KEY)
-        const salva = lista.find((e) => e.id === salvoId)
-        setEmpresa(salva ?? lista[0])
+        const salva = empresasVisiveis.find((e) => e.id === salvoId)
+        setEmpresa(salva ?? empresasVisiveis[0])
       } else {
+        // Gestão sem empresas reais ainda — usar o container pra não quebrar
         setEmpresa(lista[0])
       }
 
@@ -59,8 +63,12 @@ export function useEmpresa() {
     }
   }, [empresas])
 
+  // Para plano gestão, excluir o container da lista visível
+  const isGestao = empresas[0]?.plano === "gestao"
+  const empresasVisiveis = isGestao ? empresas.filter((_, i) => i > 0) : empresas
+
   // Limite de empresas (pega do campo max_empresas da primeira empresa ou default 1)
   const maxEmpresas = empresas[0]?.max_empresas ?? 1
 
-  return { empresa, empresas, loading, selecionarEmpresa, maxEmpresas }
+  return { empresa, empresas: empresasVisiveis, loading, selecionarEmpresa, maxEmpresas }
 }
