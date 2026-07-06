@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Building2, Plus, Loader2, Check, Trash2 } from "lucide-react"
+import { Building2, Plus, Loader2, Check, Trash2, Edit2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -34,6 +34,7 @@ export function EmpresasGestaoClient({
   const [enderecoCidade, setEnderecoCidade] = useState("")
   const [enderecoEstado, setEnderecoEstado] = useState("")
   const [enderecoCep, setEnderecoCep] = useState("")
+  const [editando, setEditando] = useState<Empresa | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
@@ -107,6 +108,60 @@ export function EmpresasGestaoClient({
     localStorage.setItem("boragerir_empresa_selecionada", id)
     router.push("/dashboard")
     router.refresh()
+  }
+
+  function iniciarEdicao(emp: Empresa) {
+    setEditando(emp)
+    setNome(emp.nome)
+    setTelefone(emp.telefone)
+    setAreaAtuacao(emp.area_atuacao)
+    setCnpj((emp as any).documento ?? "")
+    setEnderecoRua(emp.endereco_rua ?? "")
+    setEnderecoNumero(emp.endereco_numero ?? "")
+    setEnderecoBairro(emp.endereco_bairro ?? "")
+    setEnderecoCidade(emp.endereco_cidade ?? "")
+    setEnderecoEstado(emp.endereco_estado ?? "")
+    setEnderecoCep(emp.endereco_cep ?? "")
+    setModalAberto(true)
+  }
+
+  async function salvarEdicao() {
+    if (!editando) return
+    if (!nome.trim()) { toast.error("Informe o nome da empresa"); return }
+
+    setLoading(true)
+    const { error } = await supabase.from("empresas").update({
+      nome: nome.trim(),
+      telefone: telefone.trim(),
+      area_atuacao: areaAtuacao.trim(),
+      documento: cnpj.replace(/\D/g, ""),
+      endereco_rua: enderecoRua.trim(),
+      endereco_numero: enderecoNumero.trim(),
+      endereco_bairro: enderecoBairro.trim(),
+      endereco_cidade: enderecoCidade.trim(),
+      endereco_estado: enderecoEstado.trim().toUpperCase(),
+      endereco_cep: enderecoCep.replace(/\D/g, ""),
+    }).eq("id", editando.id)
+
+    if (error) { toast.error("Erro ao salvar"); setLoading(false); return }
+
+    setEmpresas((prev) => prev.map((e) => e.id === editando.id ? {
+      ...e, nome: nome.trim(), telefone: telefone.trim(), area_atuacao: areaAtuacao.trim(),
+      endereco_rua: enderecoRua.trim(), endereco_numero: enderecoNumero.trim(),
+      endereco_bairro: enderecoBairro.trim(), endereco_cidade: enderecoCidade.trim(),
+      endereco_estado: enderecoEstado.trim().toUpperCase(), endereco_cep: enderecoCep.replace(/\D/g, ""),
+    } : e))
+    toast.success("Empresa atualizada!")
+    fecharModal()
+    setLoading(false)
+  }
+
+  function fecharModal() {
+    setModalAberto(false)
+    setEditando(null)
+    setNome(""); setTelefone(""); setAreaAtuacao(""); setCnpj("")
+    setEnderecoRua(""); setEnderecoNumero(""); setEnderecoBairro("")
+    setEnderecoCidade(""); setEnderecoEstado(""); setEnderecoCep("")
   }
 
   return (
@@ -199,6 +254,14 @@ export function EmpresasGestaoClient({
                     <Button
                       size="sm"
                       variant="ghost"
+                      onClick={() => iniciarEdicao(emp)}
+                      className="p-2"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
                       onClick={() => excluirEmpresa(emp)}
                       className="text-destructive hover:text-destructive hover:bg-destructive/10 p-2"
                     >
@@ -212,11 +275,11 @@ export function EmpresasGestaoClient({
         </div>
       )}
 
-      {/* Modal nova empresa */}
-      <Dialog open={modalAberto} onOpenChange={setModalAberto}>
+      {/* Modal nova/editar empresa */}
+      <Dialog open={modalAberto} onOpenChange={(open) => { if (!open) fecharModal() }}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Cadastrar Nova Empresa</DialogTitle>
+            <DialogTitle>{editando ? "Editar Empresa" : "Cadastrar Nova Empresa"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -330,10 +393,10 @@ export function EmpresasGestaoClient({
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setModalAberto(false)}>Cancelar</Button>
-            <Button onClick={criarEmpresa} disabled={loading} className="gap-2">
+            <Button variant="outline" onClick={fecharModal}>Cancelar</Button>
+            <Button onClick={editando ? salvarEdicao : criarEmpresa} disabled={loading} className="gap-2">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-              Criar Empresa
+              {editando ? "Salvar" : "Criar Empresa"}
             </Button>
           </DialogFooter>
         </DialogContent>

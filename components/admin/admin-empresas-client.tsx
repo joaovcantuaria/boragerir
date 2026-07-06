@@ -11,7 +11,8 @@ import { useAdminTema } from "@/components/admin/admin-tema-context"
 interface Empresa {
   id: string; nome: string; email: string; telefone: string; area_atuacao: string
   plano: string; plano_ativo: boolean; tipo_documento: string; documento: string
-  created_at: string; logo_url: string | null
+  created_at: string; logo_url: string | null; user_id: string
+  max_empresas?: number | null
   assinaturas?: { status: string; plano: string; valor_total: number }[]
 }
 
@@ -36,12 +37,23 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
   const t = useAdminTema()
 
   const filtradas = empresas.filter((e) => {
+    // Para cada user_id, encontrar a primeira empresa (principal)
+    const primeiraDoUsuario = empresas
+      .filter((x) => x.user_id === e.user_id)
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())[0]
+    // Só mostrar a empresa principal (primeira do user) — sub-empresas ficam no detalhe
+    if (primeiraDoUsuario && primeiraDoUsuario.id !== e.id) return false
+
     const bate = e.nome.toLowerCase().includes(busca.toLowerCase()) ||
       e.email.toLowerCase().includes(busca.toLowerCase()) ||
       (e.documento ?? "").includes(busca)
     const planoBate = filtroPlano === "todos" || e.plano === filtroPlano
     return bate && planoBate
   })
+
+  // Contar sub-empresas por user
+  const subEmpresasCount = (userId: string) =>
+    empresas.filter((x) => x.user_id === userId).length - 1
 
   async function alterarPlano(id: string, novoPlano: string) {
     const res = await fetch("/api/admin/empresas/alterar-plano", {
@@ -139,7 +151,7 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
       <div className="flex items-center justify-between">
         <div>
           <h1 className={`text-2xl font-black ${t.text}`}>Empresas</h1>
-          <p className={`${t.textMuted} text-sm`}>{empresas.length} empresas cadastradas</p>
+          <p className={`${t.textMuted} text-sm`}>{filtradas.length} conta(s) · {empresas.length} empresa(s) total</p>
         </div>
         <button
           onClick={() => setModalCadastro(true)}
@@ -198,6 +210,11 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
                   <p className={`text-sm font-semibold ${t.text} truncate`}>{e.nome}</p>
                   <p className={`text-xs ${t.textMuted2}`}>{docFormatado}</p>
                   <p className={`text-xs ${t.textMuted5}`}>{format(parseISO(e.created_at), "dd/MM/yyyy")}</p>
+                  {subEmpresasCount(e.user_id) > 0 && (
+                    <p className="text-[10px] text-primary font-semibold">
+                      +{subEmpresasCount(e.user_id)} empresa(s) vinculada(s)
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="min-w-0">
@@ -246,6 +263,11 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm font-bold ${t.text} truncate`}>{e.nome}</p>
                   <p className={`text-xs ${t.textMuted2} truncate`}>{docFormatado}</p>
+                  {subEmpresasCount(e.user_id) > 0 && (
+                    <p className="text-[10px] text-primary font-semibold mt-0.5">
+                      +{subEmpresasCount(e.user_id)} empresa(s) vinculada(s)
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-col items-end gap-1 shrink-0">
                   <span className={`text-xs px-2 py-0.5 rounded-full border capitalize ${badgePlano[e.plano] ?? ""}`}>{e.plano}</span>
