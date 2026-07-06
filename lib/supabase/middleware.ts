@@ -125,8 +125,10 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(redirectUrl)
     }
 
-    const { data: empresa } = await supabase
-      .from("empresas").select("id, plano, plano_ativo").eq("user_id", user.id).single()
+    const { data: empresas } = await supabase
+      .from("empresas").select("id, plano, plano_ativo").eq("user_id", user.id).order("created_at", { ascending: true })
+
+    const empresa = empresas?.[0] ?? null
 
     if (!empresa) {
       const redirectUrl = request.nextUrl.clone()
