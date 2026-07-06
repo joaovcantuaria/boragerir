@@ -329,15 +329,25 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   // Recalcular baseado nas vendas concluídas — quando uma venda é cancelada, sai do cálculo automaticamente
   const totalRecebido = vendasConcluidas.reduce((s, v) => s + v.total, 0)
   const totalAReceber = debitos.reduce((s, d) => s + d.valor_aberto, 0)
-  const totalReceitas = totalRecebido
-  const totalDespesas = movimentacoes.filter((m) => m.tipo === "saida" && m.categoria === "despesa").reduce((s, m) => s + m.valor, 0)
-  const lucroLiquido = totalReceitas - totalDespesas
-  const ticketMedio = vendasConcluidas.length > 0 ? totalReceitas / vendasConcluidas.length : 0
 
-  // Saldo em caixa atualizado — desconta vendas que foram canceladas localmente
+  // Para plano gestão: calcular com base nas movimentações e valores_receber
+  const totalReceitasGestao = movimentacoes.filter((m) => m.tipo === "entrada").reduce((s, m) => s + m.valor, 0)
+  const totalDespesasGestao = movimentacoes.filter((m) => m.tipo === "saida").reduce((s, m) => s + m.valor, 0)
+  const totalAReceberGestao = valoresReceber.filter((v) => v.status === "pendente").reduce((s, v) => s + v.valor, 0)
+
+  const totalReceitas = isGestao ? totalReceitasGestao : totalRecebido
+  const totalDespesas = isGestao
+    ? totalDespesasGestao
+    : movimentacoes.filter((m) => m.tipo === "saida" && m.categoria === "despesa").reduce((s, m) => s + m.valor, 0)
+  const lucroLiquido = totalReceitas - totalDespesas
+  const ticketMedio = isGestao ? 0 : (vendasConcluidas.length > 0 ? totalRecebido / vendasConcluidas.length : 0)
+
+  // Saldo em caixa atualizado
   const vendasCanceladasNovamente = vendas.filter((v) => v.status === "cancelada").reduce((s, v) => s + v.total, 0)
   const vendasJaCanceladasOriginal = vendasOrigRef.current.filter((v) => v.status === "cancelada").reduce((s, v) => s + v.total, 0)
-  const saldoCaixaLocal = saldoCaixa - (vendasCanceladasNovamente - vendasJaCanceladasOriginal)
+  const saldoCaixaLocal = isGestao
+    ? (saldoCaixa + totalReceitasGestao - totalDespesasGestao)
+    : saldoCaixa - (vendasCanceladasNovamente - vendasJaCanceladasOriginal)
 
   // Faturamento por dia (mês atual)
   const faturamentoDia: Record<string, number> = {}
@@ -393,11 +403,11 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
       {/* Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {[
-          { label: "Recebido", valor: totalReceitas, cor: "text-emerald-500", bg: "bg-emerald-500/10", Icon: TrendingUp },
-          { label: "A receber", valor: totalAReceber, cor: "text-amber-500", bg: "bg-amber-500/10", Icon: Clock },
-          { label: "Despesas", valor: totalDespesas, cor: "text-red-500", bg: "bg-red-500/10", Icon: TrendingDown },
+          { label: isGestao ? "Entradas" : "Recebido", valor: totalReceitas, cor: "text-emerald-500", bg: "bg-emerald-500/10", Icon: TrendingUp },
+          { label: "A receber", valor: isGestao ? totalAReceberGestao : totalAReceber, cor: "text-amber-500", bg: "bg-amber-500/10", Icon: Clock },
+          { label: isGestao ? "Saídas" : "Despesas", valor: totalDespesas, cor: "text-red-500", bg: "bg-red-500/10", Icon: TrendingDown },
           { label: "Lucro líquido", valor: lucroLiquido, cor: lucroLiquido >= 0 ? "text-primary" : "text-red-500", bg: "bg-primary/10", Icon: DollarSign },
-          { label: "Ticket médio", valor: ticketMedio, cor: "text-blue-500", bg: "bg-blue-500/10", Icon: BarChart3 },
+          ...(!isGestao ? [{ label: "Ticket médio", valor: ticketMedio, cor: "text-blue-500", bg: "bg-blue-500/10", Icon: BarChart3 }] : []),
           { label: "Saldo em caixa", valor: saldoCaixaLocal, cor: caixaAberto ? "text-violet-500" : "text-muted-foreground", bg: caixaAberto ? "bg-violet-500/10" : "bg-muted", Icon: Wallet },
         ].map(({ label, valor, cor, bg, Icon }) => (
           <Card key={label}>
