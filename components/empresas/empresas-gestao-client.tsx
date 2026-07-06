@@ -27,6 +27,13 @@ export function EmpresasGestaoClient({
   const [nome, setNome] = useState("")
   const [telefone, setTelefone] = useState("")
   const [areaAtuacao, setAreaAtuacao] = useState("")
+  const [cnpj, setCnpj] = useState("")
+  const [enderecoRua, setEnderecoRua] = useState("")
+  const [enderecoNumero, setEnderecoNumero] = useState("")
+  const [enderecoBairro, setEnderecoBairro] = useState("")
+  const [enderecoCidade, setEnderecoCidade] = useState("")
+  const [enderecoEstado, setEnderecoEstado] = useState("")
+  const [enderecoCep, setEnderecoCep] = useState("")
   const router = useRouter()
   const supabase = createClient()
 
@@ -39,6 +46,7 @@ export function EmpresasGestaoClient({
     if (!nome.trim()) { toast.error("Informe o nome da empresa"); return }
     if (!telefone.trim()) { toast.error("Informe o telefone"); return }
     if (!areaAtuacao.trim()) { toast.error("Informe a área de atuação"); return }
+    if (!cnpj.trim()) { toast.error("Informe o CNPJ"); return }
 
     if (!podeAdicionar) {
       toast.error(`Limite de ${maxEmpresas} empresa(s) atingido.`)
@@ -55,6 +63,14 @@ export function EmpresasGestaoClient({
       email: empresaPrincipal.email,
       plano: empresaPrincipal.plano,
       plano_ativo: true,
+      tipo_documento: "cnpj",
+      documento: cnpj.replace(/\D/g, ""),
+      endereco_rua: enderecoRua.trim(),
+      endereco_numero: enderecoNumero.trim(),
+      endereco_bairro: enderecoBairro.trim(),
+      endereco_cidade: enderecoCidade.trim(),
+      endereco_estado: enderecoEstado.trim().toUpperCase(),
+      endereco_cep: enderecoCep.replace(/\D/g, ""),
     }).select().single()
 
     if (error) {
@@ -65,9 +81,9 @@ export function EmpresasGestaoClient({
 
     toast.success(`"${nome}" criada com sucesso!`)
     setEmpresas((prev) => [...prev, data])
-    setNome("")
-    setTelefone("")
-    setAreaAtuacao("")
+    setNome(""); setTelefone(""); setAreaAtuacao(""); setCnpj("")
+    setEnderecoRua(""); setEnderecoNumero(""); setEnderecoBairro("")
+    setEnderecoCidade(""); setEnderecoEstado(""); setEnderecoCep("")
     setModalAberto(false)
     setLoading(false)
     router.refresh()
@@ -198,7 +214,7 @@ export function EmpresasGestaoClient({
 
       {/* Modal nova empresa */}
       <Dialog open={modalAberto} onOpenChange={setModalAberto}>
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Cadastrar Nova Empresa</DialogTitle>
           </DialogHeader>
@@ -211,13 +227,32 @@ export function EmpresasGestaoClient({
                 onChange={(e) => setNome(e.target.value)}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Telefone *</Label>
-              <Input
-                placeholder="(11) 99999-9999"
-                value={telefone}
-                onChange={(e) => setTelefone(e.target.value)}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>CNPJ *</Label>
+                <Input
+                  placeholder="00.000.000/0001-00"
+                  maxLength={18}
+                  value={cnpj}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, "").slice(0, 14)
+                    let f = v
+                    if (v.length > 2) f = v.slice(0,2) + "." + v.slice(2)
+                    if (v.length > 5) f = f.slice(0,6) + "." + v.slice(5)
+                    if (v.length > 8) f = f.slice(0,10) + "/" + v.slice(8)
+                    if (v.length > 12) f = f.slice(0,15) + "-" + v.slice(12)
+                    setCnpj(f)
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Telefone *</Label>
+                <Input
+                  placeholder="(11) 99999-9999"
+                  value={telefone}
+                  onChange={(e) => setTelefone(e.target.value)}
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Área de atuação *</Label>
@@ -226,6 +261,72 @@ export function EmpresasGestaoClient({
                 value={areaAtuacao}
                 onChange={(e) => setAreaAtuacao(e.target.value)}
               />
+            </div>
+
+            <div className="border-t pt-4 mt-2">
+              <p className="text-xs font-semibold text-muted-foreground mb-3">Endereço</p>
+              <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-2 space-y-2">
+                    <Label>Rua</Label>
+                    <Input
+                      placeholder="Rua / Avenida"
+                      value={enderecoRua}
+                      onChange={(e) => setEnderecoRua(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Número</Label>
+                    <Input
+                      placeholder="123"
+                      value={enderecoNumero}
+                      onChange={(e) => setEnderecoNumero(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Bairro</Label>
+                    <Input
+                      placeholder="Bairro"
+                      value={enderecoBairro}
+                      onChange={(e) => setEnderecoBairro(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Cidade</Label>
+                    <Input
+                      placeholder="Cidade"
+                      value={enderecoCidade}
+                      onChange={(e) => setEnderecoCidade(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Estado</Label>
+                    <Input
+                      placeholder="UF"
+                      maxLength={2}
+                      className="uppercase"
+                      value={enderecoEstado}
+                      onChange={(e) => setEnderecoEstado(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>CEP</Label>
+                    <Input
+                      placeholder="00000-000"
+                      maxLength={9}
+                      value={enderecoCep}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/\D/g, "").slice(0, 8)
+                        setEnderecoCep(v.length > 5 ? v.slice(0,5) + "-" + v.slice(5) : v)
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           <DialogFooter>
