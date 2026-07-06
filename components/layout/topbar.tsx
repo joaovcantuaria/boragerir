@@ -425,6 +425,7 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl, plano, empr
               <Settings className="w-3.5 h-3.5" style={{ color: "#9ca3af" }} />
               Configurações
             </button>
+            {!isPlanoGestao && (
             <button
               onClick={() => { router.push("/planos"); setUserAberto(false) }}
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-colors"
@@ -435,6 +436,7 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl, plano, empr
               <CreditCard className="w-3.5 h-3.5" style={{ color: "#9ca3af" }} />
               Meu plano
             </button>
+            )}
             <div style={{ borderTop: "1px solid #e5e7eb", margin: "4px 0" }} />
             <button
               onClick={handleLogout}

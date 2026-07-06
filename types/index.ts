@@ -73,8 +73,8 @@ export type Plano = "gratuito" | "basico" | "profissional" | "agenda" | "gestao"
 export const PLANO_AGENDA_ROTAS = ["/agendamentos", "/configuracoes"]
 
 // Plano "gestao" — gestão financeira simplificada
-// Acesso restrito a: /dashboard, /caixa, /financeiro, /funcionarios, /tarefas e /configuracoes
-export const PLANO_GESTAO_ROTAS = ["/dashboard", "/caixa", "/financeiro", "/funcionarios", "/tarefas", "/configuracoes"]
+// Acesso restrito a: /dashboard, /caixa, /financeiro, /funcionarios, /tarefas, /configuracoes e /empresas
+export const PLANO_GESTAO_ROTAS = ["/dashboard", "/caixa", "/financeiro", "/funcionarios", "/tarefas", "/configuracoes", "/empresas"]
 
 export type InfoPlano = {
   nome: string

@@ -189,7 +189,12 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
   async function registrarMovimentacao(data: { valor: string; descricao: string }) {
     if (!modalMovimentacao) return
     // Determinar qual caixa usar
-    const caixaAlvo = plano === "gestao" && caixasAbertos.length > 1
+    const isMultiCaixa = plano === "gestao" && caixasAbertos.length > 1
+    if (isMultiCaixa && !caixaIdMovimentacao) {
+      toast.error("Selecione em qual caixa registrar.")
+      return
+    }
+    const caixaAlvo = isMultiCaixa
       ? caixasAbertos.find((c) => c.id === caixaIdMovimentacao) ?? caixa
       : caixa
     if (!caixaAlvo) { toast.error("Selecione um caixa."); return }
