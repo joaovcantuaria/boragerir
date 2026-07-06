@@ -46,14 +46,18 @@ interface CaixaClientProps {
   userId: string
   plano?: string
   caixaAberto: {
-    id: string; valor_abertura: number; data_abertura: string; observacoes_abertura?: string | null
+    id: string; valor_abertura: number; data_abertura: string; observacoes_abertura?: string | null; tipo_conta?: string; nome_caixa?: string
   } | null
+  caixasAbertos?: {
+    id: string; valor_abertura: number; data_abertura: string; observacoes_abertura?: string | null; tipo_conta?: string; nome_caixa?: string
+  }[]
   movimentacoes: Movimentacao[]
   caixasAnteriores: CaixaAnterior[]
 }
 
-export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto: caixaInicial, movimentacoes: movsIniciais, caixasAnteriores: caixasAntInit }: CaixaClientProps) {
+export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto: caixaInicial, caixasAbertos: caixasAbertosInit = [], movimentacoes: movsIniciais, caixasAnteriores: caixasAntInit }: CaixaClientProps) {
   const [caixa, setCaixa] = useState(caixaInicial)
+  const [caixasAbertos, setCaixasAbertos] = useState(caixasAbertosInit)
   const [movimentacoes, setMovimentacoes] = useState(movsIniciais)
   const [caixasAnteriores, setCaixasAnteriores] = useState<CaixaAnterior[]>(caixasAntInit)
   const [caixaDetalhe, setCaixaDetalhe] = useState<{ caixa: CaixaAnterior; movs: Movimentacao[] } | null>(null)
@@ -62,6 +66,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
   const [modalAbrirCaixa, setModalAbrirCaixa] = useState(false)
   const [modalFecharCaixa, setModalFecharCaixa] = useState(false)
   const [modalMovimentacao, setModalMovimentacao] = useState<"sangria" | "suprimento" | "despesa" | null>(null)
+  const [caixaIdMovimentacao, setCaixaIdMovimentacao] = useState<string>("")
   const [loading, setLoading] = useState(false)
   const [valorFechamento, setValorFechamento] = useState("")
   const router = useRouter()
@@ -75,7 +80,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
 
   // Formulário abrir caixa
   const formAbrirCaixa = useForm({
-    defaultValues: { valor_abertura: "0", observacoes: "", tipo_caixa: "diario", nome_caixa: "" },
+    defaultValues: { valor_abertura: "0", observacoes: "", tipo_caixa: "diario", nome_caixa: "", tipo_conta: "especie" },
   })
 
   // Formulário movimentação
@@ -83,7 +88,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
     defaultValues: { valor: "", descricao: "" },
   })
 
-  async function abrirCaixa(data: { valor_abertura: string; observacoes: string; tipo_caixa: string; nome_caixa: string }) {
+  async function abrirCaixa(data: { valor_abertura: string; observacoes: string; tipo_caixa: string; nome_caixa: string; tipo_conta: string }) {
     setLoading(true)
     const { data: novoCaixa, error } = await supabase
       .from("caixas")
@@ -100,16 +105,15 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
 
     if (error) { toast.error("Erro ao abrir caixa."); setLoading(false); return }
 
-    // Atualizar tipo e nome do caixa separadamente (campos novos)
-    if (data.tipo_caixa || data.nome_caixa.trim()) {
-      await supabase
-        .from("caixas")
-        .update({
-          tipo_caixa: data.tipo_caixa || "diario",
-          nome_caixa: data.nome_caixa.trim() || null,
-        } as any)
-        .eq("id", novoCaixa.id)
-    }
+    // Atualizar tipo, nome e tipo_conta separadamente (campos novos)
+    await supabase
+      .from("caixas")
+      .update({
+        tipo_caixa: data.tipo_caixa || "diario",
+        nome_caixa: data.nome_caixa.trim() || null,
+        tipo_conta: data.tipo_conta || "especie",
+      } as any)
+      .eq("id", novoCaixa.id)
 
     if (error) { toast.error("Erro ao abrir caixa."); setLoading(false); return }
 
@@ -175,7 +179,12 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
   }
 
   async function registrarMovimentacao(data: { valor: string; descricao: string }) {
-    if (!caixa || !modalMovimentacao) return
+    if (!modalMovimentacao) return
+    // Determinar qual caixa usar
+    const caixaAlvo = plano === "gestao" && caixasAbertos.length > 1
+      ? caixasAbertos.find((c) => c.id === caixaIdMovimentacao) ?? caixa
+      : caixa
+    if (!caixaAlvo) { toast.error("Selecione um caixa."); return }
     setLoading(true)
 
     const tipoMap: Record<string, "entrada" | "saida"> = {
@@ -188,7 +197,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
       .from("movimentacoes_caixa")
       .insert({
         empresa_id: empresaId,
-        caixa_id: caixa.id,
+        caixa_id: caixaAlvo.id,
         tipo: tipoMap[modalMovimentacao],
         categoria: modalMovimentacao,
         descricao: data.descricao,
@@ -201,6 +210,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
 
     setMovimentacoes((prev) => [...prev, mov])
     setModalMovimentacao(null)
+    setCaixaIdMovimentacao("")
     formMovimentacao.reset()
     toast.success("Movimentação registrada!")
     setLoading(false)
@@ -268,6 +278,45 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
                 <span className="text-sm font-semibold text-muted-foreground">{(caixa as any).nome_caixa}</span>
               )}
             </div>
+          )}
+
+          {/* Multi-caixa gestão: mostrar caixas abertos lado a lado */}
+          {plano === "gestao" && caixasAbertos.length > 1 && (
+            <div className="grid grid-cols-2 gap-3">
+              {caixasAbertos.map((cx) => {
+                const movsDosCaixa = movimentacoes.filter((m: any) => m.caixa_id === cx.id)
+                const entradas = movsDosCaixa.filter((m) => m.tipo === "entrada").reduce((s, m) => s + m.valor, 0)
+                const saidas = movsDosCaixa.filter((m) => m.tipo === "saida").reduce((s, m) => s + m.valor, 0)
+                const saldo = cx.valor_abertura + entradas - saidas
+                const tipoConta = (cx as any).tipo_conta
+                return (
+                  <Card key={cx.id} className="border-primary/20">
+                    <CardContent className="p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-base">{tipoConta === "banco" ? "🏦" : "💵"}</span>
+                        <span className="text-xs font-bold">{tipoConta === "banco" ? "Banco" : "Dinheiro"}</span>
+                        {(cx as any).nome_caixa && (
+                          <span className="text-[10px] text-muted-foreground">({(cx as any).nome_caixa})</span>
+                        )}
+                      </div>
+                      <p className="text-lg font-black text-primary">{formatarMoeda(saldo)}</p>
+                      <div className="flex gap-3 mt-1 text-[10px] text-muted-foreground">
+                        <span className="text-emerald-500">+{formatarMoeda(entradas)}</span>
+                        <span className="text-red-500">-{formatarMoeda(saidas)}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Botão abrir segundo caixa — plano gestão */}
+          {plano === "gestao" && caixasAbertos.length === 1 && (
+            <Button variant="outline" size="sm" onClick={() => setModalAbrirCaixa(true)} className="gap-2">
+              <Plus className="w-4 h-4" />
+              Abrir outro caixa ({(caixa as any).tipo_conta === "banco" ? "Dinheiro" : "Banco"})
+            </Button>
           )}
 
           {/* Resumo */}
@@ -496,6 +545,31 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
               />
               <p className="text-[10px] text-muted-foreground">Deixe em branco para usar o nome automático</p>
             </div>
+            {plano === "gestao" && (
+              <div className="space-y-2">
+                <Label>Tipo de conta</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["especie", "banco"] as const).map((tc) => {
+                    const labels = { especie: "💵 Dinheiro", banco: "🏦 Banco" }
+                    const selected = formAbrirCaixa.watch("tipo_conta") === tc
+                    return (
+                      <button
+                        key={tc}
+                        type="button"
+                        onClick={() => formAbrirCaixa.setValue("tipo_conta", tc)}
+                        className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all ${
+                          selected
+                            ? "border-[#F26E1D] bg-[#F26E1D]/10 text-[#F26E1D]"
+                            : "border-border text-muted-foreground hover:border-primary/50"
+                        }`}
+                      >
+                        {labels[tc]}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Valor de abertura (R$)</Label>
               <Input
@@ -585,6 +659,33 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={formMovimentacao.handleSubmit(registrarMovimentacao)} className="space-y-4">
+            {/* Seletor de caixa — plano gestão com múltiplos caixas */}
+            {plano === "gestao" && caixasAbertos.length > 1 && (
+              <div className="space-y-2">
+                <Label>Em qual caixa?</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {caixasAbertos.map((cx) => {
+                    const label = (cx as any).tipo_conta === "banco" ? "🏦 Banco" : "💵 Dinheiro"
+                    const nome = (cx as any).nome_caixa ? ` — ${(cx as any).nome_caixa}` : ""
+                    const selected = caixaIdMovimentacao === cx.id
+                    return (
+                      <button
+                        key={cx.id}
+                        type="button"
+                        onClick={() => setCaixaIdMovimentacao(cx.id)}
+                        className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all ${
+                          selected
+                            ? "border-[#F26E1D] bg-[#F26E1D]/10 text-[#F26E1D]"
+                            : "border-border text-muted-foreground hover:border-primary/50"
+                        }`}
+                      >
+                        {label}{nome}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Valor (R$)</Label>
               <Input

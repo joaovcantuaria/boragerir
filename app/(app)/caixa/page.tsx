@@ -18,22 +18,27 @@ export default async function CaixaPage() {
     .select("*")
     .eq("empresa_id", empresa.id)
     .eq("status", "aberto")
-    .single()
+    .order("created_at", { ascending: true })
+
+  // Para gestão: pode ter múltiplos caixas abertos
+  const caixaPrincipal = caixaAberto?.[0] ?? null
+  const caixasAbertos = caixaAberto ?? []
 
   let movimentacoes: {
     id: string; tipo: string; categoria: string; descricao: string; valor: number; created_at: string
   }[] = []
 
-  if (caixaAberto) {
+  if (caixaPrincipal) {
+    // Carregar movimentações de todos os caixas abertos
+    const caixaIds = caixasAbertos.map((c: any) => c.id)
     const { data } = await supabase
       .from("movimentacoes_caixa")
       .select("*, vendas!movimentacoes_caixa_venda_id_fkey(status)")
-      .eq("caixa_id", caixaAberto.id)
+      .in("caixa_id", caixaIds)
       .order("created_at")
-    // Filtrar movimentações de vendas canceladas — só mostrar vendas ativas ou movimentações sem venda
     movimentacoes = (data ?? []).filter((m: any) => {
-      if (!m.venda_id) return true // sangria, suprimento, despesa — sempre mostrar
-      if (m.vendas && m.vendas.status === "cancelada") return false // venda cancelada — ocultar
+      if (!m.venda_id) return true
+      if (m.vendas && m.vendas.status === "cancelada") return false
       return true
     })
   }
@@ -57,7 +62,8 @@ export default async function CaixaPage() {
       empresaId={empresa.id}
       userId={user.id}
       plano={empresa.plano}
-      caixaAberto={caixaAberto ?? null}
+      caixaAberto={caixaPrincipal}
+      caixasAbertos={caixasAbertos}
       movimentacoes={movimentacoes}
       caixasAnteriores={caixasAnteriores}
     />
