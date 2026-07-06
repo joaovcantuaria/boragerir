@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Badge } from "@/components/ui/badge"
+import { Card, CardContent } from "@/components/ui/card"
 import { formatarMoeda, coresStatus, labelsStatus } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
 import type { Empresa } from "@/types"

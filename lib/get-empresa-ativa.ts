@@ -4,15 +4,20 @@ import { createClient } from "@/lib/supabase/server"
 /**
  * Busca a empresa ativa do usuário logado para uso em server components.
  * Lê o cookie "empresa_ativa_id" para saber qual empresa o usuário selecionou.
- * Valida que a empresa pertence ao usuário antes de retornar.
  */
 export async function getEmpresaAtiva() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { user: null, empresa: null }
 
-  const cookieStore = await cookies()
-  const empresaIdCookie = cookieStore.get("empresa_ativa_id")?.value
+  // Tentar ler o cookie com empresa selecionada
+  let empresaIdCookie: string | undefined
+  try {
+    const cookieStore = await cookies()
+    empresaIdCookie = cookieStore.get("empresa_ativa_id")?.value
+  } catch {
+    // Em alguns contextos o cookies() pode falhar
+  }
 
   // Se tem cookie, buscar diretamente essa empresa (validando que pertence ao user)
   if (empresaIdCookie) {
