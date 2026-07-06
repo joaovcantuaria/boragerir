@@ -13,6 +13,7 @@ import {
 import { useTheme } from "next-themes"
 import { cn } from "@/lib/utils"
 import { LogoIcon } from "@/components/ui/logo"
+import { NotificationsBell } from "@/components/layout/notifications-bell"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { createClient } from "@/lib/supabase/client"
 import { gerarIniciais } from "@/lib/utils"
@@ -354,15 +355,7 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl, plano, empr
           <Search className="w-4 h-4" />
         </button>
 
-        <button
-          className="w-8 h-8 flex items-center justify-center rounded-md transition-colors"
-          style={{ color: "rgba(255,255,255,0.5)" }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = "white"; e.currentTarget.style.background = "rgba(255,255,255,0.08)" }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(255,255,255,0.5)"; e.currentTarget.style.background = "transparent" }}
-          title="Notificações"
-        >
-          <Bell className="w-4 h-4" />
-        </button>
+        <NotificationsBell empresaId={empresaAtualId} />
 
         {mounted && (
           <button
