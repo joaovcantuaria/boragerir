@@ -307,6 +307,33 @@ export function AdminEmpresaDetalhe({ empresa: empInit, assinaturas: assInit, no
               </select>
             </div>
 
+            {/* Qtd empresas — apenas plano gestão */}
+            {planoManual === "gestao" && (
+              <div className="space-y-1.5">
+                <label className={`text-xs font-semibold ${t.textMuted3}`}>Qtd. de empresas liberadas</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="50"
+                  value={(empresa as any).max_empresas ?? 1}
+                  onChange={async (e) => {
+                    const val = parseInt(e.target.value) || 1
+                    setEmpresa((p) => ({ ...p, max_empresas: val }))
+                    await fetch("/api/admin/empresas/atualizar", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ empresa_id: empresa.id, dados: { max_empresas: val } }),
+                    })
+                    toast.success(`Limite atualizado para ${val} empresa(s)`)
+                  }}
+                  className="w-full h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:border-primary"
+                />
+                <p className={`text-xs ${t.textMuted}`}>
+                  Valor total: R$ {(((empresa as any).max_empresas ?? 1) * 29.9).toFixed(2).replace(".", ",")}/mês
+                </p>
+              </div>
+            )}
+
             {tipoAssinatura === "teste" ? (
               <div className="space-y-1.5">
                 <label className={`text-xs font-semibold ${t.textMuted3}`}>Duração do teste</label>
