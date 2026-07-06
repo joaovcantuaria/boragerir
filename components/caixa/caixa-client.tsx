@@ -79,8 +79,16 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
   const valorEsperado = saldoAtual
 
   // Formulário abrir caixa
+  const isGestaoPlano = plano === "gestao"
+  const mesAtual = new Date().toLocaleString("pt-BR", { month: "long", year: "numeric" }).replace(/^\w/, (c) => c.toUpperCase())
   const formAbrirCaixa = useForm({
-    defaultValues: { valor_abertura: "0", observacoes: "", tipo_caixa: "diario", nome_caixa: "", tipo_conta: "especie" },
+    defaultValues: {
+      valor_abertura: "0",
+      observacoes: "",
+      tipo_caixa: isGestaoPlano ? "mensal" : "diario",
+      nome_caixa: isGestaoPlano ? mesAtual : "",
+      tipo_conta: "especie",
+    },
   })
 
   // Formulário movimentação
