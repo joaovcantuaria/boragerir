@@ -20,22 +20,42 @@ export default async function DashboardPage() {
 
   const [
     { data: vendasHoje },
-    { data: caixaAberto },
+    { data: caixasAbertos },
     { data: agendamentosHoje },
     { data: estoqueBaixo },
     { data: vendasSemana },
     { data: tarefasPendentes },
   ] = await Promise.all([
     supabase.from("vendas").select("total, forma_pagamento").eq("empresa_id", empresa.id).eq("status", "concluida").gte("created_at", inicioDia).lte("created_at", fimDia),
-    supabase.from("caixas").select("*").eq("empresa_id", empresa.id).eq("status", "aberto").maybeSingle(),
+    supabase.from("caixas").select("*").eq("empresa_id", empresa.id).eq("status", "aberto").order("created_at"),
     supabase.from("agendamentos").select("*, clientes(nome_completo), funcionarios(nome), produtos_servicos(nome)").eq("empresa_id", empresa.id).gte("data_hora", inicioDia).lte("data_hora", fimDia).order("data_hora"),
     supabase.from("produtos_servicos").select("id, nome, estoque_atual, estoque_minimo").eq("empresa_id", empresa.id).eq("tipo", "produto").eq("ativo", true).not("estoque_minimo", "is", null),
     supabase.from("vendas").select("total, created_at").eq("empresa_id", empresa.id).eq("status", "concluida").gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()).order("created_at"),
     supabase.from("tarefas").select("id, titulo, status, prioridade, prazo, bloco_id").eq("empresa_id", empresa.id).neq("status", "concluido").order("prazo", { ascending: true, nullsFirst: false }).limit(10),
   ])
 
-  const totalVendasHoje = vendasHoje?.reduce((sum, v) => sum + v.total, 0) ?? 0
-  const qtdAtendimentos = vendasHoje?.length ?? 0
+  const caixaAberto = caixasAbertos?.[0] ?? null
+
+  // Para plano gestão: calcular movimentações do dia de todos os caixas abertos
+  let movsHoje = 0
+  let totalEntradasHoje = 0
+  let totalSaidasHoje = 0
+  if (empresa.plano === "gestao" && caixasAbertos && caixasAbertos.length > 0) {
+    const caixaIds = caixasAbertos.map((c: any) => c.id)
+    const { data: movsDia } = await supabase
+      .from("movimentacoes_caixa")
+      .select("tipo, valor")
+      .eq("empresa_id", empresa.id)
+      .in("caixa_id", caixaIds)
+      .gte("created_at", inicioDia)
+      .lte("created_at", fimDia)
+    movsHoje = movsDia?.length ?? 0
+    totalEntradasHoje = (movsDia ?? []).filter((m: any) => m.tipo === "entrada").reduce((s: number, m: any) => s + m.valor, 0)
+    totalSaidasHoje = (movsDia ?? []).filter((m: any) => m.tipo === "saida").reduce((s: number, m: any) => s + m.valor, 0)
+  }
+
+  const totalVendasHoje = empresa.plano === "gestao" ? totalEntradasHoje : (vendasHoje?.reduce((sum, v) => sum + v.total, 0) ?? 0)
+  const qtdAtendimentos = empresa.plano === "gestao" ? movsHoje : (vendasHoje?.length ?? 0)
   const ticketMedio = qtdAtendimentos > 0 ? totalVendasHoje / qtdAtendimentos : 0
 
   // Alertas de estoque baixo
