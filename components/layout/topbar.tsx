@@ -14,6 +14,7 @@ import { useTheme } from "next-themes"
 import { cn } from "@/lib/utils"
 import { LogoIcon } from "@/components/ui/logo"
 import { NotificationsBell } from "@/components/layout/notifications-bell"
+import { SearchPalette } from "@/components/layout/search-palette"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { createClient } from "@/lib/supabase/client"
 import { gerarIniciais } from "@/lib/utils"
@@ -122,10 +123,23 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl, plano, empr
   const [maisAberto, setMaisAberto] = useState(false)
   const [userAberto, setUserAberto] = useState(false)
   const [empresasAberto, setEmpresasAberto] = useState(false)
+  const [buscaAberta, setBuscaAberta] = useState(false)
   const supabase = createClient()
   const isPlanoGestao = plano === "gestao"
 
   useEffect(() => { setMounted(true) }, [])
+
+  // Atalho Ctrl+K para busca
+  useEffect(() => {
+    function handler(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault()
+        setBuscaAberta((v) => !v)
+      }
+    }
+    document.addEventListener("keydown", handler)
+    return () => document.removeEventListener("keydown", handler)
+  }, [])
 
   // Fechar ao mudar de página
   useEffect(() => {
@@ -346,14 +360,17 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl, plano, empr
       {/* Ações direita */}
       <div className="flex items-center gap-0.5 shrink-0">
         <button
+          onClick={() => setBuscaAberta(true)}
           className="w-8 h-8 flex items-center justify-center rounded-md transition-colors"
           style={{ color: "rgba(255,255,255,0.5)" }}
           onMouseEnter={(e) => { e.currentTarget.style.color = "white"; e.currentTarget.style.background = "rgba(255,255,255,0.08)" }}
           onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(255,255,255,0.5)"; e.currentTarget.style.background = "transparent" }}
-          title="Busca (K)"
+          title="Busca (Ctrl+K)"
         >
           <Search className="w-4 h-4" />
         </button>
+
+        <SearchPalette open={buscaAberta} onClose={() => setBuscaAberta(false)} />
 
         <NotificationsBell empresaId={empresaAtualId} />
 
