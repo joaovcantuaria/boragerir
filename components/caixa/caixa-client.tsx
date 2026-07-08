@@ -321,8 +321,163 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
 
         {/* ── ABA ATUAL ── */}
         <TabsContent value="atual" className="mt-4">
-      {!caixa ? (
-        // Caixa fechado
+      {/* Plano gestão: sempre mostrar os 2 espaços */}
+      {plano === "gestao" ? (
+        <div className="space-y-4">
+          {/* Nome/tipo */}
+          {caixa && ((caixa as any).nome_caixa || (caixa as any).tipo_caixa) && (
+            <div className="flex items-center gap-2">
+              {(caixa as any).tipo_caixa && (
+                <Badge variant="outline" className="text-xs capitalize">
+                  {{ diario: "Diário", semanal: "Semanal", mensal: "Mensal" }[(caixa as any).tipo_caixa] ?? (caixa as any).tipo_caixa}
+                </Badge>
+              )}
+              {(caixa as any).nome_caixa && (
+                <span className="text-sm font-semibold text-muted-foreground">{(caixa as any).nome_caixa}</span>
+              )}
+            </div>
+          )}
+
+          {/* Sempre 2 slots: Banco e Dinheiro */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {["banco", "especie"].map((tipoConta) => {
+              const cxAberto = caixasAbertos.find((c: any) => c.tipo_conta === tipoConta)
+              const label = tipoConta === "banco" ? "Banco" : "Dinheiro"
+              const emoji = tipoConta === "banco" ? "🏦" : "💵"
+              const bgHeader = tipoConta === "banco" ? "bg-blue-50 dark:bg-blue-900/10" : "bg-emerald-50 dark:bg-emerald-900/10"
+
+              if (cxAberto) {
+                const movsDosCaixa = movimentacoes.filter((m: any) => m.caixa_id === cxAberto.id)
+                const entradas = movsDosCaixa.filter((m) => m.tipo === "entrada").reduce((s, m) => s + m.valor, 0)
+                const saidas = movsDosCaixa.filter((m) => m.tipo === "saida").reduce((s, m) => s + m.valor, 0)
+                const saldo = cxAberto.valor_abertura + entradas - saidas
+                return (
+                  <Card key={tipoConta} className={`overflow-hidden ${saldo < 0 ? "border-red-200" : "border-border"}`}>
+                    <div className={`px-4 py-2 flex items-center justify-between ${bgHeader}`}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{emoji}</span>
+                        <span className="text-sm font-bold">{label}</span>
+                        {(cxAberto as any).nome_caixa && <span className="text-xs text-muted-foreground">· {(cxAberto as any).nome_caixa}</span>}
+                      </div>
+                      <Button variant="destructive" size="sm" className="text-xs h-7 px-3"
+                        onClick={() => { setCaixa(cxAberto as any); setModalFecharCaixa(true) }}>
+                        Fechar Caixa
+                      </Button>
+                    </div>
+                    <CardContent className="p-4">
+                      <p className={`text-2xl font-black ${saldo < 0 ? "text-red-500" : "text-foreground"}`}>{formatarMoeda(saldo)}</p>
+                      <div className="flex gap-4 mt-2 text-xs">
+                        <span className="text-emerald-500">↑ {formatarMoeda(entradas)}</span>
+                        <span className="text-red-500">↓ {formatarMoeda(saidas)}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              } else {
+                return (
+                  <Card key={tipoConta} className="overflow-hidden border-dashed">
+                    <div className={`px-4 py-2 flex items-center justify-between ${bgHeader} opacity-60`}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{emoji}</span>
+                        <span className="text-sm font-bold">{label}</span>
+                      </div>
+                      <Badge variant="secondary" className="text-[10px]">Fechado</Badge>
+                    </div>
+                    <CardContent className="p-4 flex flex-col items-center gap-3">
+                      <p className="text-sm text-muted-foreground">Caixa fechado</p>
+                      <Button size="sm" onClick={() => setModalAbrirCaixa(true)} className="gap-2">
+                        <Plus className="w-4 h-4" />
+                        Abrir {label}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )
+              }
+            })}
+          </div>
+
+          {/* Saldo Geral — só mostra quando tem pelo menos 1 aberto */}
+          {caixasAbertos.length > 0 && (
+            <Card className="border-primary/20 bg-primary/5">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground font-semibold">Saldo Geral</p>
+                    <p className="text-2xl font-black text-primary">{formatarMoeda(saldoAtual)}</p>
+                  </div>
+                  <div className="text-right text-xs space-y-0.5">
+                    <p className="text-emerald-500 font-semibold">Entradas: {formatarMoeda(totalEntradas)}</p>
+                    <p className="text-red-500 font-semibold">Saídas: {formatarMoeda(totalSaidas)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Ações rápidas */}
+          {caixasAbertos.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => setModalMovimentacao("suprimento")} className="gap-2">
+                <ArrowDownCircle className="w-4 h-4 text-emerald-500" />
+                Suprimento
+              </Button>
+              <Button variant="outline" onClick={() => setModalMovimentacao("sangria")} className="gap-2">
+                <ArrowUpCircle className="w-4 h-4 text-orange-500" />
+                Sangria
+              </Button>
+              <Button variant="outline" onClick={() => setModalMovimentacao("despesa")} className="gap-2">
+                <Minus className="w-4 h-4 text-red-500" />
+                Despesa
+              </Button>
+            </div>
+          )}
+
+          {/* Lista de movimentações */}
+          {caixasAbertos.length > 0 && movimentacoes.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Movimentações do caixa</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-1">
+                  {movimentacoes.map((mov) => (
+                    <div key={mov.id} className="flex items-center justify-between py-2.5 border-b border-border last:border-0">
+                      <div className="flex items-center gap-3">
+                        {mov.tipo === "entrada" ? (
+                          <TrendingUp className="w-4 h-4 text-emerald-500" />
+                        ) : (
+                          <TrendingDown className="w-4 h-4 text-red-500" />
+                        )}
+                        <div>
+                          <p className="text-sm font-medium">{mov.descricao.replace(/\s*\[.*?\]\s*$/, "")}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(mov.created_at), "HH:mm")} • {mov.categoria}
+                            {mov.descricao.match(/\[(.*?)\]/) && <span className="ml-1 text-primary">• {mov.descricao.match(/\[(.*?)\]/)?.[1]?.replace("_", " ")}</span>}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`font-semibold ${mov.tipo === "entrada" ? "text-emerald-500" : "text-red-500"}`}>
+                          {mov.tipo === "entrada" ? "+" : "-"}{formatarMoeda(mov.valor)}
+                        </span>
+                        <div className="flex items-center gap-0.5 ml-2">
+                          <button onClick={() => iniciarEdicaoMov(mov)} className="p-1 rounded hover:bg-muted" title="Editar">
+                            <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
+                          </button>
+                          <button onClick={() => excluirMovimentacao(mov.id)} className="p-1 rounded hover:bg-red-50" title="Excluir">
+                            <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      ) : !caixa ? (
+        // Caixa fechado (outros planos)
         <Card className="border-border">
           <CardContent className="py-16 flex flex-col items-center gap-6">
             <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
