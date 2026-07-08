@@ -148,13 +148,13 @@ export function RelatoriosGestaoTab({ empresaId }: { empresaId: string }) {
     }
 
     // Movimentações
-    addMovsTable("💵 Caixa Dinheiro (Espécie)", movsEspecie)
-    addMovsTable("🏦 Caixa Banco", movsBanco)
+    addMovsTable("Caixa Dinheiro (Especie)", movsEspecie)
+    addMovsTable("Caixa Banco", movsBanco)
 
     // Resumo geral
     const totalEntradas = movs.filter((m: any) => m.tipo === "entrada").reduce((s: number, m: any) => s + m.valor, 0)
     const totalSaidas = movs.filter((m: any) => m.tipo === "saida").reduce((s: number, m: any) => s + m.valor, 0)
-    addSection("📊 Resumo Geral de Movimentações")
+    addSection("Resumo Geral de Movimentacoes")
     doc.setFontSize(10)
     doc.setFont("helvetica", "normal")
     doc.text(`Total movimentações: ${movs.length}`, M, Y); Y += 5
@@ -165,7 +165,7 @@ export function RelatoriosGestaoTab({ empresaId }: { empresaId: string }) {
 
     if (tipo === "completo") {
       // Contas a Pagar
-      addSection("📋 Contas a Pagar")
+      addSection("Contas a Pagar")
       if (cp.length > 0) {
         autoTable(doc, {
           startY: Y,
@@ -187,7 +187,7 @@ export function RelatoriosGestaoTab({ empresaId }: { empresaId: string }) {
       }
 
       // Valores a Receber
-      addSection("💰 Valores a Receber")
+      addSection("Valores a Receber")
       if (vr.length > 0) {
         autoTable(doc, {
           startY: Y,
@@ -210,7 +210,7 @@ export function RelatoriosGestaoTab({ empresaId }: { empresaId: string }) {
 
       // Balanço
       if (Y > 240) { doc.addPage(); Y = 20 }
-      addSection("📈 Balanço do Período")
+      addSection("Balanco do Periodo")
       const totalCP = cp.reduce((s: number, c: any) => s + c.valor, 0)
       const totalCPPago = cp.filter((c: any) => c.status === "pago").reduce((s: number, c: any) => s + c.valor, 0)
       const totalVR = vr.reduce((s: number, v: any) => s + v.valor, 0)
@@ -291,22 +291,22 @@ export function RelatoriosGestaoTab({ empresaId }: { empresaId: string }) {
       conteudo += `\n`
     }
 
-    addMovsSection("💵 CAIXA DINHEIRO (ESPÉCIE)", movsEspecie)
-    addMovsSection("🏦 CAIXA BANCO", movsBanco)
+    addMovsSection("CAIXA DINHEIRO (ESPECIE)", movsEspecie)
+    addMovsSection("CAIXA BANCO", movsBanco)
 
     const totalEntradas = movs.filter((m: any) => m.tipo === "entrada").reduce((s: number, m: any) => s + m.valor, 0)
     const totalSaidas = movs.filter((m: any) => m.tipo === "saida").reduce((s: number, m: any) => s + m.valor, 0)
-    conteudo += `📊 RESUMO GERAL\n${separador}\n`
+    conteudo += `RESUMO GERAL\n${separador}\n`
     conteudo += `  Total: ${movs.length} mov. | Entradas: ${formatarMoeda(totalEntradas)} | Saídas: ${formatarMoeda(totalSaidas)} | Saldo: ${formatarMoeda(totalEntradas - totalSaidas)}\n\n`
 
     if (tipo === "completo") {
-      conteudo += `📋 CONTAS A PAGAR\n${separador}\n`
+      conteudo += `CONTAS A PAGAR\n${separador}\n`
       cp.forEach((c: any) => {
         conteudo += `  ${format(new Date(c.data_vencimento), "dd/MM/yyyy")} | ${formatarMoeda(c.valor)} | ${c.descricao} | ${c.status === "pago" ? "✓ PAGO" : "○ PENDENTE"}\n`
         if (c.data_pagamento) conteudo += `    Baixa: ${format(new Date(c.data_pagamento), "dd/MM/yyyy HH:mm")}\n`
         if (c.observacoes) conteudo += `    Obs: ${c.observacoes}\n`
       })
-      conteudo += `\n💰 VALORES A RECEBER\n${separador}\n`
+      conteudo += `\nVALORES A RECEBER\n${separador}\n`
       vr.forEach((v: any) => {
         conteudo += `  ${format(new Date(v.data_vencimento), "dd/MM/yyyy")} | ${formatarMoeda(v.valor)} | ${v.devedor} | ${v.status === "recebido" ? "✓ RECEBIDO" : "○ PENDENTE"}\n`
         if (v.observacoes) conteudo += `    Obs: ${v.observacoes}\n`
