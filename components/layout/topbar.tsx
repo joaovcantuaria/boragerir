@@ -171,7 +171,7 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl, plano, empr
   }
 
   return (
-    <header className="sticky top-0 z-30 flex items-center h-12 px-4 gap-3"
+    <header className="fixed top-0 left-0 right-0 z-30 flex items-center h-12 px-4 gap-3"
       style={{
         background: "hsl(222,28%,14%)",
         borderBottom: "1px solid hsl(222,22%,20%)",
