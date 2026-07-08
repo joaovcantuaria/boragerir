@@ -122,14 +122,21 @@ export function RelatoriosGestaoTab({ empresaId }: { empresaId: string }) {
         autoTable(doc, {
           startY: Y,
           margin: { left: M, right: M },
-          head: [["Data/Hora", "Tipo", "Categoria", "Descrição", "Valor"]],
-          body: lista.map((m: any) => [
-            format(new Date(m.created_at), "dd/MM HH:mm"),
-            m.tipo === "entrada" ? "Entrada" : "Saída",
-            m.categoria,
-            m.descricao,
-            (m.tipo === "entrada" ? "+" : "-") + formatarMoeda(m.valor),
-          ]),
+          head: [["Data/Hora", "Tipo", "Categoria", "Descrição", "Pgto", "Valor"]],
+          body: lista.map((m: any) => {
+            // Extrair forma de pagamento da descrição [pix], [cartao_credito] etc.
+            const matchPgto = m.descricao.match(/\[(pix|cartao_credito|cartao_debito|transferencia|dinheiro)\]/)
+            const pgto = matchPgto ? matchPgto[1].replace("_", " ") : "—"
+            const descLimpa = m.descricao.replace(/\s*\[.*?\]\s*$/, "")
+            return [
+              format(new Date(m.created_at), "dd/MM HH:mm"),
+              m.tipo === "entrada" ? "Entrada" : "Saída",
+              m.categoria,
+              descLimpa,
+              pgto,
+              (m.tipo === "entrada" ? "+" : "-") + formatarMoeda(m.valor),
+            ]
+          }),
           styles: { fontSize: 8, cellPadding: 2 },
           headStyles: { fillColor: [242, 110, 29], textColor: 255, fontStyle: "bold" },
         })
@@ -276,7 +283,10 @@ export function RelatoriosGestaoTab({ empresaId }: { empresaId: string }) {
       conteudo += `  Entradas: ${ent.length} | ${formatarMoeda(ent.reduce((s: number, m: any) => s + m.valor, 0))}\n`
       conteudo += `  Saídas:   ${sai.length} | ${formatarMoeda(sai.reduce((s: number, m: any) => s + m.valor, 0))}\n\n`
       lista.forEach((m: any) => {
-        conteudo += `  ${format(new Date(m.created_at), "dd/MM HH:mm")} | ${m.tipo === "entrada" ? "+" : "-"}${formatarMoeda(m.valor)} | ${m.categoria} | ${m.descricao}\n`
+        const matchPgto = m.descricao.match(/\[(pix|cartao_credito|cartao_debito|transferencia|dinheiro)\]/)
+        const pgto = matchPgto ? ` (${matchPgto[1].replace("_", " ")})` : ""
+        const descLimpa = m.descricao.replace(/\s*\[.*?\]\s*$/, "")
+        conteudo += `  ${format(new Date(m.created_at), "dd/MM HH:mm")} | ${m.tipo === "entrada" ? "+" : "-"}${formatarMoeda(m.valor)} | ${m.categoria} | ${descLimpa}${pgto}\n`
       })
       conteudo += `\n`
     }

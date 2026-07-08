@@ -67,6 +67,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
   const [modalFecharCaixa, setModalFecharCaixa] = useState(false)
   const [modalMovimentacao, setModalMovimentacao] = useState<"sangria" | "suprimento" | "despesa" | null>(null)
   const [caixaIdMovimentacao, setCaixaIdMovimentacao] = useState<string>("")
+  const [formaPagMovimentacao, setFormaPagMovimentacao] = useState<string>("")
   const [loading, setLoading] = useState(false)
   const [valorFechamento, setValorFechamento] = useState("")
   const router = useRouter()
@@ -213,7 +214,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
         caixa_id: caixaAlvo.id,
         tipo: tipoMap[modalMovimentacao],
         categoria: modalMovimentacao,
-        descricao: data.descricao,
+        descricao: formaPagMovimentacao ? `${data.descricao} [${formaPagMovimentacao}]` : data.descricao,
         valor: parseFloat(data.valor),
       })
       .select()
@@ -224,6 +225,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
     setMovimentacoes((prev) => [...prev, mov])
     setModalMovimentacao(null)
     setCaixaIdMovimentacao("")
+    setFormaPagMovimentacao("")
     formMovimentacao.reset()
     toast.success("Movimentação registrada!")
     setLoading(false)
@@ -718,6 +720,43 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
                       </button>
                     )
                   })}
+                </div>
+              </div>
+            )}
+            {/* Forma de pagamento — quando Banco é selecionado */}
+            {plano === "gestao" && (() => {
+              // Determinar se o caixa alvo é banco
+              if (caixasAbertos.length > 1 && caixaIdMovimentacao) {
+                const caixaSel = caixasAbertos.find((c) => c.id === caixaIdMovimentacao)
+                return (caixaSel as any)?.tipo_conta === "banco"
+              }
+              if (caixasAbertos.length === 1) {
+                return (caixasAbertos[0] as any)?.tipo_conta === "banco"
+              }
+              return false
+            })() && (
+              <div className="space-y-2">
+                <Label>Forma de pagamento</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: "pix", label: "Pix" },
+                    { id: "cartao_credito", label: "Cartão Crédito" },
+                    { id: "cartao_debito", label: "Cartão Débito" },
+                    { id: "transferencia", label: "Transferência" },
+                  ].map((fp) => (
+                    <button
+                      key={fp.id}
+                      type="button"
+                      onClick={() => setFormaPagMovimentacao(fp.id)}
+                      className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
+                        formaPagMovimentacao === fp.id
+                          ? "border-[#F26E1D] bg-[#F26E1D]/10 text-[#F26E1D]"
+                          : "border-border text-muted-foreground hover:border-primary/50"
+                      }`}
+                    >
+                      {fp.label}
+                    </button>
+                  ))}
                 </div>
               </div>
             )}
