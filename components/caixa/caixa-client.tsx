@@ -8,7 +8,7 @@ import { z } from "zod"
 import {
   Wallet, Plus, Minus, ArrowDownCircle, ArrowUpCircle,
   DollarSign, Loader2, X, TrendingUp, TrendingDown,
-  History, Search, ChevronDown, ChevronUp, RefreshCw, Clock
+  History, Search, ChevronDown, ChevronUp, RefreshCw, Clock, Edit2, Trash2
 } from "lucide-react"
 import { toast } from "sonner"
 import { format } from "date-fns"
@@ -68,6 +68,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
   const [modalMovimentacao, setModalMovimentacao] = useState<"sangria" | "suprimento" | "despesa" | null>(null)
   const [caixaIdMovimentacao, setCaixaIdMovimentacao] = useState<string>("")
   const [formaPagMovimentacao, setFormaPagMovimentacao] = useState<string>("")
+  const [editandoMov, setEditandoMov] = useState<Movimentacao | null>(null)
   const [loading, setLoading] = useState(false)
   const [valorFechamento, setValorFechamento] = useState("")
   const router = useRouter()
@@ -228,6 +229,40 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
     setFormaPagMovimentacao("")
     formMovimentacao.reset()
     toast.success("Movimentação registrada!")
+    setLoading(false)
+  }
+
+  async function excluirMovimentacao(id: string) {
+    if (!confirm("Excluir esta movimentação?")) return
+    await supabase.from("movimentacoes_caixa").delete().eq("id", id)
+    setMovimentacoes((prev) => prev.filter((m) => m.id !== id))
+    toast.success("Movimentação excluída!")
+  }
+
+  function iniciarEdicaoMov(mov: Movimentacao) {
+    setEditandoMov(mov)
+    formMovimentacao.setValue("valor", String(mov.valor))
+    formMovimentacao.setValue("descricao", mov.descricao.replace(/\s*\[.*?\]\s*$/, ""))
+    setModalMovimentacao(mov.categoria as any)
+  }
+
+  async function salvarEdicaoMov(data: { valor: string; descricao: string }) {
+    if (!editandoMov) return
+    setLoading(true)
+    const descFinal = formaPagMovimentacao ? `${data.descricao} [${formaPagMovimentacao}]` : data.descricao
+    await supabase.from("movimentacoes_caixa").update({
+      descricao: descFinal,
+      valor: parseFloat(data.valor),
+    }).eq("id", editandoMov.id)
+    setMovimentacoes((prev) => prev.map((m) => m.id === editandoMov.id
+      ? { ...m, descricao: descFinal, valor: parseFloat(data.valor) }
+      : m))
+    setEditandoMov(null)
+    setModalMovimentacao(null)
+    setCaixaIdMovimentacao("")
+    setFormaPagMovimentacao("")
+    formMovimentacao.reset()
+    toast.success("Movimentação atualizada!")
     setLoading(false)
   }
 
@@ -410,15 +445,28 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
                           <TrendingDown className="w-4 h-4 text-red-500" />
                         )}
                         <div>
-                          <p className="text-sm font-medium">{mov.descricao}</p>
+                          <p className="text-sm font-medium">{mov.descricao.replace(/\s*\[.*?\]\s*$/, "")}</p>
                           <p className="text-xs text-muted-foreground">
                             {format(new Date(mov.created_at), "HH:mm")} • {mov.categoria}
+                            {mov.descricao.match(/\[(.*?)\]/) && <span className="ml-1 text-primary">• {mov.descricao.match(/\[(.*?)\]/)?.[1]?.replace("_", " ")}</span>}
                           </p>
                         </div>
                       </div>
-                      <span className={`font-semibold ${mov.tipo === "entrada" ? "text-emerald-500" : "text-red-500"}`}>
-                        {mov.tipo === "entrada" ? "+" : "-"}{formatarMoeda(mov.valor)}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`font-semibold ${mov.tipo === "entrada" ? "text-emerald-500" : "text-red-500"}`}>
+                          {mov.tipo === "entrada" ? "+" : "-"}{formatarMoeda(mov.valor)}
+                        </span>
+                        {plano === "gestao" && (
+                          <div className="flex items-center gap-0.5 ml-2">
+                            <button onClick={() => iniciarEdicaoMov(mov)} className="p-1 rounded hover:bg-muted" title="Editar">
+                              <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
+                            </button>
+                            <button onClick={() => excluirMovimentacao(mov.id)} className="p-1 rounded hover:bg-red-50" title="Excluir">
+                              <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -690,12 +738,13 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
         <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>
-              {modalMovimentacao === "sangria" ? "Registrar Sangria"
+              {editandoMov ? "Editar Movimentação" :
+                modalMovimentacao === "sangria" ? "Registrar Sangria"
                 : modalMovimentacao === "suprimento" ? "Registrar Suprimento"
                 : "Registrar Despesa"}
             </DialogTitle>
           </DialogHeader>
-          <form onSubmit={formMovimentacao.handleSubmit(registrarMovimentacao)} className="space-y-4">
+          <form onSubmit={formMovimentacao.handleSubmit(editandoMov ? salvarEdicaoMov : registrarMovimentacao)} className="space-y-4">
             {/* Seletor de caixa — plano gestão com múltiplos caixas */}
             {plano === "gestao" && caixasAbertos.length > 1 && (
               <div className="space-y-2">
@@ -776,9 +825,9 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
               <Input placeholder="Ex: Pagamento fornecedor" required {...formMovimentacao.register("descricao")} />
             </div>
             <DialogFooter>
-              <Button variant="outline" type="button" onClick={() => setModalMovimentacao(null)}>Cancelar</Button>
+              <Button variant="outline" type="button" onClick={() => { setModalMovimentacao(null); setEditandoMov(null); setFormaPagMovimentacao("") }}>Cancelar</Button>
               <Button type="submit" disabled={loading}>
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Registrar"}
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : editandoMov ? "Salvar" : "Registrar"}
               </Button>
             </DialogFooter>
           </form>

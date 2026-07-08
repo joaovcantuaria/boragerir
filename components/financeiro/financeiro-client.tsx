@@ -100,6 +100,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   // Baixa modal — pergunta de qual caixa
   const [modalBaixa, setModalBaixa] = useState<{ tipo: "receber" | "pagar"; id: string; valor: number; descricao: string } | null>(null)
   const [baixaCaixaTipo, setBaixaCaixaTipo] = useState<"especie" | "banco">("especie")
+  const [baixaFormaPag, setBaixaFormaPag] = useState<string>("")
   const supabase = createClient()
   const router = useRouter()
   const isGestao = plano === "gestao"
@@ -230,6 +231,12 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
       return
     }
 
+    const descComPag = baixaCaixaTipo === "banco" && baixaFormaPag
+      ? `${modalBaixa.descricao} [${baixaFormaPag}]`
+      : baixaCaixaTipo === "especie"
+        ? `${modalBaixa.descricao} [dinheiro]`
+        : modalBaixa.descricao
+
     if (modalBaixa.tipo === "receber") {
       // Marcar como recebido + registrar entrada no caixa
       await supabase.from("valores_receber").update({ status: "recebido" }).eq("id", modalBaixa.id)
@@ -238,7 +245,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
         caixa_id: caixaId,
         tipo: "entrada",
         categoria: "suprimento",
-        descricao: modalBaixa.descricao,
+        descricao: descComPag,
         valor: modalBaixa.valor,
       } as any)
       setValoresReceber((prev) => prev.map((v) => v.id === modalBaixa.id ? { ...v, status: "recebido" } : v))
@@ -250,13 +257,14 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
         caixa_id: caixaId,
         tipo: "saida",
         categoria: "despesa",
-        descricao: modalBaixa.descricao,
+        descricao: descComPag,
         valor: modalBaixa.valor,
       } as any)
       toast.success("Pagamento registrado no caixa!")
     }
 
     setModalBaixa(null)
+    setBaixaFormaPag("")
     setLoadingReceber(false)
   }
 
@@ -955,9 +963,36 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
                 </button>
               </div>
             </div>
+            {/* Forma de pagamento — quando Banco selecionado */}
+            {baixaCaixaTipo === "banco" && (
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Meio de pagamento</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: "pix", label: "Pix" },
+                    { id: "cartao_credito", label: "Cartão Crédito" },
+                    { id: "cartao_debito", label: "Cartão Débito" },
+                    { id: "transferencia", label: "Transferência" },
+                  ].map((fp) => (
+                    <button
+                      key={fp.id}
+                      type="button"
+                      onClick={() => setBaixaFormaPag(fp.id)}
+                      className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
+                        baixaFormaPag === fp.id
+                          ? "border-[#F26E1D] bg-[#F26E1D]/10 text-[#F26E1D]"
+                          : "border-border text-muted-foreground hover:border-primary/50"
+                      }`}
+                    >
+                      {fp.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setModalBaixa(null)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => { setModalBaixa(null); setBaixaFormaPag("") }}>Cancelar</Button>
             <Button onClick={confirmarBaixa} disabled={loadingReceber} className="gap-2">
               {loadingReceber ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               Confirmar
