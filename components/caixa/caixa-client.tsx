@@ -215,7 +215,15 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
         caixa_id: caixaAlvo.id,
         tipo: tipoMap[modalMovimentacao],
         categoria: modalMovimentacao,
-        descricao: formaPagMovimentacao ? `${data.descricao} [${formaPagMovimentacao}]` : data.descricao,
+        descricao: (() => {
+          if (formaPagMovimentacao) return `${data.descricao} [${formaPagMovimentacao}]`
+          // Se é plano gestão e não selecionou forma, inferir pelo tipo de caixa
+          if (plano === "gestao") {
+            const cxAlvo = caixasAbertos.find((c) => c.id === caixaAlvo.id) ?? caixaAlvo
+            return (cxAlvo as any)?.tipo_conta === "banco" ? `${data.descricao} [pix]` : `${data.descricao} [dinheiro]`
+          }
+          return data.descricao
+        })(),
         valor: parseFloat(data.valor),
       })
       .select()
@@ -249,13 +257,29 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
   async function salvarEdicaoMov(data: { valor: string; descricao: string }) {
     if (!editandoMov) return
     setLoading(true)
-    const descFinal = formaPagMovimentacao ? `${data.descricao} [${formaPagMovimentacao}]` : data.descricao
-    await supabase.from("movimentacoes_caixa").update({
-      descricao: descFinal,
-      valor: parseFloat(data.valor),
-    }).eq("id", editandoMov.id)
+
+    // Determinar descrição com forma de pagamento
+    let descFinal = data.descricao
+    if (formaPagMovimentacao) {
+      descFinal = `${data.descricao} [${formaPagMovimentacao}]`
+    } else if (plano === "gestao") {
+      const cxAlvo = caixaIdMovimentacao ? caixasAbertos.find((c) => c.id === caixaIdMovimentacao) : null
+      if (cxAlvo) {
+        descFinal = (cxAlvo as any).tipo_conta === "banco" ? `${data.descricao} [pix]` : `${data.descricao} [dinheiro]`
+      } else {
+        descFinal = `${data.descricao} [dinheiro]`
+      }
+    }
+
+    // Atualizar incluindo caixa_id se foi alterado
+    const updateData: any = { descricao: descFinal, valor: parseFloat(data.valor) }
+    if (caixaIdMovimentacao && caixaIdMovimentacao !== (editandoMov as any).caixa_id) {
+      updateData.caixa_id = caixaIdMovimentacao
+    }
+
+    await supabase.from("movimentacoes_caixa").update(updateData).eq("id", editandoMov.id)
     setMovimentacoes((prev) => prev.map((m) => m.id === editandoMov.id
-      ? { ...m, descricao: descFinal, valor: parseFloat(data.valor) }
+      ? { ...m, ...updateData }
       : m))
     setEditandoMov(null)
     setModalMovimentacao(null)
@@ -264,6 +288,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
     formMovimentacao.reset()
     toast.success("Movimentação atualizada!")
     setLoading(false)
+    window.location.reload()
   }
 
   const temCaixasAnteriores = ["basico", "profissional", "gestao"].includes(plano)
@@ -347,9 +372,9 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
                         <span className="text-sm font-bold">{tipoConta === "banco" ? "Banco" : "Dinheiro"}</span>
                         {(cx as any).nome_caixa && <span className="text-xs text-muted-foreground">· {(cx as any).nome_caixa}</span>}
                       </div>
-                      <Button variant="ghost" size="sm" className="text-xs text-red-500 hover:text-red-600 hover:bg-red-50 h-7 px-2"
+                      <Button variant="destructive" size="sm" className="text-xs h-7 px-3"
                         onClick={() => { setCaixa(cx as any); setModalFecharCaixa(true) }}>
-                        <X className="w-3 h-3 mr-1" /> Fechar
+                        Fechar Caixa
                       </Button>
                     </div>
                     <CardContent className="p-4">
@@ -367,9 +392,9 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
 
           {/* Botão abrir segundo caixa — plano gestão */}
           {plano === "gestao" && caixasAbertos.length === 1 && (
-            <Button variant="outline" size="sm" onClick={() => setModalAbrirCaixa(true)} className="gap-2">
+            <Button onClick={() => setModalAbrirCaixa(true)} className="gap-2">
               <Plus className="w-4 h-4" />
-              Abrir outro caixa ({(caixa as any).tipo_conta === "banco" ? "Dinheiro" : "Banco"})
+              Abrir caixa {(caixa as any).tipo_conta === "banco" ? "Dinheiro" : "Banco"}
             </Button>
           )}
 
