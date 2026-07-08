@@ -567,12 +567,13 @@ export function ChatIA() {
             drag
             dragMomentum={false}
             dragElastic={0.1}
+            onDragStart={() => { (window as any).__melDragging = true }}
+            onDragEnd={() => { setTimeout(() => { (window as any).__melDragging = false }, 100) }}
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
             whileHover={{ scale: 1.06 }}
-            whileTap={{ scale: 0.92 }}
-            onClick={() => setAberto(true)}
+            onClick={() => { if (!(window as any).__melDragging) setAberto(true) }}
             style={{
               position: "fixed",
               bottom: "100px",
