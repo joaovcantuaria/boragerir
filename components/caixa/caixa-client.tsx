@@ -660,10 +660,10 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
               <Input
                 type="number"
                 step="0.01"
-                min="0"
                 placeholder="0,00"
                 {...formAbrirCaixa.register("valor_abertura")}
               />
+              <p className="text-[10px] text-muted-foreground">Pode ser negativo para iniciar com saldo devedor</p>
             </div>
             <div className="space-y-2">
               <Label>Observações (opcional)</Label>
