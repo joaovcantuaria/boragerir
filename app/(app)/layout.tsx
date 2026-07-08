@@ -95,9 +95,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Conteúdo com animação de transição */}
-      {/* Spacer para compensar a topbar fixa no desktop */}
-      {!isPlanoAgenda && <div className="hidden md:block h-14" />}
-
       <AnimatePresence mode="wait">
         <motion.main
           key={pathname}
@@ -105,7 +102,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -3 }}
           transition={{ duration: 0.18, ease: "easeOut" }}
-          className="flex-1 p-4 lg:p-5 pb-20 md:pb-5 max-w-[1600px] w-full mx-auto"
+          className={`flex-1 p-4 lg:p-5 pb-20 md:pb-5 max-w-[1600px] w-full mx-auto ${!isPlanoAgenda ? "md:mt-14" : ""}`}
         >
           <PullToRefresh>
             {children}

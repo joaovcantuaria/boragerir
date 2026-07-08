@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
         resultado = await payment.create({ body: payBody })
         if (resultado?.id) break
       } catch (err: unknown) {
-        ultimoErro = err instanceof Error ? err.message : String(err)
+        ultimoErro = err instanceof Error ? err.message : JSON.stringify(err)
         console.warn("Tentativa falhou:", ultimoErro)
       }
     }
