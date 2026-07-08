@@ -102,7 +102,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -3 }}
           transition={{ duration: 0.18, ease: "easeOut" }}
-          className="flex-1 p-4 lg:p-5 pb-20 md:pb-5 md:pt-20 max-w-[1600px] w-full mx-auto"
+          className="flex-1 p-4 lg:p-5 pb-20 md:pb-5 md:pt-[5rem] max-w-[1600px] w-full mx-auto"
         >
           <PullToRefresh>
             {children}
