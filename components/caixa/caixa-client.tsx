@@ -447,10 +447,12 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
               <Minus className="w-4 h-4 text-red-500" />
               Despesa
             </Button>
-            <Button variant="destructive" onClick={() => setModalFecharCaixa(true)} className="ml-auto gap-2">
-              <X className="w-4 h-4" />
-              Fechar Caixa
-            </Button>
+            {plano !== "gestao" && (
+              <Button variant="destructive" onClick={() => setModalFecharCaixa(true)} className="ml-auto gap-2">
+                <X className="w-4 h-4" />
+                Fechar Caixa
+              </Button>
+            )}
           </div>
 
           {/* Lista de movimentações */}
