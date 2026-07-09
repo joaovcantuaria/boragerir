@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { MercadoPagoConfig, Payment } from "mercadopago"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { calcularValor, type PlanoMP, type Periodicidade } from "@/lib/mercadopago/client"
+import { randomUUID } from "crypto"
 
 export async function POST(req: NextRequest) {
   try {
@@ -49,64 +49,109 @@ export async function POST(req: NextRequest) {
     const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN
     if (!accessToken) return NextResponse.json({ erro: "Gateway não configurado" }, { status: 500 })
 
-    const mp = new MercadoPagoConfig({ accessToken })
-    const payment = new Payment(mp)
-
     const partes = empresa.nome.trim().split(" ")
     const firstName = partes[0] ?? "Cliente"
     const lastName = partes.slice(1).join(" ") || firstName
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.boragerir.com"
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.boragerir.com"
+    const notificationUrl = `${appUrl}/api/webhooks/mercadopago`
 
     const docLimpo = (empresa.documento ?? "").replace(/\D/g, "")
     const temDocValido = empresa.tipo_documento === "cnpj"
       ? docLimpo.length === 14
       : docLimpo.length === 11
 
-    const tentativas = [
-      {
-        transaction_amount: Number(valorTotal.toFixed(2)),
-        description: descricao,
-        payment_method_id: "pix",
-        payer: {
-          email: empresa.email,
-          first_name: firstName,
-          last_name: lastName,
-          ...(temDocValido && {
-            identification: {
-              type: empresa.tipo_documento === "cnpj" ? "CNPJ" : "CPF",
-              number: docLimpo,
-            },
-          }),
-        },
-        metadata: { empresa_id: empresa.id, plano, periodicidade },
-        notification_url: `${appUrl}/api/webhooks/mercadopago`,
+    // ── Criar pagamento via API direta (sem SDK) ────────────
+    const paymentBody = {
+      transaction_amount: Number(valorTotal.toFixed(2)),
+      description: descricao,
+      payment_method_id: "pix",
+      payer: {
+        email: empresa.email,
+        first_name: firstName,
+        last_name: lastName,
+        ...(temDocValido && {
+          identification: {
+            type: empresa.tipo_documento === "cnpj" ? "CNPJ" : "CPF",
+            number: docLimpo,
+          },
+        }),
       },
-      {
-        transaction_amount: Number(valorTotal.toFixed(2)),
-        description: descricao,
-        payment_method_id: "pix",
-        payer: { email: empresa.email, first_name: firstName, last_name: lastName },
-        metadata: { empresa_id: empresa.id, plano, periodicidade },
-        notification_url: `${appUrl}/api/webhooks/mercadopago`,
+      metadata: { empresa_id: empresa.id, plano, periodicidade },
+      notification_url: notificationUrl,
+    }
+
+    const idempotencyKey = randomUUID()
+
+    const mpResponse = await fetch("https://api.mercadopago.com/v1/payments", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${accessToken}`,
+        "X-Idempotency-Key": idempotencyKey,
       },
-    ]
+      body: JSON.stringify(paymentBody),
+    })
 
-    let resultado = null
-    let ultimoErro = ""
+    const mpText = await mpResponse.text()
+    let resultado: Record<string, unknown> | null = null
 
-    for (const payBody of tentativas) {
-      try {
-        resultado = await payment.create({ body: payBody })
-        if (resultado?.id) break
-      } catch (err: unknown) {
-        ultimoErro = err instanceof Error ? err.message : JSON.stringify(err)
-        console.warn("Tentativa falhou:", ultimoErro)
+    try {
+      resultado = JSON.parse(mpText)
+    } catch {
+      console.error("MP resposta não-JSON:", mpResponse.status, mpText.slice(0, 500))
+      return NextResponse.json({
+        erro: `Mercado Pago retornou resposta inválida (status ${mpResponse.status})`,
+      }, { status: 500 })
+    }
+
+    if (!mpResponse.ok || !resultado?.id) {
+      // Se falhou com identification, tenta sem
+      if (!mpResponse.ok && temDocValido) {
+        const paymentBodySimples = {
+          transaction_amount: Number(valorTotal.toFixed(2)),
+          description: descricao,
+          payment_method_id: "pix",
+          payer: { email: empresa.email, first_name: firstName, last_name: lastName },
+          metadata: { empresa_id: empresa.id, plano, periodicidade },
+          notification_url: notificationUrl,
+        }
+
+        const mpResponse2 = await fetch("https://api.mercadopago.com/v1/payments", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${accessToken}`,
+            "X-Idempotency-Key": randomUUID(),
+          },
+          body: JSON.stringify(paymentBodySimples),
+        })
+
+        const mpText2 = await mpResponse2.text()
+        try {
+          resultado = JSON.parse(mpText2)
+        } catch {
+          console.error("MP resposta2 não-JSON:", mpResponse2.status, mpText2.slice(0, 500))
+          return NextResponse.json({
+            erro: `Mercado Pago retornou resposta inválida (status ${mpResponse2.status})`,
+          }, { status: 500 })
+        }
+
+        if (!mpResponse2.ok || !resultado?.id) {
+          const errMsg = (resultado as Record<string, unknown>)?.message ?? JSON.stringify(resultado)
+          console.error("MP erro final:", errMsg)
+          return NextResponse.json({ erro: `Erro no Mercado Pago: ${errMsg}` }, { status: 500 })
+        }
+      } else {
+        const errMsg = (resultado as Record<string, unknown>)?.message ?? JSON.stringify(resultado)
+        console.error("MP erro:", errMsg)
+        return NextResponse.json({ erro: `Erro no Mercado Pago: ${errMsg}` }, { status: 500 })
       }
     }
 
-    if (!resultado?.id) {
-      return NextResponse.json({ erro: `Erro no Mercado Pago: ${ultimoErro}` }, { status: 500 })
-    }
+    const paymentId = String(resultado.id)
+    const pointOfInteraction = resultado.point_of_interaction as {
+      transaction_data?: { qr_code_base64?: string; qr_code?: string }
+    } | undefined
 
     // ── Salvar assinatura pendente ──────────────────────────
     const valorOriginal = calcularValor(plano, periodicidade).valorTotal
@@ -117,11 +162,11 @@ export async function POST(req: NextRequest) {
         periodicidade,
         status: "pendente",
         forma_pagamento: "pix",
-        valor_mensal: plano === "basico" ? 49 : 99,
+        valor_mensal: plano === "basico" ? 49 : plano === "agenda" ? 29 : 99,
         valor_total: Number(valorTotal.toFixed(2)),
-        mp_pix_payment_id: resultado.id.toString(),
-        mp_pix_qr_code: resultado.point_of_interaction?.transaction_data?.qr_code_base64 ?? null,
-        mp_pix_qr_code_text: resultado.point_of_interaction?.transaction_data?.qr_code ?? null,
+        mp_pix_payment_id: paymentId,
+        mp_pix_qr_code: pointOfInteraction?.transaction_data?.qr_code_base64 ?? null,
+        mp_pix_qr_code_text: pointOfInteraction?.transaction_data?.qr_code ?? null,
       })
     } catch (dbErr) {
       console.warn("Assinatura não salva:", dbErr)
@@ -137,9 +182,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       sucesso: true,
-      payment_id: resultado.id.toString(),
-      qr_code: resultado.point_of_interaction?.transaction_data?.qr_code_base64,
-      qr_code_text: resultado.point_of_interaction?.transaction_data?.qr_code,
+      payment_id: paymentId,
+      qr_code: pointOfInteraction?.transaction_data?.qr_code_base64,
+      qr_code_text: pointOfInteraction?.transaction_data?.qr_code,
       valor: Number(valorTotal.toFixed(2)),
       valor_original: valorOriginal,
       desconto_aplicado: cupomAplicado ? Number((valorOriginal - valorTotal).toFixed(2)) : 0,
