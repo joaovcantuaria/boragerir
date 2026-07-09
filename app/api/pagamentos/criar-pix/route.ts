@@ -123,16 +123,16 @@ export async function POST(req: NextRequest) {
 
     // ── Salvar assinatura pendente ─────────────────────────────
     // Salvar o ORDER ID como referência (é ele que consultamos para ver status)
-    const admin = createAdminClient()
+    const adminDb = createAdminClient()
     
     // Cancelar assinaturas pendentes anteriores dessa empresa
-    await admin.from("assinaturas")
+    await adminDb.from("assinaturas")
       .update({ status: "cancelada" })
       .eq("empresa_id", empresa.id)
       .eq("status", "pendente")
 
     // Inserir nova assinatura
-    const { error: insertErr } = await admin.from("assinaturas").insert({
+    const { error: insertErr } = await adminDb.from("assinaturas").insert({
       empresa_id: empresa.id,
       plano,
       periodicidade,
