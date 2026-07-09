@@ -118,8 +118,3 @@ async function ativarAssinatura(paymentId: string, externalReference?: string) {
     console.error("Erro ao ativar assinatura:", e)
   }
 }
-    }
-  } catch (e) {
-    console.error("Erro ao ativar assinatura:", e)
-  }
-}
