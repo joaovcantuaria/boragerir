@@ -190,13 +190,6 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.erro)
-
-      // Se retornou modo checkout_pro, redirecionar para o Mercado Pago
-      if (data.modo === "checkout_pro" && data.init_point) {
-        window.location.href = data.init_point
-        return
-      }
-
       setPixData({ qr_code: data.qr_code, qr_code_text: data.qr_code_text, payment_id: data.payment_id, valor: data.valor })
       setEtapa("pix-aguardando")
       verificarPix(data.payment_id)
