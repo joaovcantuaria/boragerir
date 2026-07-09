@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erro: "empresa_id e plano são obrigatórios" }, { status: 400 })
   }
 
-  const planosValidos = ["gratuito", "basico", "profissional"]
+  const planosValidos = ["gratuito", "agenda", "basico", "profissional", "gestao"]
   if (!planosValidos.includes(plano)) {
     return NextResponse.json({ erro: "Plano inválido" }, { status: 400 })
   }
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   // Atualizar plano da empresa
   const { error } = await admin
     .from("empresas")
-    .update({ plano, plano_ativo: true })
+    .update({ plano, plano_ativo: plano !== "gratuito" })
     .eq("id", empresa_id)
 
   if (error) {
@@ -34,24 +34,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erro: error.message }, { status: 500 })
   }
 
-  // Se for plano pago, garantir que tem assinatura ativa registrada
-  if (plano !== "gratuito") {
-    // Cancelar assinaturas ativas anteriores
-    await admin
-      .from("assinaturas")
-      .update({ status: "cancelada" })
-      .eq("empresa_id", empresa_id)
-      .eq("status", "ativa")
+  // Cancelar assinaturas ativas anteriores
+  await admin
+    .from("assinaturas")
+    .update({ status: "cancelada" })
+    .eq("empresa_id", empresa_id)
+    .eq("status", "ativa")
 
-    // Criar nova assinatura ativa (alterada pelo admin)
+  // Se for plano pago, criar nova assinatura ativa (alterada pelo admin)
+  if (plano !== "gratuito") {
+    const valorMensal = plano === "agenda" ? 29 : plano === "basico" ? 49 : plano === "gestao" ? 79 : 99
     await admin.from("assinaturas").insert({
       empresa_id,
       plano,
       periodicidade: "mensal",
       status: "ativa",
-      forma_pagamento: "pix",
-      valor_mensal: plano === "basico" ? 49 : 99,
-      valor_total: plano === "basico" ? 49 : 99,
+      forma_pagamento: "manual",
+      valor_mensal: valorMensal,
+      valor_total: valorMensal,
       data_inicio: new Date().toISOString(),
     })
   }

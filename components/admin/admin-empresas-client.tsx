@@ -229,6 +229,27 @@ export function AdminEmpresasClient({ empresas: init }: { empresas: Empresa[] })
               </div>
               <div className="flex items-center gap-1">
                 <button onClick={() => router.push(`/admin/empresas/${e.id}`)} className={`p-1.5 rounded-lg ${t.hoverBgBtn} ${t.textMuted} hover:text-white transition-colors`} title="Ver detalhes"><Eye className="w-3.5 h-3.5" /></button>
+                <select
+                  value={e.plano}
+                  onChange={(ev) => {
+                    const novo = ev.target.value
+                    if (novo !== e.plano) {
+                      const msg = novo === "gratuito"
+                        ? `Rebaixar "${e.nome}" para Gratuito? O cliente perderá acesso aos recursos pagos.`
+                        : `Alterar plano de "${e.nome}" para ${novo}?`
+                      if (confirm(msg)) alterarPlano(e.id, novo)
+                      else ev.target.value = e.plano
+                    }
+                  }}
+                  className="text-xs bg-transparent border border-white/10 rounded-lg px-1.5 py-1 text-gray-300 cursor-pointer hover:border-primary/50 transition-colors"
+                  title="Alterar plano"
+                >
+                  <option value="gratuito">Gratuito</option>
+                  <option value="agenda">Agenda</option>
+                  <option value="basico">Básico</option>
+                  <option value="profissional">Profissional</option>
+                  <option value="gestao">Gestão</option>
+                </select>
                 <button onClick={() => enviarAlertaVencimento(e)} className={`p-1.5 rounded-lg ${t.hoverBgBtn} text-yellow-400/60 hover:text-yellow-400 transition-colors`} title="Alerta"><Bell className="w-3.5 h-3.5" /></button>
                 <button onClick={() => toggleAtivo(e)} className={`p-1.5 rounded-lg ${t.hoverBgBtn} transition-colors ${e.plano_ativo ? "text-emerald-400 hover:text-red-400" : "text-red-400 hover:text-emerald-400"}`} title={e.plano_ativo ? "Desativar" : "Reativar"}>{e.plano_ativo ? <Shield className="w-3.5 h-3.5" /> : <ShieldOff className="w-3.5 h-3.5" />}</button>
                 <button onClick={() => excluirEmpresa(e)} className={`p-1.5 rounded-lg ${t.hoverBgBtn} text-red-400/60 hover:text-red-400 transition-colors`} title="Excluir"><Trash2 className="w-3.5 h-3.5" /></button>

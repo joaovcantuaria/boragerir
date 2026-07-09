@@ -7,7 +7,7 @@ import { ptBR } from "date-fns/locale"
 import {
   ArrowLeft, Building2, Mail, Phone, MessageSquare, Plus, Send, Loader2,
   Trash2, AlertTriangle, CreditCard, Edit2, Save, X, Gift, Calendar,
-  CheckCircle, Clock, XCircle, QrCode, BadgeCheck
+  CheckCircle, Clock, XCircle, QrCode, BadgeCheck, ShieldOff
 } from "lucide-react"
 import { toast } from "sonner"
 import { formatarCNPJ, formatarCPF, formatarTelefone, formatarMoeda } from "@/lib/utils"
@@ -400,6 +400,30 @@ export function AdminEmpresaDetalhe({ empresa: empInit, assinaturas: assInit, no
               {loadingAssinatura ? <Loader2 className="w-4 h-4 animate-spin" /> : <BadgeCheck className="w-4 h-4" />}
               {tipoAssinatura === "teste" ? `Ativar ${diasTeste} dias grátis` : `Ativar plano por ${mesesManual} ${mesesManual === 1 ? "mês" : "meses"}`}
             </button>
+
+            {/* Rebaixar para gratuito */}
+            {empresa.plano !== "gratuito" && (
+              <button
+                onClick={async () => {
+                  if (!confirm("Rebaixar para plano Gratuito? O cliente perderá acesso aos recursos pagos.")) return
+                  const res = await fetch("/api/admin/empresas/alterar-plano", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ empresa_id: empresa.id, plano: "gratuito" }),
+                  })
+                  if (res.ok) {
+                    toast.success("Plano rebaixado para Gratuito")
+                    setEmpresa((p) => ({ ...p, plano: "gratuito", plano_ativo: false }))
+                  } else {
+                    toast.error("Erro ao rebaixar plano")
+                  }
+                }}
+                className="w-full h-10 rounded-xl border border-red-500/30 text-red-400 text-sm font-semibold hover:bg-red-500/10 transition-all flex items-center justify-center gap-2"
+              >
+                <ShieldOff className="w-4 h-4" />
+                Rebaixar para Gratuito
+              </button>
+            )}
           </div>
 
           {/* Histórico de assinaturas */}
