@@ -1,19 +1,110 @@
 import { NextRequest, NextResponse } from "next/server"
-import { MercadoPagoConfig, Payment } from "mercadopago"
-
-const mp = new MercadoPagoConfig({
-  accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN!,
-})
+import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 
 export async function GET(req: NextRequest) {
   const payment_id = req.nextUrl.searchParams.get("payment_id")
   if (!payment_id) return NextResponse.json({ erro: "payment_id obrigatório" }, { status: 400 })
 
+  const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN!
+
+  // Tentar buscar como Order primeiro
   try {
-    const payment = new Payment(mp)
-    const resultado = await payment.get({ id: payment_id })
-    return NextResponse.json({ status: resultado.status, status_detail: resultado.status_detail })
-  } catch {
-    return NextResponse.json({ erro: "Pagamento não encontrado" }, { status: 404 })
+    const resOrder = await fetch(`https://api.mercadopago.com/v1/orders/${payment_id}`, {
+      headers: { "Authorization": `Bearer ${accessToken}` },
+    })
+
+    if (resOrder.ok) {
+      const order = await resOrder.json()
+      const orderStatus = order.status
+      const payments = order.transactions?.payments ?? []
+      const firstPayment = payments[0]
+
+      // Se o pagamento dentro da order foi aprovado
+      if (firstPayment?.status === "approved" || orderStatus === "processed") {
+        // Ativar assinatura no banco
+        await ativarAssinatura(payment_id, order.external_reference)
+        return NextResponse.json({ status: "approved", status_detail: "accredited" })
+      }
+
+      if (orderStatus === "expired" || firstPayment?.status === "cancelled") {
+        return NextResponse.json({ status: "cancelled" })
+      }
+
+      return NextResponse.json({ status: firstPayment?.status ?? "pending" })
+    }
+  } catch {}
+
+  // Fallback: tentar como payment ID direto
+  try {
+    const resPay = await fetch(`https://api.mercadopago.com/v1/payments/${payment_id}`, {
+      headers: { "Authorization": `Bearer ${accessToken}` },
+    })
+
+    if (resPay.ok) {
+      const pay = await resPay.json()
+      if (pay.status === "approved") {
+        await ativarAssinatura(payment_id, pay.external_reference)
+      }
+      return NextResponse.json({ status: pay.status, status_detail: pay.status_detail })
+    }
+  } catch {}
+
+  // Fallback: checar no banco se já foi ativada
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const admin = createAdminClient()
+      const { data: assinatura } = await admin.from("assinaturas")
+        .select("status")
+        .eq("mp_pix_payment_id", payment_id)
+        .single()
+
+      if (assinatura?.status === "ativa") {
+        return NextResponse.json({ status: "approved" })
+      }
+    }
+  } catch {}
+
+  return NextResponse.json({ status: "pending" })
+}
+
+async function ativarAssinatura(paymentId: string, externalReference?: string) {
+  try {
+    const admin = createAdminClient()
+
+    // Tentar ativar por payment_id
+    const { data: updated } = await admin.from("assinaturas")
+      .update({ status: "ativa", data_inicio: new Date().toISOString(), mp_payment_id: paymentId })
+      .eq("mp_pix_payment_id", paymentId)
+      .eq("status", "pendente")
+      .select("empresa_id, plano")
+
+    if (updated?.length) {
+      const { empresa_id, plano } = updated[0]
+      await admin.from("empresas").update({ plano, plano_ativo: true }).eq("id", empresa_id)
+      return
+    }
+
+    // Tentar por external_reference
+    if (externalReference) {
+      const partes = externalReference.split("|")
+      const empresaId = partes[0]
+      const plano = partes[1]
+      if (empresaId && plano) {
+        const { data: u2 } = await admin.from("assinaturas")
+          .update({ status: "ativa", data_inicio: new Date().toISOString(), mp_payment_id: paymentId })
+          .eq("empresa_id", empresaId)
+          .eq("status", "pendente")
+          .select("id")
+
+        if (u2?.length) {
+          await admin.from("empresas").update({ plano, plano_ativo: true }).eq("id", empresaId)
+        }
+      }
+    }
+  } catch (e) {
+    console.error("Erro ao ativar assinatura:", e)
   }
 }
