@@ -74,40 +74,50 @@ async function ativarAssinatura(paymentId: string, externalReference?: string) {
   try {
     const admin = createAdminClient()
 
-    // Tentar ativar por payment_id
-    const { data: updated } = await admin.from("assinaturas")
+    // Tentar ativar por mp_pix_payment_id (orderId)
+    const { data: updated, error: err1 } = await admin.from("assinaturas")
       .update({ status: "ativa", data_inicio: new Date().toISOString(), mp_payment_id: paymentId })
       .eq("mp_pix_payment_id", paymentId)
       .eq("status", "pendente")
       .select("empresa_id, plano")
 
+    console.log("ativarAssinatura por paymentId:", { paymentId, updated, err1 })
+
     if (updated?.length) {
       const { empresa_id, plano } = updated[0]
-      await admin.from("empresas").update({ plano, plano_ativo: true }).eq("id", empresa_id)
+      const { error: errEmp } = await admin.from("empresas").update({ plano, plano_ativo: true }).eq("id", empresa_id)
+      console.log("Empresa atualizada:", { empresa_id, plano, errEmp })
       return
     }
 
-    // Tentar por external_reference
+    // Tentar por external_reference (empresa_id)
     if (externalReference) {
-      // external_reference é o empresa_id
       const empresaId = externalReference
-      if (empresaId) {
-        const { data: ass } = await admin.from("assinaturas")
-          .select("id, plano")
-          .eq("empresa_id", empresaId)
-          .eq("status", "pendente")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .single()
+      const { data: ass } = await admin.from("assinaturas")
+        .select("id, plano")
+        .eq("empresa_id", empresaId)
+        .eq("status", "pendente")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single()
 
-        if (ass) {
-          await admin.from("assinaturas")
-            .update({ status: "ativa", data_inicio: new Date().toISOString(), mp_payment_id: paymentId })
-            .eq("id", ass.id)
+      console.log("ativarAssinatura por extRef:", { empresaId, ass })
 
-          await admin.from("empresas").update({ plano: ass.plano, plano_ativo: true }).eq("id", empresaId)
-        }
+      if (ass) {
+        await admin.from("assinaturas")
+          .update({ status: "ativa", data_inicio: new Date().toISOString(), mp_payment_id: paymentId })
+          .eq("id", ass.id)
+
+        await admin.from("empresas").update({ plano: ass.plano, plano_ativo: true }).eq("id", empresaId)
+        return
       }
+    }
+
+    console.warn("ativarAssinatura: nenhuma assinatura encontrada para ativar")
+  } catch (e) {
+    console.error("Erro ao ativar assinatura:", e)
+  }
+}
     }
   } catch (e) {
     console.error("Erro ao ativar assinatura:", e)
