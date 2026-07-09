@@ -40,9 +40,8 @@ export async function POST(req: NextRequest) {
         let plano = meta?.plano
 
         if (!empresaId && externalRef) {
-          const partes = externalRef.split("|")
-          empresaId = partes[0]
-          plano = partes[1]
+          // external_reference é o empresa_id direto
+          empresaId = externalRef
         }
 
         console.log("Webhook MP approved:", { empresaId, plano, paymentId })
@@ -99,28 +98,34 @@ export async function POST(req: NextRequest) {
             .reduce((sum: number, p: Record<string, unknown>) => sum + (p.transaction_amount as number ?? 0), 0)
 
           if (totalPago >= order.total_amount && order.external_reference) {
-            const partes = order.external_reference.split("|")
-            const empresaId = partes[0]
-            const plano = partes[1]
+            // external_reference é o empresa_id
+            const empresaId = order.external_reference
 
             if (empresaId) {
-              const { data: updated } = await supabase.from("assinaturas")
-                .update({
-                  status: "ativa",
-                  data_inicio: new Date().toISOString(),
-                  mp_payment_id: payments[0]?.id?.toString() ?? "",
-                })
+              // Buscar assinatura pendente para saber o plano
+              const { data: assPendente } = await supabase.from("assinaturas")
+                .select("id, plano")
                 .eq("empresa_id", empresaId)
                 .eq("status", "pendente")
-                .select("id")
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .single()
 
-              if (plano) {
+              if (assPendente) {
+                await supabase.from("assinaturas")
+                  .update({
+                    status: "ativa",
+                    data_inicio: new Date().toISOString(),
+                    mp_payment_id: payments[0]?.id?.toString() ?? "",
+                  })
+                  .eq("id", assPendente.id)
+
                 await supabase.from("empresas")
-                  .update({ plano, plano_ativo: true })
+                  .update({ plano: assPendente.plano, plano_ativo: true })
                   .eq("id", empresaId)
-              }
 
-              console.log("Webhook merchant_order ativou:", { empresaId, plano, updated })
+                console.log("Webhook merchant_order ativou:", { empresaId, plano: assPendente.plano })
+              }
             }
           }
         }

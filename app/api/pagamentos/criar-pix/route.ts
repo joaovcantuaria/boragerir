@@ -49,7 +49,8 @@ export async function POST(req: NextRequest) {
     const notificationUrl = `${appUrl}/api/webhooks/mercadopago`
     const payerEmail = empresa.email || user.email || "cliente@boragerir.com"
     const valorFinal = Number(valorTotal.toFixed(2))
-    const externalReference = `${empresa.id}|${plano}|${periodicidade}|${Date.now()}`
+    // external_reference: apenas empresa_id (UUID é aceito pelo MP)
+    const externalReference = empresa.id
 
     // ── Criar pagamento via API /v1/orders (Checkout Transparente) ──
     const valorStr = valorFinal.toFixed(2)
@@ -66,7 +67,6 @@ export async function POST(req: NextRequest) {
           payment_method: { id: "pix", type: "bank_transfer" },
         }],
       },
-      notification_url: notificationUrl,
     }
 
     const res = await fetch("https://api.mercadopago.com/v1/orders", {

@@ -89,18 +89,23 @@ async function ativarAssinatura(paymentId: string, externalReference?: string) {
 
     // Tentar por external_reference
     if (externalReference) {
-      const partes = externalReference.split("|")
-      const empresaId = partes[0]
-      const plano = partes[1]
-      if (empresaId && plano) {
-        const { data: u2 } = await admin.from("assinaturas")
-          .update({ status: "ativa", data_inicio: new Date().toISOString(), mp_payment_id: paymentId })
+      // external_reference é o empresa_id
+      const empresaId = externalReference
+      if (empresaId) {
+        const { data: ass } = await admin.from("assinaturas")
+          .select("id, plano")
           .eq("empresa_id", empresaId)
           .eq("status", "pendente")
-          .select("id")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single()
 
-        if (u2?.length) {
-          await admin.from("empresas").update({ plano, plano_ativo: true }).eq("id", empresaId)
+        if (ass) {
+          await admin.from("assinaturas")
+            .update({ status: "ativa", data_inicio: new Date().toISOString(), mp_payment_id: paymentId })
+            .eq("id", ass.id)
+
+          await admin.from("empresas").update({ plano: ass.plano, plano_ativo: true }).eq("id", empresaId)
         }
       }
     }
