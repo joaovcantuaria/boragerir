@@ -34,6 +34,7 @@ export default function CadastroPage() {
   const [loading, setLoading] = useState(false)
   const [contaCriada, setContaCriada] = useState(false)
   const [emailCadastrado, setEmailCadastrado] = useState("")
+  const [emailJaExiste, setEmailJaExiste] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -82,8 +83,20 @@ export default function CadastroPage() {
       },
     })
     if (error) {
-      toast.error(error.message === "User already registered"
-        ? "E-mail já cadastrado." : "Erro ao criar conta.")
+      if (error.message === "User already registered" || error.message?.includes("already registered")) {
+        setEmailCadastrado(data.email)
+        setEmailJaExiste(true)
+      } else {
+        toast.error("Erro ao criar conta. Tente novamente.")
+      }
+      setLoading(false)
+      return
+    }
+
+    // Supabase pode retornar user sem erro mas com identities vazio quando email já existe
+    if (authData.user && authData.user.identities?.length === 0) {
+      setEmailCadastrado(data.email)
+      setEmailJaExiste(true)
       setLoading(false)
       return
     }
@@ -107,8 +120,53 @@ export default function CadastroPage() {
 
   return (
     <div className="space-y-6">
+      {/* ── Email já cadastrado ── */}
+      {emailJaExiste && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-6 text-center"
+        >
+          <div className="w-16 h-16 rounded-2xl bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center mx-auto">
+            <Shield className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-black text-foreground">E-mail já cadastrado</h2>
+            <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+              O e-mail <strong className="text-foreground">{emailCadastrado}</strong> já possui uma conta no Bora Gerir.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <Link href="/login">
+              <Button className="w-full font-bold">
+                Fazer login →
+              </Button>
+            </Link>
+            <button
+              onClick={async () => {
+                await supabase.auth.resetPasswordForEmail(emailCadastrado, {
+                  redirectTo: `${window.location.origin}/login?reset=1`,
+                })
+                toast.success("E-mail de recuperação enviado! Verifique sua caixa de entrada.")
+              }}
+              className="w-full py-2.5 rounded-xl border border-gray-200 dark:border-white/10 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
+            >
+              Esqueci minha senha
+            </button>
+          </div>
+
+          <button
+            onClick={() => { setEmailJaExiste(false); setEmailCadastrado("") }}
+            className="text-xs text-primary hover:underline"
+          >
+            ← Tentar com outro e-mail
+          </button>
+        </motion.div>
+      )}
+
       {/* ── Tela de confirmação de email ── */}
-      {contaCriada && (
+      {contaCriada && !emailJaExiste && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -159,7 +217,7 @@ export default function CadastroPage() {
       )}
 
       {/* ── Formulário de cadastro ── */}
-      {!contaCriada && (
+      {!contaCriada && !emailJaExiste && (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-black text-foreground">Criar conta grátis</h2>
