@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Verificar se é válido para o plano
-    if (cupom.planos_validos && Array.isArray(cupom.planos_validos) && plano) {
+    if (cupom.planos_validos && Array.isArray(cupom.planos_validos) && cupom.planos_validos.length > 0 && plano) {
       if (!cupom.planos_validos.includes(plano)) {
         return NextResponse.json({ erro: "Cupom não válido para este plano" }, { status: 400 })
       }
