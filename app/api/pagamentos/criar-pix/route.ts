@@ -123,20 +123,28 @@ export async function POST(req: NextRequest) {
 
     // ── Salvar assinatura pendente ─────────────────────────────
     // Salvar o ORDER ID como referência (é ele que consultamos para ver status)
-    try {
-      await supabase.from("assinaturas").insert({
-        empresa_id: empresa.id,
-        plano,
-        periodicidade,
-        status: "pendente",
-        forma_pagamento: "pix",
-        valor_mensal: plano === "basico" ? 49 : plano === "agenda" ? 29 : 99,
-        valor_total: valorFinal,
-        mp_pix_payment_id: orderId,
-        mp_pix_qr_code: qrCode,
-        mp_pix_qr_code_text: qrCodeText,
-      })
-    } catch (e) { console.warn("Assinatura não salva:", e) }
+    const admin = createAdminClient()
+    
+    // Cancelar assinaturas pendentes anteriores dessa empresa
+    await admin.from("assinaturas")
+      .update({ status: "cancelada" })
+      .eq("empresa_id", empresa.id)
+      .eq("status", "pendente")
+
+    // Inserir nova assinatura
+    const { error: insertErr } = await admin.from("assinaturas").insert({
+      empresa_id: empresa.id,
+      plano,
+      periodicidade,
+      status: "pendente",
+      forma_pagamento: "pix",
+      valor_mensal: plano === "basico" ? 49 : plano === "agenda" ? 29 : 99,
+      valor_total: valorFinal,
+      mp_pix_payment_id: orderId,
+      mp_pix_qr_code: qrCode,
+      mp_pix_qr_code_text: qrCodeText,
+    })
+    if (insertErr) console.error("Erro ao salvar assinatura:", insertErr)
 
     // ── Incrementar cupom ──────────────────────────────────────
     if (cupomAplicado) {
