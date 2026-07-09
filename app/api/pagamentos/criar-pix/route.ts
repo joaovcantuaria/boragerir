@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
     const qrCode = qrBase64Match ? qrBase64Match[1] : null
     const qrCodeText = qrCodeMatch ? qrCodeMatch[1] : (ticketUrlMatch ? ticketUrlMatch[1] : null)
 
-    // Extrair payment ID
+    // Extrair IDs
     const paymentIdMatch = raw.match(/"payments":\[.*?"id":"([^"]+)"/)
     const orderId = String(data.id ?? "")
     const paymentId = paymentIdMatch ? paymentIdMatch[1] : orderId
@@ -122,6 +122,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Salvar assinatura pendente ─────────────────────────────
+    // Salvar o ORDER ID como referência (é ele que consultamos para ver status)
     try {
       await supabase.from("assinaturas").insert({
         empresa_id: empresa.id,
@@ -131,7 +132,7 @@ export async function POST(req: NextRequest) {
         forma_pagamento: "pix",
         valor_mensal: plano === "basico" ? 49 : plano === "agenda" ? 29 : 99,
         valor_total: valorFinal,
-        mp_pix_payment_id: paymentId,
+        mp_pix_payment_id: orderId,
         mp_pix_qr_code: qrCode,
         mp_pix_qr_code_text: qrCodeText,
       })
@@ -149,7 +150,7 @@ export async function POST(req: NextRequest) {
     const valorOriginal = calcularValor(plano, periodicidade).valorTotal
     return NextResponse.json({
       sucesso: true,
-      payment_id: paymentId,
+      payment_id: orderId,
       qr_code: qrCode,
       qr_code_text: qrCodeText,
       valor: valorFinal,
