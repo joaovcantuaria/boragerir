@@ -198,15 +198,22 @@ export async function POST(req: NextRequest) {
     let paymentId = String(resultado!.id)
 
     if (modo === "orders_api") {
-      // Na API de Orders, o QR code pode estar em transactions.payments[0]
+      // Na API de Orders, extrair QR do resultado explorando múltiplos caminhos
+      const raw = JSON.stringify(resultado)
+      
+      // Buscar qr_code_base64 no JSON inteiro (pode estar em vários níveis)
+      const qrBase64Match = raw.match(/"qr_code_base64":"([^"]+)"/)
+      const qrCodeMatch = raw.match(/"qr_code":"([^"]+)"/)
+      const ticketUrlMatch = raw.match(/"ticket_url":"([^"]+)"/)
+      
+      qrCode = qrBase64Match ? qrBase64Match[1] : null
+      qrCodeText = qrCodeMatch ? qrCodeMatch[1] : (ticketUrlMatch ? ticketUrlMatch[1].replace(/\\\//g, "/") : null)
+      
+      // Buscar payment ID nos transactions
       const transactions = resultado!.transactions as Record<string, unknown> | undefined
       const payments = (transactions?.payments ?? []) as Record<string, unknown>[]
-      if (payments.length > 0) {
-        const txData = payments[0].point_of_interaction as Record<string, unknown> | undefined
-        const transactionData = txData?.transaction_data as Record<string, unknown> | undefined
-        qrCode = (transactionData?.qr_code_base64 as string) ?? null
-        qrCodeText = (transactionData?.qr_code as string) ?? (transactionData?.ticket_url as string) ?? null
-        paymentId = String(payments[0].id ?? resultado!.id)
+      if (payments.length > 0 && payments[0].id) {
+        paymentId = String(payments[0].id)
       }
     } else {
       // API legacy /v1/payments
