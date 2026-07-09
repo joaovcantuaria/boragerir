@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
       .eq("status", "pendente")
 
     // Inserir nova assinatura
-    const { error: insertErr } = await adminDb.from("assinaturas").insert({
+    const { error: insertErr, data: insertData } = await adminDb.from("assinaturas").insert({
       empresa_id: empresa.id,
       plano,
       periodicidade,
@@ -139,8 +139,14 @@ export async function POST(req: NextRequest) {
       mp_pix_payment_id: orderId,
       mp_pix_qr_code: qrCode,
       mp_pix_qr_code_text: qrCodeText,
-    })
-    if (insertErr) console.error("Erro ao salvar assinatura:", insertErr)
+    }).select("id")
+    
+    if (insertErr) {
+      console.error("Erro ao salvar assinatura:", insertErr)
+      // Mesmo com erro no insert, retornar o QR Code (pagamento já foi criado no MP)
+    } else {
+      console.log("Assinatura salva:", insertData)
+    }
 
     // ── Incrementar cupom ──────────────────────────────────────
     if (cupomAplicado) {
