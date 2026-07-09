@@ -51,114 +51,184 @@ export async function POST(req: NextRequest) {
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.boragerir.com"
     const notificationUrl = `${appUrl}/api/webhooks/mercadopago`
-
-    const partes = empresa.nome.trim().split(" ")
-    const firstName = partes[0] ?? "Cliente"
-    const lastName = partes.slice(1).join(" ") || firstName
     const payerEmail = empresa.email || user.email || "cliente@boragerir.com"
-
-    // ── Tentativa 1: Pix direto via /v1/payments ──────────────
-    const pixResult = await tentarPixDireto(accessToken, {
-      valor: Number(valorTotal.toFixed(2)),
-      descricao,
-      email: payerEmail,
-      firstName,
-      lastName,
-      documento: empresa.documento,
-      tipoDocumento: empresa.tipo_documento,
-      empresaId: empresa.id,
-      plano,
-      periodicidade,
-      notificationUrl,
-    })
-
-    if (pixResult.sucesso) {
-      // Salvar assinatura + cupom
-      await salvarAssinatura(supabase, {
-        empresaId: empresa.id, plano, periodicidade, valorTotal,
-        paymentId: pixResult.payment_id!, qrCode: pixResult.qr_code,
-        qrCodeText: pixResult.qr_code_text,
-      })
-      if (cupomAplicado) await incrementarCupom(cupomAplicado.id)
-
-      const valorOriginal = calcularValor(plano, periodicidade).valorTotal
-      return NextResponse.json({
-        sucesso: true,
-        modo: "pix_direto",
-        payment_id: pixResult.payment_id,
-        qr_code: pixResult.qr_code,
-        qr_code_text: pixResult.qr_code_text,
-        valor: Number(valorTotal.toFixed(2)),
-        valor_original: valorOriginal,
-        desconto_aplicado: cupomAplicado ? Number((valorOriginal - valorTotal).toFixed(2)) : 0,
-        cupom: cupomAplicado?.codigo ?? null,
-      })
-    }
-
-    // ── Tentativa 2: Checkout Pro (sempre funciona) ────────────
-    console.warn("Pix direto falhou, usando Checkout Pro. Erro:", pixResult.erro)
-
+    const valorFinal = Number(valorTotal.toFixed(2))
     const externalReference = `${empresa.id}|${plano}|${periodicidade}|${Date.now()}`
-    const preferenceBody = {
-      items: [{
-        title: descricao,
-        quantity: 1,
-        unit_price: Number(valorTotal.toFixed(2)),
-        currency_id: "BRL",
-      }],
-      payer: { email: payerEmail, name: firstName, surname: lastName },
-      payment_methods: {
-        excluded_payment_types: [{ id: "credit_card" }, { id: "debit_card" }, { id: "ticket" }],
-        installments: 1,
-      },
+
+    // ── Tentativa 1: Nova API /v1/orders (Checkout Transparente v2) ──
+    const orderBody = {
+      type: "online",
+      processing_mode: "automatic",
+      total_amount: valorFinal.toFixed(2),
       external_reference: externalReference,
-      back_urls: {
-        success: `${appUrl}/planos?status=aprovado&plano=${plano}`,
-        failure: `${appUrl}/planos?status=falhou`,
-        pending: `${appUrl}/planos?status=pendente&plano=${plano}`,
+      description: descricao,
+      payer: {
+        email: payerEmail,
       },
-      auto_return: "approved",
+      transactions: {
+        payments: [
+          {
+            amount: valorFinal.toFixed(2),
+            payment_method: {
+              id: "pix",
+              type: "bank_transfer",
+            },
+          },
+        ],
+      },
       notification_url: notificationUrl,
       metadata: { empresa_id: empresa.id, plano, periodicidade },
     }
 
-    const prefResponse = await fetch("https://api.mercadopago.com/checkout/preferences", {
+    let resultado: Record<string, unknown> | null = null
+    let modo = "orders_api"
+
+    const ordersRes = await fetch("https://api.mercadopago.com/v1/orders", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${accessToken}`,
         "X-Idempotency-Key": randomUUID(),
       },
-      body: JSON.stringify(preferenceBody),
+      body: JSON.stringify(orderBody),
     })
 
-    const prefText = await prefResponse.text()
-    let prefData: Record<string, unknown> | null = null
-    try { prefData = JSON.parse(prefText) } catch {
-      return NextResponse.json({ erro: "Erro ao criar pagamento" }, { status: 500 })
+    const ordersText = await ordersRes.text()
+    console.log("Orders API response:", ordersRes.status, ordersText.slice(0, 500))
+
+    if (ordersRes.ok) {
+      try { resultado = JSON.parse(ordersText) } catch {}
     }
 
-    if (!prefResponse.ok || !prefData?.id) {
-      const errMsg = (prefData as Record<string, unknown>)?.message ?? "Erro desconhecido"
-      return NextResponse.json({ erro: `Erro no Mercado Pago: ${errMsg}` }, { status: 500 })
+    // Se Orders API falhou, tentar API legacy /v1/payments
+    if (!ordersRes.ok || !resultado?.id) {
+      modo = "payments_api"
+      const partes = empresa.nome.trim().split(" ")
+      const firstName = partes[0] ?? "Cliente"
+      const lastName = partes.slice(1).join(" ") || firstName
+
+      const paymentBody = {
+        transaction_amount: valorFinal,
+        description: descricao,
+        payment_method_id: "pix",
+        payer: {
+          email: payerEmail,
+          first_name: firstName,
+          last_name: lastName,
+        },
+        metadata: { empresa_id: empresa.id, plano, periodicidade },
+        notification_url: notificationUrl,
+        external_reference: externalReference,
+      }
+
+      const payRes = await fetch("https://api.mercadopago.com/v1/payments", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${accessToken}`,
+          "X-Idempotency-Key": randomUUID(),
+        },
+        body: JSON.stringify(paymentBody),
+      })
+
+      const payText = await payRes.text()
+      console.log("Payments API response:", payRes.status, payText.slice(0, 500))
+
+      if (payRes.ok) {
+        try { resultado = JSON.parse(payText) } catch {}
+      }
+
+      // Se ambos falharam, usar Checkout Pro como último recurso
+      if (!payRes.ok || !resultado?.id) {
+        modo = "checkout_pro"
+        const prefBody = {
+          items: [{ title: descricao, quantity: 1, unit_price: valorFinal, currency_id: "BRL" }],
+          payer: { email: payerEmail },
+          payment_methods: {
+            excluded_payment_types: [{ id: "credit_card" }, { id: "debit_card" }, { id: "ticket" }],
+          },
+          external_reference: externalReference,
+          back_urls: {
+            success: `${appUrl}/planos?status=aprovado&plano=${plano}`,
+            failure: `${appUrl}/planos?status=falhou`,
+            pending: `${appUrl}/planos?status=pendente&plano=${plano}`,
+          },
+          auto_return: "approved",
+          notification_url: notificationUrl,
+          metadata: { empresa_id: empresa.id, plano, periodicidade },
+        }
+
+        const prefRes = await fetch("https://api.mercadopago.com/checkout/preferences", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${accessToken}`,
+            "X-Idempotency-Key": randomUUID(),
+          },
+          body: JSON.stringify(prefBody),
+        })
+
+        if (prefRes.ok) {
+          const prefData = await prefRes.json()
+
+          // Salvar assinatura pendente
+          await salvarAssinatura(supabase, empresa.id, plano, periodicidade, valorFinal, String(prefData.id))
+          if (cupomAplicado) await incrementarCupom(cupomAplicado.id)
+
+          const valorOriginal = calcularValor(plano, periodicidade).valorTotal
+          return NextResponse.json({
+            sucesso: true,
+            modo: "checkout_pro",
+            init_point: prefData.init_point,
+            preference_id: String(prefData.id),
+            valor: valorFinal,
+            valor_original: valorOriginal,
+            desconto_aplicado: cupomAplicado ? Number((valorOriginal - valorFinal).toFixed(2)) : 0,
+            cupom: cupomAplicado?.codigo ?? null,
+          })
+        }
+
+        return NextResponse.json({ erro: "Não foi possível criar o pagamento" }, { status: 500 })
+      }
     }
 
-    // Salvar assinatura pendente
-    await salvarAssinatura(supabase, {
-      empresaId: empresa.id, plano, periodicidade, valorTotal,
-      paymentId: String(prefData.id), qrCode: null, qrCodeText: null,
-    })
+    // ── Extrair QR Code do resultado ─────────────────────────
+    let qrCode: string | null = null
+    let qrCodeText: string | null = null
+    let paymentId = String(resultado!.id)
+
+    if (modo === "orders_api") {
+      // Na API de Orders, o QR code pode estar em transactions.payments[0]
+      const transactions = resultado!.transactions as Record<string, unknown> | undefined
+      const payments = (transactions?.payments ?? []) as Record<string, unknown>[]
+      if (payments.length > 0) {
+        const txData = payments[0].point_of_interaction as Record<string, unknown> | undefined
+        const transactionData = txData?.transaction_data as Record<string, unknown> | undefined
+        qrCode = (transactionData?.qr_code_base64 as string) ?? null
+        qrCodeText = (transactionData?.qr_code as string) ?? (transactionData?.ticket_url as string) ?? null
+        paymentId = String(payments[0].id ?? resultado!.id)
+      }
+    } else {
+      // API legacy /v1/payments
+      const txData = (resultado!.point_of_interaction as Record<string, unknown>)?.transaction_data as Record<string, unknown> | undefined
+      qrCode = (txData?.qr_code_base64 as string) ?? null
+      qrCodeText = (txData?.qr_code as string) ?? (txData?.ticket_url as string) ?? null
+    }
+
+    // ── Salvar assinatura pendente ──────────────────────────
+    await salvarAssinatura(supabase, empresa.id, plano, periodicidade, valorFinal, paymentId, qrCode, qrCodeText)
     if (cupomAplicado) await incrementarCupom(cupomAplicado.id)
 
     const valorOriginal = calcularValor(plano, periodicidade).valorTotal
     return NextResponse.json({
       sucesso: true,
-      modo: "checkout_pro",
-      init_point: prefData.init_point as string,
-      preference_id: String(prefData.id),
-      valor: Number(valorTotal.toFixed(2)),
+      modo,
+      payment_id: paymentId,
+      qr_code: qrCode,
+      qr_code_text: qrCodeText,
+      valor: valorFinal,
       valor_original: valorOriginal,
-      desconto_aplicado: cupomAplicado ? Number((valorOriginal - valorTotal).toFixed(2)) : 0,
+      desconto_aplicado: cupomAplicado ? Number((valorOriginal - valorFinal).toFixed(2)) : 0,
       cupom: cupomAplicado?.codigo ?? null,
     })
 
@@ -171,74 +241,24 @@ export async function POST(req: NextRequest) {
 
 // ── Helpers ──────────────────────────────────────────────────
 
-async function tentarPixDireto(accessToken: string, opts: {
-  valor: number; descricao: string; email: string; firstName: string;
-  lastName: string; documento?: string; tipoDocumento?: string;
-  empresaId: string; plano: string; periodicidade: string; notificationUrl: string;
-}) {
-  const docLimpo = (opts.documento ?? "").replace(/\D/g, "")
-  const temDocValido = opts.tipoDocumento === "cnpj" ? docLimpo.length === 14 : docLimpo.length === 11
-
-  const paymentBody = {
-    transaction_amount: opts.valor,
-    description: opts.descricao,
-    payment_method_id: "pix",
-    payer: {
-      email: opts.email,
-      first_name: opts.firstName,
-      last_name: opts.lastName,
-      ...(temDocValido && { identification: { type: opts.tipoDocumento === "cnpj" ? "CNPJ" : "CPF", number: docLimpo } }),
-    },
-    metadata: { empresa_id: opts.empresaId, plano: opts.plano, periodicidade: opts.periodicidade },
-    notification_url: opts.notificationUrl,
-  }
-
-  try {
-    const res = await fetch("https://api.mercadopago.com/v1/payments", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${accessToken}`,
-        "X-Idempotency-Key": randomUUID(),
-      },
-      body: JSON.stringify(paymentBody),
-    })
-
-    const text = await res.text()
-    if (!text) return { sucesso: false, erro: "Resposta vazia" }
-    const data = JSON.parse(text)
-
-    if (res.ok && data?.id) {
-      const txData = data.point_of_interaction?.transaction_data
-      return {
-        sucesso: true,
-        payment_id: String(data.id),
-        qr_code: txData?.qr_code_base64 ?? null,
-        qr_code_text: txData?.qr_code ?? txData?.ticket_url ?? null,
-      }
-    }
-    return { sucesso: false, erro: data?.message ?? `Status ${res.status}` }
-  } catch (e) {
-    return { sucesso: false, erro: e instanceof Error ? e.message : String(e) }
-  }
-}
-
-async function salvarAssinatura(supabase: Awaited<ReturnType<typeof createClient>>, opts: {
-  empresaId: string; plano: string; periodicidade: string; valorTotal: number;
-  paymentId: string; qrCode?: string | null; qrCodeText?: string | null;
-}) {
+async function salvarAssinatura(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  empresaId: string, plano: string, periodicidade: string,
+  valorTotal: number, paymentId: string,
+  qrCode?: string | null, qrCodeText?: string | null
+) {
   try {
     await supabase.from("assinaturas").insert({
-      empresa_id: opts.empresaId,
-      plano: opts.plano,
-      periodicidade: opts.periodicidade,
+      empresa_id: empresaId,
+      plano,
+      periodicidade,
       status: "pendente",
       forma_pagamento: "pix",
-      valor_mensal: opts.plano === "basico" ? 49 : opts.plano === "agenda" ? 29 : 99,
-      valor_total: Number(opts.valorTotal.toFixed(2)),
-      mp_pix_payment_id: opts.paymentId,
-      mp_pix_qr_code: opts.qrCode ?? null,
-      mp_pix_qr_code_text: opts.qrCodeText ?? null,
+      valor_mensal: plano === "basico" ? 49 : plano === "agenda" ? 29 : 99,
+      valor_total: valorTotal,
+      mp_pix_payment_id: paymentId,
+      mp_pix_qr_code: qrCode ?? null,
+      mp_pix_qr_code_text: qrCodeText ?? null,
     })
   } catch (e) { console.warn("Assinatura não salva:", e) }
 }

@@ -28,6 +28,41 @@ export async function GET(req: NextRequest) {
 
   // 2. Tentar criar pagamento Pix mínimo (R$ 1,00) com email diferente do seller
   try {
+    // Testar nova API /v1/orders
+    const orderBody = {
+      type: "online",
+      processing_mode: "automatic",
+      total_amount: "1.00",
+      external_reference: "teste-diag-" + Date.now(),
+      payer: { email: "comprador_teste_qualquer@outlook.com" },
+      transactions: {
+        payments: [{
+          amount: "1.00",
+          payment_method: { id: "pix", type: "bank_transfer" },
+        }],
+      },
+    }
+
+    const resOrders = await fetch("https://api.mercadopago.com/v1/orders", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${accessToken}`,
+        "X-Idempotency-Key": randomUUID(),
+      },
+      body: JSON.stringify(orderBody),
+    })
+
+    const textOrders = await resOrders.text()
+    let dataOrders: unknown = null
+    try { dataOrders = JSON.parse(textOrders) } catch { dataOrders = textOrders.slice(0, 500) }
+    resultados.orders_api = { status: resOrders.status, ok: resOrders.ok, resposta: dataOrders }
+  } catch (e) {
+    resultados.orders_api = { erro: String(e) }
+  }
+
+  // 2b. Testar API legacy /v1/payments
+  try {
     const body = {
       transaction_amount: 1.00,
       description: "Teste diagnóstico Bora Gerir",
