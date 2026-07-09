@@ -45,8 +45,6 @@ export async function POST(req: NextRequest) {
     const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN
     if (!accessToken) return NextResponse.json({ erro: "Gateway não configurado" }, { status: 500 })
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.boragerir.com"
-    const notificationUrl = `${appUrl}/api/webhooks/mercadopago`
     const payerEmail = empresa.email || user.email || "cliente@boragerir.com"
     const valorFinal = Number(valorTotal.toFixed(2))
     // external_reference: apenas empresa_id (UUID é aceito pelo MP)
@@ -109,9 +107,7 @@ export async function POST(req: NextRequest) {
     const qrCodeText = qrCodeMatch ? qrCodeMatch[1] : (ticketUrlMatch ? ticketUrlMatch[1] : null)
 
     // Extrair IDs
-    const paymentIdMatch = raw.match(/"payments":\[.*?"id":"([^"]+)"/)
     const orderId = String(data.id ?? "")
-    const paymentId = paymentIdMatch ? paymentIdMatch[1] : orderId
 
     if (!qrCode && !qrCodeText) {
       console.error("Orders API sem QR Code:", resText.slice(0, 1000))
