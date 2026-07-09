@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     descricao: body.descricao || null,
     tipo: body.tipo,
     valor: parseFloat(body.valor),
-    planos_validos: body.planos_validos ?? ["basico", "profissional"],
+    planos_validos: body.planos_validos?.length > 0 ? body.planos_validos : [],
     uso_maximo: body.uso_maximo ? parseInt(body.uso_maximo) : null,
     ativo: true,
     validade: body.validade || null,

@@ -18,7 +18,7 @@ export function AdminCuponsClient({ cupons: init }: { cupons: Cupom[] }) {
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
     codigo: "", descricao: "", tipo: "percentual", valor: "",
-    uso_maximo: "", validade: "",
+    uso_maximo: "", validade: "", planos_validos: [] as string[],
   })
   const t = useAdminTema()
 
@@ -34,7 +34,7 @@ export function AdminCuponsClient({ cupons: init }: { cupons: Cupom[] }) {
     if (res.ok) {
       setCupons((prev) => [data, ...prev])
       setModalAberto(false)
-      setForm({ codigo: "", descricao: "", tipo: "percentual", valor: "", uso_maximo: "", validade: "" })
+      setForm({ codigo: "", descricao: "", tipo: "percentual", valor: "", uso_maximo: "", validade: "", planos_validos: [] })
       toast.success("Cupom criado!")
     } else toast.error(data.erro)
     setLoading(false)
@@ -127,6 +127,34 @@ export function AdminCuponsClient({ cupons: init }: { cupons: Cupom[] }) {
                   onChange={(e) => setForm((p) => ({ ...p, validade: e.target.value }))}
                   className={`w-full ${t.inputBg} border ${t.inputBorder} rounded-xl px-3 py-2.5 text-sm ${t.inputText} focus:outline-none`} />
               </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className={`text-xs font-semibold ${t.textMuted3}`}>Válido para planos</label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: "agenda", label: "Agendamento" },
+                  { id: "basico", label: "Básico" },
+                  { id: "profissional", label: "Profissional" },
+                ].map((p) => (
+                  <label key={p.id} className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.planos_validos.includes(p.id)}
+                      onChange={(e) => {
+                        setForm((prev) => ({
+                          ...prev,
+                          planos_validos: e.target.checked
+                            ? [...prev.planos_validos, p.id]
+                            : prev.planos_validos.filter((x) => x !== p.id),
+                        }))
+                      }}
+                      className="rounded border-gray-300 text-primary focus:ring-primary"
+                    />
+                    <span className={`text-xs ${t.textMuted3}`}>{p.label}</span>
+                  </label>
+                ))}
+              </div>
+              <p className={`text-[10px] ${t.textMuted2}`}>Nenhum selecionado = vale para todos</p>
             </div>
             <div className="flex gap-3 pt-2">
               <button onClick={() => setModalAberto(false)}
