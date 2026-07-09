@@ -45,7 +45,8 @@ export async function GET(req: NextRequest) {
       const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN
       if (accessToken) {
         try {
-          // Buscar pagamentos aprovados com external_reference contendo o empresa_id
+          // Buscar pagamentos aprovados recentes (últimos 30 minutos)
+          // com external_reference contendo o empresa_id
           const searchUrl = `https://api.mercadopago.com/v1/payments/search?` +
             `sort=date_created&criteria=desc&limit=5&status=approved&` +
             `external_reference=${empresa.id}`
@@ -57,20 +58,34 @@ export async function GET(req: NextRequest) {
           if (res.ok) {
             const data = await res.json()
             if (data.results?.length > 0) {
-              // Pagamento aprovado encontrado — ativar!
-              await admin.from("assinaturas")
-                .update({
-                  status: "ativa",
-                  data_inicio: new Date().toISOString(),
-                  mp_payment_id: String(data.results[0].id),
-                })
-                .eq("id", pendente.id)
+              // Verificar se o pagamento é recente (últimos 30 minutos)
+              // E se corresponde ao plano pendente (pela descrição ou valor)
+              const agora = new Date()
+              const pagamentoRecente = data.results.find((p: Record<string, unknown>) => {
+                const criado = new Date(p.date_created as string)
+                const diffMinutos = (agora.getTime() - criado.getTime()) / 60000
+                // Só considerar pagamentos dos últimos 30 minutos
+                // E que o valor bata com o da assinatura pendente
+                const valorBate = Math.abs((p.transaction_amount as number) - pendente.valor_total) < 0.1
+                return diffMinutos < 30 && valorBate
+              })
 
-              await admin.from("empresas")
-                .update({ plano: pendente.plano, plano_ativo: true })
-                .eq("id", empresa.id)
+              if (pagamentoRecente) {
+                // Pagamento aprovado encontrado — ativar!
+                await admin.from("assinaturas")
+                  .update({
+                    status: "ativa",
+                    data_inicio: new Date().toISOString(),
+                    mp_payment_id: String(pagamentoRecente.id),
+                  })
+                  .eq("id", pendente.id)
 
-              return NextResponse.json({ ativa: true, plano: pendente.plano })
+                await admin.from("empresas")
+                  .update({ plano: pendente.plano, plano_ativo: true })
+                  .eq("id", empresa.id)
+
+                return NextResponse.json({ ativa: true, plano: pendente.plano })
+              }
             }
           }
         } catch {}
