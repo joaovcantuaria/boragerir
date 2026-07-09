@@ -263,12 +263,13 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
       <div>
         <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Pix Copia e Cola</label>
         <div className="flex gap-2">
-          <input value={pixData.qr_code_text} readOnly
+          <input value={pixData.qr_code_text || "Escaneie o QR Code acima"} readOnly
             className={cn(
               "flex-1 rounded-xl border px-3 py-2 text-xs font-mono",
               "bg-white border-gray-200 text-gray-600",
               "dark:bg-white/[0.03] dark:border-white/10 dark:text-gray-400"
             )} />
+          {pixData.qr_code_text && (
           <button onClick={copiarPix}
             className={cn(
               "px-3 rounded-xl border font-semibold text-sm transition-colors",
@@ -278,6 +279,7 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
             )}>
             {copiado ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
           </button>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/20 text-sm text-amber-700 dark:text-amber-400">

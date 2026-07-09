@@ -259,11 +259,12 @@ async function tentarPixDireto(accessToken: string, opts: {
     const data = JSON.parse(text)
 
     if (res.ok && data?.id) {
+      const txData = data.point_of_interaction?.transaction_data
       return {
         sucesso: true,
         payment_id: String(data.id),
-        qr_code: data.point_of_interaction?.transaction_data?.qr_code_base64,
-        qr_code_text: data.point_of_interaction?.transaction_data?.qr_code,
+        qr_code: txData?.qr_code_base64 ?? null,
+        qr_code_text: txData?.qr_code ?? txData?.ticket_url ?? null,
       }
     }
 
