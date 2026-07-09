@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     if (!accessToken) return NextResponse.json({ erro: "Gateway não configurado" }, { status: 500 })
 
     const payerEmail = empresa.email || user.email || "cliente@boragerir.com"
-    const valorFinal = Number(valorTotal.toFixed(2))
+    const valorFinal = Math.max(1.00, Number(valorTotal.toFixed(2)))
     // external_reference: apenas empresa_id (UUID é aceito pelo MP)
     const externalReference = empresa.id
 
