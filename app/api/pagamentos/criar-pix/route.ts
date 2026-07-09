@@ -52,16 +52,17 @@ export async function POST(req: NextRequest) {
     const externalReference = `${empresa.id}|${plano}|${periodicidade}|${Date.now()}`
 
     // ── Criar pagamento via API /v1/orders (Checkout Transparente) ──
+    const valorStr = valorFinal.toFixed(2)
     const orderBody = {
       type: "online",
       processing_mode: "automatic",
-      total_amount: valorFinal.toFixed(2),
+      total_amount: valorStr,
       external_reference: externalReference,
       description: descricao,
       payer: { email: payerEmail },
       transactions: {
         payments: [{
-          amount: valorFinal.toFixed(2),
+          amount: valorStr,
           payment_method: { id: "pix", type: "bank_transfer" },
         }],
       },
@@ -81,10 +82,11 @@ export async function POST(req: NextRequest) {
     const resText = await res.text()
 
     if (!res.ok) {
-      console.error("Orders API erro:", res.status, resText.slice(0, 500))
+      console.error("Orders API erro:", res.status, resText.slice(0, 1000))
+      let detalhe = ""
+      try { detalhe = JSON.parse(resText)?.message ?? resText.slice(0, 200) } catch { detalhe = resText.slice(0, 200) }
       return NextResponse.json({
-        erro: `Erro ao gerar Pix (status ${res.status})`,
-        detalhe: resText.slice(0, 200),
+        erro: `Erro ao gerar Pix (status ${res.status}): ${detalhe}`,
       }, { status: 500 })
     }
 
