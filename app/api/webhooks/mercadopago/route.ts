@@ -58,23 +58,47 @@ export async function POST(req: NextRequest) {
           periodicidade?: string
         }
 
-        if (meta?.empresa_id) {
-          await supabase.from("assinaturas")
+        // Tentar metadata primeiro, fallback para external_reference
+        let empresaId = meta?.empresa_id
+        let plano = meta?.plano
+
+        if (!empresaId && pagamento.external_reference) {
+          // external_reference formato: "empresa_id|plano|periodicidade|timestamp"
+          const partes = pagamento.external_reference.split("|")
+          empresaId = partes[0]
+          plano = partes[1]
+        }
+
+        if (empresaId) {
+          // Tentar atualizar por mp_pix_payment_id OU pela empresa com status pendente
+          const { data: updated } = await supabase.from("assinaturas")
             .update({
               status: "ativa",
               data_inicio: new Date().toISOString(),
               mp_payment_id: pagamento.id?.toString(),
             })
-            .eq("empresa_id", meta.empresa_id)
-            .eq("mp_pix_payment_id", pagamento.id?.toString())
+            .eq("empresa_id", empresaId)
+            .eq("status", "pendente")
+            .select("id")
 
-          if (meta.plano) {
-            await supabase.from("empresas")
-              .update({ plano: meta.plano, plano_ativo: true })
-              .eq("id", meta.empresa_id)
+          if (!updated?.length) {
+            // Fallback: tentar por payment_id exato
+            await supabase.from("assinaturas")
+              .update({
+                status: "ativa",
+                data_inicio: new Date().toISOString(),
+                mp_payment_id: pagamento.id?.toString(),
+              })
+              .eq("mp_pix_payment_id", pagamento.id?.toString())
           }
 
-          console.log(`✅ Pix aprovado para empresa ${meta.empresa_id}`)
+          if (plano) {
+            await supabase.from("empresas")
+              .update({ plano, plano_ativo: true })
+              .eq("id", empresaId)
+          }
+
+          console.log(`✅ Pagamento aprovado para empresa ${empresaId}`)
         }
       }
 

@@ -93,11 +93,14 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
   const searchParams = useSearchParams()
   const planoParam = searchParams.get("plano") as PlanoId | null
   const isNovoCadastro = searchParams.get("novo") === "1"
+  const statusParam = searchParams.get("status")
 
   const [periodicidade, setPeriodicidade] = useState<Periodicidade>("mensal")
   const [planoSel, setPlanoSel] = useState<PlanoId | null>(null)
   const [formaPag, setFormaPag] = useState<FormaPag>("pix")
-  const [etapa, setEtapa] = useState<"planos" | "pagamento" | "pix-aguardando" | "sucesso">("planos")
+  const [etapa, setEtapa] = useState<"planos" | "pagamento" | "pix-aguardando" | "sucesso">(
+    statusParam === "aprovado" ? "sucesso" : "planos"
+  )
   const [loading, setLoading] = useState(false)
   const [pixData, setPixData] = useState<{ qr_code: string; qr_code_text: string; payment_id: string; valor: number } | null>(null)
   const [copiado, setCopiado] = useState(false)
@@ -187,6 +190,13 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.erro)
+
+      // Se retornou modo checkout_pro, redirecionar para o Mercado Pago
+      if (data.modo === "checkout_pro" && data.init_point) {
+        window.location.href = data.init_point
+        return
+      }
+
       setPixData({ qr_code: data.qr_code, qr_code_text: data.qr_code_text, payment_id: data.payment_id, valor: data.valor })
       setEtapa("pix-aguardando")
       verificarPix(data.payment_id)
