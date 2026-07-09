@@ -192,12 +192,16 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
       if (!res.ok) throw new Error(data.erro)
 
       if (data.modo === "checkout_pro" && data.init_point) {
-        // Abrir Checkout Pro em nova janela (não redireciona a página)
+        // Abrir Checkout Pro em nova janela
         const popup = window.open(data.init_point, "mercadopago", "width=600,height=700,scrollbars=yes")
         if (!popup) {
-          // Se popup bloqueado, redirecionar
           window.location.href = data.init_point
+          return
         }
+        // Mostrar tela de aguardando e iniciar polling
+        setPixData({ qr_code: "", qr_code_text: "", payment_id: data.preference_id ?? "", valor: data.valor })
+        setEtapa("pix-aguardando")
+        verificarAssinatura()
         setLoading(false)
         return
       }
@@ -221,6 +225,22 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
       } catch {}
     }, 5000)
     setTimeout(() => clearInterval(iv), 10 * 60 * 1000)
+  }
+
+  // Polling para Checkout Pro — verifica se a assinatura foi ativada no banco
+  function verificarAssinatura() {
+    const iv = setInterval(async () => {
+      try {
+        const r = await fetch("/api/pagamentos/verificar-assinatura")
+        const d = await r.json()
+        if (d.ativa) {
+          clearInterval(iv)
+          setEtapa("sucesso")
+          toast.success("Pagamento confirmado! 🎉")
+        }
+      } catch {}
+    }, 4000)
+    setTimeout(() => clearInterval(iv), 15 * 60 * 1000)
   }
 
   function copiarPix() {
@@ -253,19 +273,34 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
   if (etapa === "pix-aguardando" && pixData) return (
     <div className="max-w-md mx-auto space-y-5">
       <div className="text-center">
-        <h2 className="text-2xl font-black">Pague com Pix</h2>
-        <p className="text-muted-foreground text-sm mt-1">{formatarMoeda(pixData.valor)} — aguardando confirmação</p>
+        <h2 className="text-2xl font-black">{pixData.qr_code ? "Pague com Pix" : "Conclua o pagamento"}</h2>
+        <p className="text-muted-foreground text-sm mt-1">
+          {pixData.qr_code
+            ? `${formatarMoeda(pixData.valor)} — aguardando confirmação`
+            : `${formatarMoeda(pixData.valor)} — finalize na janela do Mercado Pago`
+          }
+        </p>
       </div>
+      {pixData.qr_code ? (
       <div className={cn(
         "rounded-2xl p-6 flex flex-col items-center gap-4 border",
         "bg-white border-gray-200 dark:bg-white/[0.03] dark:border-white/10"
       )}>
-        {pixData.qr_code
-          ? <img src={`data:image/png;base64,${pixData.qr_code}`} alt="QR Code Pix" className="w-52 h-52 rounded-xl" />
-          : <QrCode className="w-24 h-24 text-muted-foreground" />
-        }
+        <img src={`data:image/png;base64,${pixData.qr_code}`} alt="QR Code Pix" className="w-52 h-52 rounded-xl" />
         <p className="text-sm text-muted-foreground">Escaneie o QR code com seu banco</p>
       </div>
+      ) : (
+      <div className={cn(
+        "rounded-2xl p-6 flex flex-col items-center gap-4 border",
+        "bg-white border-gray-200 dark:bg-white/[0.03] dark:border-white/10"
+      )}>
+        <QrCode className="w-16 h-16 text-[#F26E1D] opacity-60" />
+        <p className="text-sm text-muted-foreground text-center">
+          Complete o pagamento na janela que abriu.<br />
+          Esta página será atualizada automaticamente.
+        </p>
+      </div>
+      )}
       <div>
         <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Pix Copia e Cola</label>
         <div className="flex gap-2">
