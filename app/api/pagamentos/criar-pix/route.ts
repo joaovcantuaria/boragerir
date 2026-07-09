@@ -101,10 +101,14 @@ export async function POST(req: NextRequest) {
       console.error("MP resposta não-JSON:", mpResponse.status, mpText.slice(0, 500))
       return NextResponse.json({
         erro: `Mercado Pago retornou resposta inválida (status ${mpResponse.status})`,
+        detalhe: mpText.slice(0, 300),
       }, { status: 500 })
     }
 
     if (!mpResponse.ok || !resultado?.id) {
+      // Log detalhado do erro MP
+      console.error("MP erro:", mpResponse.status, JSON.stringify(resultado))
+
       // Se falhou com identification, tenta sem
       if (!mpResponse.ok && temDocValido) {
         const paymentBodySimples = {
