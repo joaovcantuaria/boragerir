@@ -4,9 +4,6 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { calcularValor, type PlanoMP, type Periodicidade } from "@/lib/mercadopago/client"
 import { randomUUID } from "crypto"
 
-// Email da conta Mercado Pago (seller) — não pode ser usado como payer
-const SELLER_EMAIL = "contatojoaovcantuaria@gmail.com"
-
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient()
@@ -58,136 +55,107 @@ export async function POST(req: NextRequest) {
     const partes = empresa.nome.trim().split(" ")
     const firstName = partes[0] ?? "Cliente"
     const lastName = partes.slice(1).join(" ") || firstName
+    const payerEmail = empresa.email || user.email || "cliente@boragerir.com"
 
-    // IMPORTANTE: O email do payer NÃO pode ser igual ao do seller (dono das credenciais)
-    // Se for igual, o MP retorna "Unauthorized use of live credentials"
-    let payerEmail = empresa.email
-    if (payerEmail?.toLowerCase() === SELLER_EMAIL.toLowerCase()) {
-      payerEmail = user.email ?? `cliente+${empresa.id.slice(0, 8)}@boragerir.com`
+    // ── Tentativa 1: Pix direto via /v1/payments ──────────────
+    const pixResult = await tentarPixDireto(accessToken, {
+      valor: Number(valorTotal.toFixed(2)),
+      descricao,
+      email: payerEmail,
+      firstName,
+      lastName,
+      documento: empresa.documento,
+      tipoDocumento: empresa.tipo_documento,
+      empresaId: empresa.id,
+      plano,
+      periodicidade,
+      notificationUrl,
+    })
+
+    if (pixResult.sucesso) {
+      // Salvar assinatura + cupom
+      await salvarAssinatura(supabase, {
+        empresaId: empresa.id, plano, periodicidade, valorTotal,
+        paymentId: pixResult.payment_id!, qrCode: pixResult.qr_code,
+        qrCodeText: pixResult.qr_code_text,
+      })
+      if (cupomAplicado) await incrementarCupom(cupomAplicado.id)
+
+      const valorOriginal = calcularValor(plano, periodicidade).valorTotal
+      return NextResponse.json({
+        sucesso: true,
+        modo: "pix_direto",
+        payment_id: pixResult.payment_id,
+        qr_code: pixResult.qr_code,
+        qr_code_text: pixResult.qr_code_text,
+        valor: Number(valorTotal.toFixed(2)),
+        valor_original: valorOriginal,
+        desconto_aplicado: cupomAplicado ? Number((valorOriginal - valorTotal).toFixed(2)) : 0,
+        cupom: cupomAplicado?.codigo ?? null,
+      })
     }
 
-    const docLimpo = (empresa.documento ?? "").replace(/\D/g, "")
-    const temDocValido = empresa.tipo_documento === "cnpj"
-      ? docLimpo.length === 14
-      : docLimpo.length === 11
+    // ── Tentativa 2: Checkout Pro (sempre funciona) ────────────
+    console.warn("Pix direto falhou, usando Checkout Pro. Erro:", pixResult.erro)
 
-    // ── Criar pagamento Pix ──────────────────────────────────
-    const paymentBody = {
-      transaction_amount: Number(valorTotal.toFixed(2)),
-      description: descricao,
-      payment_method_id: "pix",
-      payer: {
-        email: payerEmail,
-        first_name: firstName,
-        last_name: lastName,
-        ...(temDocValido && {
-          identification: {
-            type: empresa.tipo_documento === "cnpj" ? "CNPJ" : "CPF",
-            number: docLimpo,
-          },
-        }),
+    const externalReference = `${empresa.id}|${plano}|${periodicidade}|${Date.now()}`
+    const preferenceBody = {
+      items: [{
+        title: descricao,
+        quantity: 1,
+        unit_price: Number(valorTotal.toFixed(2)),
+        currency_id: "BRL",
+      }],
+      payer: { email: payerEmail, name: firstName, surname: lastName },
+      payment_methods: {
+        excluded_payment_types: [{ id: "credit_card" }, { id: "debit_card" }, { id: "ticket" }],
+        installments: 1,
       },
-      metadata: { empresa_id: empresa.id, plano, periodicidade },
+      external_reference: externalReference,
+      back_urls: {
+        success: `${appUrl}/planos?status=aprovado&plano=${plano}`,
+        failure: `${appUrl}/planos?status=falhou`,
+        pending: `${appUrl}/planos?status=pendente&plano=${plano}`,
+      },
+      auto_return: "approved",
       notification_url: notificationUrl,
+      metadata: { empresa_id: empresa.id, plano, periodicidade },
     }
 
-    const mpResponse = await fetch("https://api.mercadopago.com/v1/payments", {
+    const prefResponse = await fetch("https://api.mercadopago.com/checkout/preferences", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${accessToken}`,
         "X-Idempotency-Key": randomUUID(),
       },
-      body: JSON.stringify(paymentBody),
+      body: JSON.stringify(preferenceBody),
     })
 
-    const mpText = await mpResponse.text()
-    let resultado: Record<string, unknown> | null = null
-
-    try {
-      resultado = JSON.parse(mpText)
-    } catch {
-      console.error("MP resposta não-JSON:", mpResponse.status, mpText.slice(0, 500))
-      return NextResponse.json({
-        erro: `Mercado Pago retornou resposta inválida (status ${mpResponse.status})`,
-      }, { status: 500 })
+    const prefText = await prefResponse.text()
+    let prefData: Record<string, unknown> | null = null
+    try { prefData = JSON.parse(prefText) } catch {
+      return NextResponse.json({ erro: "Erro ao criar pagamento" }, { status: 500 })
     }
 
-    // Se falhou, tentar sem identification
-    if (!mpResponse.ok && temDocValido) {
-      const paymentBodySimples = {
-        transaction_amount: Number(valorTotal.toFixed(2)),
-        description: descricao,
-        payment_method_id: "pix",
-        payer: { email: payerEmail, first_name: firstName, last_name: lastName },
-        metadata: { empresa_id: empresa.id, plano, periodicidade },
-        notification_url: notificationUrl,
-      }
-
-      const mpResponse2 = await fetch("https://api.mercadopago.com/v1/payments", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${accessToken}`,
-          "X-Idempotency-Key": randomUUID(),
-        },
-        body: JSON.stringify(paymentBodySimples),
-      })
-
-      const mpText2 = await mpResponse2.text()
-      try {
-        resultado = JSON.parse(mpText2)
-      } catch {
-        return NextResponse.json({
-          erro: `Mercado Pago retornou resposta inválida (status ${mpResponse2.status})`,
-        }, { status: 500 })
-      }
-
-      if (!mpResponse2.ok || !resultado?.id) {
-        const errMsg = (resultado as Record<string, unknown>)?.message ?? JSON.stringify(resultado)
-        return NextResponse.json({ erro: `Erro no Mercado Pago: ${errMsg}` }, { status: 500 })
-      }
-    } else if (!mpResponse.ok) {
-      const errMsg = (resultado as Record<string, unknown>)?.message ?? JSON.stringify(resultado)
+    if (!prefResponse.ok || !prefData?.id) {
+      const errMsg = (prefData as Record<string, unknown>)?.message ?? "Erro desconhecido"
       return NextResponse.json({ erro: `Erro no Mercado Pago: ${errMsg}` }, { status: 500 })
     }
 
-    const paymentId = String(resultado!.id)
-    const txData = (resultado!.point_of_interaction as Record<string, unknown>)?.transaction_data as
-      { qr_code_base64?: string; qr_code?: string; ticket_url?: string } | undefined
+    // Salvar assinatura pendente
+    await salvarAssinatura(supabase, {
+      empresaId: empresa.id, plano, periodicidade, valorTotal,
+      paymentId: String(prefData.id), qrCode: null, qrCodeText: null,
+    })
+    if (cupomAplicado) await incrementarCupom(cupomAplicado.id)
 
-    // ── Salvar assinatura pendente ──────────────────────────
     const valorOriginal = calcularValor(plano, periodicidade).valorTotal
-    try {
-      await supabase.from("assinaturas").insert({
-        empresa_id: empresa.id,
-        plano,
-        periodicidade,
-        status: "pendente",
-        forma_pagamento: "pix",
-        valor_mensal: plano === "basico" ? 49 : plano === "agenda" ? 29 : 99,
-        valor_total: Number(valorTotal.toFixed(2)),
-        mp_pix_payment_id: paymentId,
-        mp_pix_qr_code: txData?.qr_code_base64 ?? null,
-        mp_pix_qr_code_text: txData?.qr_code ?? null,
-      })
-    } catch (dbErr) {
-      console.warn("Assinatura não salva:", dbErr)
-    }
-
-    // ── Incrementar uso do cupom ────────────────────────────
-    if (cupomAplicado) {
-      const admin = createAdminClient()
-      await admin.from("cupons")
-        .update({ uso_atual: (await admin.from("cupons").select("uso_atual").eq("id", cupomAplicado.id).single()).data?.uso_atual + 1 })
-        .eq("id", cupomAplicado.id)
-    }
-
     return NextResponse.json({
       sucesso: true,
-      payment_id: paymentId,
-      qr_code: txData?.qr_code_base64 ?? null,
-      qr_code_text: txData?.qr_code ?? txData?.ticket_url ?? null,
+      modo: "checkout_pro",
+      init_point: prefData.init_point as string,
+      preference_id: String(prefData.id),
       valor: Number(valorTotal.toFixed(2)),
       valor_original: valorOriginal,
       desconto_aplicado: cupomAplicado ? Number((valorOriginal - valorTotal).toFixed(2)) : 0,
@@ -199,4 +167,86 @@ export async function POST(req: NextRequest) {
     console.error("Erro fatal Pix:", msg)
     return NextResponse.json({ erro: msg }, { status: 500 })
   }
+}
+
+// ── Helpers ──────────────────────────────────────────────────
+
+async function tentarPixDireto(accessToken: string, opts: {
+  valor: number; descricao: string; email: string; firstName: string;
+  lastName: string; documento?: string; tipoDocumento?: string;
+  empresaId: string; plano: string; periodicidade: string; notificationUrl: string;
+}) {
+  const docLimpo = (opts.documento ?? "").replace(/\D/g, "")
+  const temDocValido = opts.tipoDocumento === "cnpj" ? docLimpo.length === 14 : docLimpo.length === 11
+
+  const paymentBody = {
+    transaction_amount: opts.valor,
+    description: opts.descricao,
+    payment_method_id: "pix",
+    payer: {
+      email: opts.email,
+      first_name: opts.firstName,
+      last_name: opts.lastName,
+      ...(temDocValido && { identification: { type: opts.tipoDocumento === "cnpj" ? "CNPJ" : "CPF", number: docLimpo } }),
+    },
+    metadata: { empresa_id: opts.empresaId, plano: opts.plano, periodicidade: opts.periodicidade },
+    notification_url: opts.notificationUrl,
+  }
+
+  try {
+    const res = await fetch("https://api.mercadopago.com/v1/payments", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${accessToken}`,
+        "X-Idempotency-Key": randomUUID(),
+      },
+      body: JSON.stringify(paymentBody),
+    })
+
+    const text = await res.text()
+    if (!text) return { sucesso: false, erro: "Resposta vazia" }
+    const data = JSON.parse(text)
+
+    if (res.ok && data?.id) {
+      const txData = data.point_of_interaction?.transaction_data
+      return {
+        sucesso: true,
+        payment_id: String(data.id),
+        qr_code: txData?.qr_code_base64 ?? null,
+        qr_code_text: txData?.qr_code ?? txData?.ticket_url ?? null,
+      }
+    }
+    return { sucesso: false, erro: data?.message ?? `Status ${res.status}` }
+  } catch (e) {
+    return { sucesso: false, erro: e instanceof Error ? e.message : String(e) }
+  }
+}
+
+async function salvarAssinatura(supabase: Awaited<ReturnType<typeof createClient>>, opts: {
+  empresaId: string; plano: string; periodicidade: string; valorTotal: number;
+  paymentId: string; qrCode?: string | null; qrCodeText?: string | null;
+}) {
+  try {
+    await supabase.from("assinaturas").insert({
+      empresa_id: opts.empresaId,
+      plano: opts.plano,
+      periodicidade: opts.periodicidade,
+      status: "pendente",
+      forma_pagamento: "pix",
+      valor_mensal: opts.plano === "basico" ? 49 : opts.plano === "agenda" ? 29 : 99,
+      valor_total: Number(opts.valorTotal.toFixed(2)),
+      mp_pix_payment_id: opts.paymentId,
+      mp_pix_qr_code: opts.qrCode ?? null,
+      mp_pix_qr_code_text: opts.qrCodeText ?? null,
+    })
+  } catch (e) { console.warn("Assinatura não salva:", e) }
+}
+
+async function incrementarCupom(cupomId: string) {
+  try {
+    const admin = createAdminClient()
+    const { data } = await admin.from("cupons").select("uso_atual").eq("id", cupomId).single()
+    await admin.from("cupons").update({ uso_atual: (data?.uso_atual ?? 0) + 1 }).eq("id", cupomId)
+  } catch (e) { console.warn("Cupom não incrementado:", e) }
 }

@@ -190,6 +190,19 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.erro)
+
+      if (data.modo === "checkout_pro" && data.init_point) {
+        // Abrir Checkout Pro em nova janela (não redireciona a página)
+        const popup = window.open(data.init_point, "mercadopago", "width=600,height=700,scrollbars=yes")
+        if (!popup) {
+          // Se popup bloqueado, redirecionar
+          window.location.href = data.init_point
+        }
+        setLoading(false)
+        return
+      }
+
+      // Pix direto — mostrar QR Code na página
       setPixData({ qr_code: data.qr_code, qr_code_text: data.qr_code_text, payment_id: data.payment_id, valor: data.valor })
       setEtapa("pix-aguardando")
       verificarPix(data.payment_id)
