@@ -27,8 +27,11 @@ const AREAS_DISPONIVEIS = [
     label: "Dashboard",
     descricao: "Painel principal com métricas e resumos",
     subitens: [
-      { id: "dashboard_faturamento", label: "Ver faturamento" },
-      { id: "dashboard_metricas", label: "Ver métricas e indicadores" },
+      { id: "dashboard_ver_faturamento", label: "Ver faturamento do dia" },
+      { id: "dashboard_ver_ticket_medio", label: "Ver ticket médio" },
+      { id: "dashboard_ver_grafico", label: "Ver gráfico de faturamento" },
+      { id: "dashboard_ver_tarefas", label: "Ver tarefas pendentes" },
+      { id: "dashboard_ver_agenda", label: "Ver agenda do dia" },
     ],
   },
   {
@@ -38,8 +41,12 @@ const AREAS_DISPONIVEIS = [
     subitens: [
       { id: "caixa_abrir", label: "Abrir caixa" },
       { id: "caixa_fechar", label: "Fechar caixa" },
-      { id: "caixa_sangria", label: "Realizar sangria/suprimento" },
+      { id: "caixa_sangria", label: "Realizar sangria" },
+      { id: "caixa_suprimento", label: "Realizar suprimento" },
+      { id: "caixa_despesa", label: "Registrar despesa" },
+      { id: "caixa_ver_movimentacoes", label: "Ver movimentações" },
       { id: "caixa_ver_anteriores", label: "Ver caixas anteriores" },
+      { id: "caixa_ver_totais", label: "Ver totais do caixa" },
     ],
   },
   {
@@ -47,9 +54,12 @@ const AREAS_DISPONIVEIS = [
     label: "Nova Venda",
     descricao: "Tela de PDV e vendas",
     subitens: [
+      { id: "venda_realizar", label: "Realizar venda" },
       { id: "venda_desconto", label: "Aplicar desconto" },
+      { id: "venda_alterar_preco", label: "Alterar preço na venda" },
       { id: "venda_excluir", label: "Excluir/cancelar vendas" },
       { id: "venda_debito_cliente", label: "Lançar débito no cliente" },
+      { id: "venda_ver_historico", label: "Ver histórico de vendas" },
     ],
   },
   {
@@ -57,8 +67,11 @@ const AREAS_DISPONIVEIS = [
     label: "Agendamentos",
     descricao: "Agenda de atendimentos",
     subitens: [
-      { id: "agendamentos_cancelar", label: "Cancelar agendamentos" },
-      { id: "agendamentos_editar", label: "Editar agendamentos" },
+      { id: "agendamentos_criar", label: "Criar agendamento" },
+      { id: "agendamentos_editar", label: "Editar agendamento" },
+      { id: "agendamentos_cancelar", label: "Cancelar agendamento" },
+      { id: "agendamentos_concluir", label: "Concluir agendamento" },
+      { id: "agendamentos_ver_todos", label: "Ver agenda completa" },
     ],
   },
   {
@@ -66,9 +79,13 @@ const AREAS_DISPONIVEIS = [
     label: "Clientes",
     descricao: "Cadastro e gestão de clientes",
     subitens: [
+      { id: "clientes_cadastrar", label: "Cadastrar cliente" },
       { id: "clientes_editar", label: "Editar dados de clientes" },
       { id: "clientes_excluir", label: "Excluir clientes" },
       { id: "clientes_ver_debitos", label: "Ver débitos" },
+      { id: "clientes_ver_historico", label: "Ver histórico do cliente" },
+      { id: "clientes_ver_pontos", label: "Ver pontos de fidelidade" },
+      { id: "clientes_ajustar_pontos", label: "Ajustar pontos manualmente" },
     ],
   },
   {
@@ -76,8 +93,12 @@ const AREAS_DISPONIVEIS = [
     label: "Financeiro",
     descricao: "Módulo financeiro e relatórios",
     subitens: [
-      { id: "financeiro_ver_movimentacoes", label: "Ver movimentações" },
-      { id: "financeiro_relatorios", label: "Gerar relatórios" },
+      { id: "financeiro_ver_resumo", label: "Ver resumo financeiro" },
+      { id: "financeiro_ver_entradas", label: "Ver entradas" },
+      { id: "financeiro_ver_saidas", label: "Ver saídas" },
+      { id: "financeiro_ver_lucro", label: "Ver lucro" },
+      { id: "financeiro_relatorio_vendas", label: "Relatório de vendas" },
+      { id: "financeiro_relatorio_comissoes", label: "Relatório de comissões" },
       { id: "financeiro_exportar", label: "Exportar dados" },
     ],
   },
@@ -86,9 +107,13 @@ const AREAS_DISPONIVEIS = [
     label: "Produtos/Serviços",
     descricao: "Cadastro de produtos e serviços",
     subitens: [
-      { id: "produtos_editar_preco", label: "Editar preços" },
       { id: "produtos_cadastrar", label: "Cadastrar produto/serviço" },
+      { id: "produtos_editar", label: "Editar produto/serviço" },
+      { id: "produtos_editar_preco", label: "Alterar preços" },
+      { id: "produtos_editar_estoque", label: "Ajustar estoque" },
       { id: "produtos_excluir", label: "Excluir produto/serviço" },
+      { id: "produtos_ver_comissao", label: "Ver comissão do produto" },
+      { id: "produtos_alterar_comissao", label: "Alterar comissão" },
     ],
   },
   {
@@ -97,7 +122,10 @@ const AREAS_DISPONIVEIS = [
     descricao: "Criação e gestão de orçamentos",
     subitens: [
       { id: "orcamentos_criar", label: "Criar orçamento" },
+      { id: "orcamentos_editar", label: "Editar orçamento" },
       { id: "orcamentos_excluir", label: "Excluir orçamento" },
+      { id: "orcamentos_enviar", label: "Enviar orçamento ao cliente" },
+      { id: "orcamentos_aprovar", label: "Aprovar/recusar orçamento" },
     ],
   },
   {
@@ -106,14 +134,21 @@ const AREAS_DISPONIVEIS = [
     descricao: "Gestão de contratos",
     subitens: [
       { id: "contratos_criar", label: "Criar contrato" },
+      { id: "contratos_editar", label: "Editar contrato" },
       { id: "contratos_cancelar", label: "Cancelar contrato" },
+      { id: "contratos_registrar_pagamento", label: "Registrar pagamento" },
     ],
   },
   {
     id: "tarefas",
     label: "Tarefas",
     descricao: "Gestão de tarefas da equipe",
-    subitens: [],
+    subitens: [
+      { id: "tarefas_criar", label: "Criar tarefa" },
+      { id: "tarefas_editar", label: "Editar tarefa" },
+      { id: "tarefas_excluir", label: "Excluir tarefa" },
+      { id: "tarefas_concluir", label: "Concluir tarefa" },
+    ],
   },
   {
     id: "funcionarios",
@@ -121,8 +156,11 @@ const AREAS_DISPONIVEIS = [
     descricao: "Cadastro e gestão de funcionários",
     subitens: [
       { id: "funcionarios_cadastrar", label: "Cadastrar colaborador" },
+      { id: "funcionarios_editar", label: "Editar colaborador" },
       { id: "funcionarios_excluir", label: "Excluir colaborador" },
-      { id: "funcionarios_comissoes", label: "Ver/alterar comissões" },
+      { id: "funcionarios_ver_comissoes", label: "Ver comissões" },
+      { id: "funcionarios_alterar_comissoes", label: "Alterar comissões" },
+      { id: "funcionarios_ver_vendas", label: "Ver vendas do colaborador" },
     ],
   },
   {
@@ -130,10 +168,14 @@ const AREAS_DISPONIVEIS = [
     label: "Configurações",
     descricao: "Configurações gerais do sistema",
     subitens: [
-      { id: "configuracoes_dados", label: "Dados do negócio" },
-      { id: "configuracoes_plano", label: "Plano e assinatura" },
-      { id: "configuracoes_categorias", label: "Categorias" },
-      { id: "configuracoes_documentos", label: "Documentos" },
+      { id: "configuracoes_dados_negocio", label: "Alterar dados do negócio" },
+      { id: "configuracoes_logo", label: "Alterar logo" },
+      { id: "configuracoes_plano", label: "Ver/alterar plano" },
+      { id: "configuracoes_categorias", label: "Gerenciar categorias" },
+      { id: "configuracoes_documentos", label: "Configurar documentos" },
+      { id: "configuracoes_fidelidade", label: "Programa de fidelidade" },
+      { id: "configuracoes_conta", label: "Alterar senha da conta" },
+      { id: "configuracoes_backup", label: "Backup de dados" },
     ],
   },
 ] as const
