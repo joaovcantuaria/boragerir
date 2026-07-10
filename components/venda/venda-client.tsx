@@ -483,21 +483,19 @@ export function VendaClient({
                       // Auto-adicionar se leitor de código de barras digitou e bateu exato
                       const match = produtos.find((p) => p.codigo_barras && p.codigo_barras === valor.trim())
                       if (match) {
-                        // Debounce para evitar duplo disparo do leitor
-                        e.target.disabled = true
+                        // Marcar como processado para evitar duplo disparo
+                        setBuscaProduto("")
                         setTimeout(() => {
                           adicionarItem(match)
-                          setBuscaProduto("")
-                          e.target.disabled = false
-                          e.target.focus()
-                        }, 200)
+                        }, 50)
                       }
                     }}
                     onFocus={() => setMostrarBuscaProduto(true)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault()
-                        if (produtosFiltrados.length > 0) {
+                        // Só adicionar se tem texto na busca (evita duplo com leitor)
+                        if (buscaProduto.trim() && produtosFiltrados.length > 0) {
                           adicionarItem(produtosFiltrados[0])
                           setBuscaProduto("")
                         }
