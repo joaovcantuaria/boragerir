@@ -43,6 +43,8 @@ export async function POST(req: NextRequest) {
     tipo: body.tipo,
     valor: parseFloat(body.valor),
     planos_validos: body.planos_validos?.length > 0 ? body.planos_validos : [],
+    periodicidades_validas: body.periodicidades_validas?.length > 0 ? body.periodicidades_validas : [],
+    apenas_primeiro_mes: body.apenas_primeiro_mes || false,
     uso_maximo: body.uso_maximo ? parseInt(body.uso_maximo) : null,
     ativo: true,
     validade: body.validade || null,

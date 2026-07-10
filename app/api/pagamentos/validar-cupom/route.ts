@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ erro: "Não autenticado" }, { status: 401 })
 
-    const { codigo, plano } = await req.json()
+    const { codigo, plano, periodicidade } = await req.json()
     if (!codigo?.trim()) return NextResponse.json({ erro: "Código inválido" }, { status: 400 })
 
     const admin = createAdminClient()
@@ -48,12 +48,43 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Verificar periodicidade (mensal/anual)
+    if (cupom.periodicidades_validas && Array.isArray(cupom.periodicidades_validas) && cupom.periodicidades_validas.length > 0 && periodicidade) {
+      if (!cupom.periodicidades_validas.includes(periodicidade)) {
+        const permitidas = cupom.periodicidades_validas.join(" ou ")
+        return NextResponse.json({ erro: `Cupom válido apenas para plano ${permitidas}` }, { status: 400 })
+      }
+    }
+
+    // Verificar se é apenas primeiro mês — checar se usuário já teve assinatura paga
+    if (cupom.apenas_primeiro_mes) {
+      const { data: empresas } = await supabase
+        .from("empresas")
+        .select("id")
+        .eq("user_id", user.id)
+
+      if (empresas && empresas.length > 0) {
+        const empresaIds = empresas.map((e) => e.id)
+        const { data: assinaturas } = await admin
+          .from("assinaturas")
+          .select("id")
+          .in("empresa_id", empresaIds)
+          .eq("status", "ativa")
+          .limit(1)
+
+        if (assinaturas && assinaturas.length > 0) {
+          return NextResponse.json({ erro: "Cupom válido apenas para a primeira assinatura" }, { status: 400 })
+        }
+      }
+    }
+
     return NextResponse.json({
       valido: true,
       codigo: cupom.codigo,
-      tipo: cupom.tipo,       // "percentual" | "fixo"
-      valor: cupom.valor,     // % ou R$
+      tipo: cupom.tipo,
+      valor: cupom.valor,
       descricao: cupom.descricao,
+      apenas_primeiro_mes: cupom.apenas_primeiro_mes || false,
     })
   } catch (error) {
     console.error("Erro ao validar cupom:", error)

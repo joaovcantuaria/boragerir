@@ -147,7 +147,7 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
       const res = await fetch("/api/pagamentos/validar-cupom", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ codigo: cupomInput, plano: planoSel }),
+        body: JSON.stringify({ codigo: cupomInput, plano: planoSel, periodicidade }),
       })
       const data = await res.json()
       if (!res.ok) {
