@@ -83,6 +83,8 @@ export function VendaClient({
   const [qtdProduto, setQtdProduto] = useState<number>(1)
   const [mostrarBuscaCliente, setMostrarBuscaCliente] = useState(false)
   const [mostrarBuscaProduto, setMostrarBuscaProduto] = useState(false)
+  const [indiceProduto, setIndiceProduto] = useState(0)
+  const [indiceCliente, setIndiceCliente] = useState(0)
   const [loading, setLoading] = useState(false)
   const [loadingRecibo, setLoadingRecibo] = useState(false)
   const [modalSucesso, setModalSucesso] = useState(false)
@@ -131,14 +133,14 @@ export function VendaClient({
         inputClienteRef.current?.focus()
         return
       }
-      // F4 — Finalizar venda
-      if (e.key === "F4" && !isInput) {
+      // F4 — Finalizar venda (funciona em qualquer contexto)
+      if (e.key === "F4") {
         e.preventDefault()
         if (itens.length > 0 && formaPagamento) finalizarVenda()
         return
       }
       // F5 — Nova venda
-      if (e.key === "F5" && !isInput) {
+      if (e.key === "F5") {
         e.preventDefault()
         novaVenda()
         return
@@ -157,8 +159,8 @@ export function VendaClient({
         selectTrigger?.click()
         return
       }
-      // F8 — Formas de pagamento rápidas
-      if (e.key === "F8" && !isInput) {
+      // F8 — Formas de pagamento rápidas (funciona em qualquer contexto)
+      if (e.key === "F8") {
         e.preventDefault()
         const formas = ["dinheiro", "pix", "cartao_debito", "cartao_credito", "outro"]
         const idx = formas.indexOf(formaPagamento)
@@ -169,6 +171,12 @@ export function VendaClient({
       if (e.key === "Escape") {
         setMostrarBuscaProduto(false)
         setMostrarBuscaCliente(false)
+        return
+      }
+      // 1-5 para seleção rápida de pagamento quando não está em input
+      if (!isInput && ["1", "2", "3", "4", "5"].includes(e.key)) {
+        const formas = ["dinheiro", "pix", "cartao_debito", "cartao_credito", "outro"]
+        setFormaPagamento(formas[parseInt(e.key) - 1])
         return
       }
     }
@@ -588,20 +596,29 @@ export function VendaClient({
                     const valor = e.target.value
                     setBuscaProduto(valor)
                     setMostrarBuscaProduto(true)
+                    setIndiceProduto(0)
                     const match = produtos.find((p) => p.codigo_barras && p.codigo_barras === valor.trim())
                     if (match) {
                       setBuscaProduto("")
                       setTimeout(() => adicionarItem(match), 50)
                     }
                   }}
-                  onFocus={() => setMostrarBuscaProduto(true)}
+                  onFocus={() => { setMostrarBuscaProduto(true); setIndiceProduto(0) }}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") {
+                    if (e.key === "ArrowDown") {
                       e.preventDefault()
-                      if (buscaProduto.trim() && produtosFiltrados.length > 0) {
-                        adicionarItem(produtosFiltrados[0])
+                      setIndiceProduto((prev) => Math.min(prev + 1, produtosFiltrados.length - 1))
+                    } else if (e.key === "ArrowUp") {
+                      e.preventDefault()
+                      setIndiceProduto((prev) => Math.max(prev - 1, 0))
+                    } else if (e.key === "Enter") {
+                      e.preventDefault()
+                      if (mostrarBuscaProduto && produtosFiltrados.length > 0) {
+                        adicionarItem(produtosFiltrados[indiceProduto])
                         setBuscaProduto("")
                       }
+                    } else if (e.key === "Escape") {
+                      setMostrarBuscaProduto(false)
                     }
                   }}
                 />
@@ -609,11 +626,14 @@ export function VendaClient({
 
                 {mostrarBuscaProduto && (
                   <div className="absolute top-full left-0 right-0 z-50 bg-white dark:bg-zinc-900 border border-border rounded-lg shadow-2xl mt-1 max-h-56 overflow-y-auto">
-                    {produtosFiltrados.length > 0 ? produtosFiltrados.map((p) => (
+                    {produtosFiltrados.length > 0 ? produtosFiltrados.map((p, idx) => (
                       <button
                         key={p.id}
-                        className="w-full text-left px-3 py-2 hover:bg-orange-50 dark:hover:bg-orange-500/10 flex items-center justify-between text-sm transition-colors border-b border-border/50 last:border-0"
+                        className={`w-full text-left px-3 py-2 flex items-center justify-between text-sm transition-colors border-b border-border/50 last:border-0 ${
+                          idx === indiceProduto ? "bg-orange-50 dark:bg-orange-500/10" : "hover:bg-orange-50 dark:hover:bg-orange-500/10"
+                        }`}
                         onClick={() => adicionarItem(p)}
+                        onMouseEnter={() => setIndiceProduto(idx)}
                       >
                         <div className="flex items-center gap-2 min-w-0">
                           <span className="font-medium text-foreground truncate">{p.nome}</span>
@@ -731,14 +751,36 @@ export function VendaClient({
                   placeholder="Buscar cliente..."
                   className="pl-8 h-8 text-sm"
                   value={clienteSelecionado ? clienteSelecionado.nome_completo : buscaCliente}
-                  onChange={(e) => { setBuscaCliente(e.target.value); setClienteSelecionado(null); setMostrarBuscaCliente(true) }}
-                  onFocus={() => setMostrarBuscaCliente(true)}
+                  onChange={(e) => { setBuscaCliente(e.target.value); setClienteSelecionado(null); setMostrarBuscaCliente(true); setIndiceCliente(0) }}
+                  onFocus={() => { setMostrarBuscaCliente(true); setIndiceCliente(0) }}
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault()
+                      setIndiceCliente((prev) => Math.min(prev + 1, clientesFiltrados.length - 1))
+                    } else if (e.key === "ArrowUp") {
+                      e.preventDefault()
+                      setIndiceCliente((prev) => Math.max(prev - 1, 0))
+                    } else if (e.key === "Enter") {
+                      e.preventDefault()
+                      if (mostrarBuscaCliente && clientesFiltrados.length > 0) {
+                        const c = clientesFiltrados[indiceCliente]
+                        setClienteSelecionado(c)
+                        setBuscaCliente("")
+                        setMostrarBuscaCliente(false)
+                      }
+                    } else if (e.key === "Escape") {
+                      setMostrarBuscaCliente(false)
+                    }
+                  }}
                 />
                 {mostrarBuscaCliente && buscaCliente && !clienteSelecionado && (
                   <div className="absolute top-full left-0 right-0 z-50 bg-white dark:bg-zinc-900 border border-border rounded-lg shadow-xl mt-1 max-h-40 overflow-y-auto">
-                    {clientesFiltrados.map((c) => (
-                      <button key={c.id} className="w-full text-left px-3 py-2 hover:bg-muted text-sm transition-colors"
-                        onClick={() => { setClienteSelecionado(c); setBuscaCliente(""); setMostrarBuscaCliente(false) }}>
+                    {clientesFiltrados.map((c, idx) => (
+                      <button key={c.id} className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                        idx === indiceCliente ? "bg-orange-50 dark:bg-orange-500/10" : "hover:bg-muted"
+                      }`}
+                        onClick={() => { setClienteSelecionado(c); setBuscaCliente(""); setMostrarBuscaCliente(false) }}
+                        onMouseEnter={() => setIndiceCliente(idx)}>
                         <p className="font-medium text-foreground text-xs">{c.nome_completo}</p>
                         <p className="text-[10px] text-muted-foreground">{c.telefone} {c.pontos_fidelidade > 0 && `· ⭐ ${c.pontos_fidelidade} pts`}</p>
                       </button>
@@ -777,6 +819,14 @@ export function VendaClient({
                   placeholder="0"
                   value={desconto}
                   onChange={(e) => setDesconto(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      // Avança para forma de pagamento — seleciona dinheiro como padrão se nada selecionado
+                      if (!formaPagamento) setFormaPagamento("dinheiro")
+                      ;(e.target as HTMLElement).blur()
+                    }
+                  }}
                   className="h-8 text-sm flex-1"
                 />
                 <Select value={tipoDesconto} onValueChange={(v: "reais" | "percentual") => setTipoDesconto(v)}>
@@ -915,6 +965,12 @@ export function VendaClient({
                   placeholder={formatarMoeda(total)}
                   value={valorRecebido}
                   onChange={(e) => setValorRecebido(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      if (itens.length > 0 && formaPagamento) finalizarVenda()
+                    }
+                  }}
                   className="h-8 text-sm"
                 />
                 {troco !== null && troco > 0 && (
@@ -937,6 +993,12 @@ export function VendaClient({
                   placeholder="0,00"
                   value={valorRecebido}
                   onChange={(e) => setValorRecebido(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      if (itens.length > 0 && formaPagamento) finalizarVenda()
+                    }
+                  }}
                   className="h-8 text-sm"
                 />
                 {total > 0 && (
