@@ -90,6 +90,9 @@ export function VendaClient({
   const [valorRecebido, setValorRecebido] = useState("")
   const supabase = createClient()
   const inputBuscaRef = useRef<HTMLInputElement>(null)
+  const inputClienteRef = useRef<HTMLInputElement>(null)
+  const inputDescontoRef = useRef<HTMLInputElement>(null)
+  const inputQtdRef = useRef<HTMLInputElement>(null)
 
   // Recompensas/brindes disponíveis
   const [recompensas, setRecompensas] = useState<RecompensaDisponivel[]>([])
@@ -122,6 +125,12 @@ export function VendaClient({
         inputBuscaRef.current?.focus()
         return
       }
+      // F3 — Focar busca de cliente
+      if (e.key === "F3") {
+        e.preventDefault()
+        inputClienteRef.current?.focus()
+        return
+      }
       // F4 — Finalizar venda
       if (e.key === "F4" && !isInput) {
         e.preventDefault()
@@ -132,6 +141,20 @@ export function VendaClient({
       if (e.key === "F5" && !isInput) {
         e.preventDefault()
         novaVenda()
+        return
+      }
+      // F6 — Focar campo de desconto (muda pra percentual)
+      if (e.key === "F6") {
+        e.preventDefault()
+        setTipoDesconto("percentual")
+        setTimeout(() => inputDescontoRef.current?.focus(), 50)
+        return
+      }
+      // F7 — Focar seleção de colaborador
+      if (e.key === "F7") {
+        e.preventDefault()
+        const selectTrigger = document.querySelector('[data-funcionario-trigger]') as HTMLElement | null
+        selectTrigger?.click()
         return
       }
       // F8 — Formas de pagamento rápidas
@@ -501,7 +524,7 @@ export function VendaClient({
         </div>
         <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
           <span className="hidden md:flex items-center gap-1 px-2 py-1 rounded bg-zinc-100 dark:bg-zinc-800">
-            <Keyboard className="w-3 h-3" /> F2 Buscar · F4 Finalizar · F5 Nova · F8 Pagamento
+            <Keyboard className="w-3 h-3" /> F2 Buscar · F3 Cliente · F4 Finalizar · F5 Nova · F6 Desc% · F7 Atendente · F8 Pagamento
           </span>
         </div>
       </div>
@@ -515,10 +538,17 @@ export function VendaClient({
             <div className="flex gap-2 items-center">
               <div className="w-16">
                 <Input
+                  ref={inputQtdRef}
                   type="number"
                   min="1"
                   value={qtdProduto}
                   onChange={(e) => setQtdProduto(Math.max(1, parseInt(e.target.value) || 1))}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      inputBuscaRef.current?.focus()
+                    }
+                  }}
                   className="text-center font-bold h-9 text-sm"
                   title="Quantidade"
                   aria-label="Quantidade"
@@ -664,7 +694,7 @@ export function VendaClient({
             {/* Cliente */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Cliente</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Cliente <Kbd>F3</Kbd></label>
                 {clienteSelecionado && (
                   <button onClick={() => { setClienteSelecionado(null); setBuscaCliente("") }} className="text-[10px] text-red-400 hover:text-red-500">
                     Remover
@@ -674,6 +704,7 @@ export function VendaClient({
               <div className="relative">
                 <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                 <Input
+                  ref={inputClienteRef}
                   placeholder="Buscar cliente..."
                   className="pl-8 h-8 text-sm"
                   value={clienteSelecionado ? clienteSelecionado.nome_completo : buscaCliente}
@@ -698,9 +729,9 @@ export function VendaClient({
             {/* Funcionário */}
             {funcionarios.length > 0 && (
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Atendente</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Atendente <Kbd>F7</Kbd></label>
                 <Select value={funcionarioId} onValueChange={setFuncionarioId}>
-                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                  <SelectTrigger data-funcionario-trigger className="h-8 text-sm"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="">Nenhum</SelectItem>
                     {funcionarios.map((f) => (
@@ -713,9 +744,10 @@ export function VendaClient({
 
             {/* Desconto */}
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Desconto</label>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Desconto <Kbd>F6</Kbd></label>
               <div className="flex gap-1.5">
                 <Input
+                  ref={inputDescontoRef}
                   type="number"
                   min="0"
                   step="0.01"
