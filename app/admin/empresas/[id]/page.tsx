@@ -26,5 +26,41 @@ export default async function AdminEmpresaDetalhePage({ params }: { params: Prom
     .neq("id", id)
     .order("created_at", { ascending: true })
 
-  return <AdminEmpresaDetalhe empresa={empresa} assinaturas={assinaturas ?? []} notas={notas ?? []} tickets={tickets ?? []} subEmpresas={subEmpresas ?? []} />
+  // Buscar resumo de faturamento (vendas concluídas)
+  const { data: vendas } = await supabase
+    .from("vendas")
+    .select("id, total, forma_pagamento, status, created_at")
+    .eq("empresa_id", id)
+    .eq("status", "concluida")
+    .order("created_at", { ascending: false })
+    .limit(500)
+
+  // Buscar movimentações do caixa
+  const { data: movimentacoes } = await supabase
+    .from("movimentacoes_caixa")
+    .select("id, tipo, categoria, valor, descricao, created_at")
+    .eq("empresa_id", id)
+    .order("created_at", { ascending: false })
+    .limit(500)
+
+  // Buscar histórico de alterações (audit_log) - pode não existir ainda
+  const { data: auditLog } = await supabase
+    .from("audit_log")
+    .select("*")
+    .eq("empresa_id", id)
+    .order("created_at", { ascending: false })
+    .limit(100)
+
+  return (
+    <AdminEmpresaDetalhe
+      empresa={empresa}
+      assinaturas={assinaturas ?? []}
+      notas={notas ?? []}
+      tickets={tickets ?? []}
+      subEmpresas={subEmpresas ?? []}
+      vendas={vendas ?? []}
+      movimentacoes={movimentacoes ?? []}
+      auditLog={auditLog ?? []}
+    />
+  )
 }

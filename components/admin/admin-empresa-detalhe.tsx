@@ -22,7 +22,7 @@ interface Empresa {
   created_at: string; logo_url: string | null
 }
 
-type Aba = "dados" | "assinaturas" | "notas" | "email" | "perigo" | "empresas"
+type Aba = "dados" | "assinaturas" | "notas" | "email" | "perigo" | "empresas" | "historico" | "acessos"
 
 const PLANOS = ["gratuito", "basico", "profissional", "agenda", "gestao"]
 const PLANOS_PAGOS = ["basico", "profissional", "agenda", "gestao"]
@@ -34,12 +34,15 @@ const BADGE_STATUS: Record<string, string> = {
   pausada:   "bg-gray-500/10 text-gray-400 border-gray-500/20",
 }
 
-export function AdminEmpresaDetalhe({ empresa: empInit, assinaturas: assInit, notas: notasInit, tickets, subEmpresas: subEmpInit = [] }: {
+export function AdminEmpresaDetalhe({ empresa: empInit, assinaturas: assInit, notas: notasInit, tickets, subEmpresas: subEmpInit = [], vendas = [], movimentacoes = [], auditLog = [] }: {
   empresa: Empresa
   assinaturas: { id: string; plano: string; periodicidade: string; status: string; valor_total: number; forma_pagamento: string | null; created_at: string; data_fim: string | null }[]
   notas: { id: string; nota: string; created_at: string }[]
   tickets: { id: string; assunto: string; status: string; mensagem: string; resposta_admin: string | null; created_at: string }[]
   subEmpresas?: Empresa[]
+  vendas?: { id: string; total: number; forma_pagamento: string; status: string; created_at: string }[]
+  movimentacoes?: { id: string; tipo: string; categoria: string; valor: number; descricao: string; created_at: string }[]
+  auditLog?: { id: string; acao: string; detalhes: string | null; usuario: string | null; created_at: string }[]
 }) {
   const [empresa, setEmpresa] = useState(empInit)
   const [assinaturas, setAssinaturas] = useState(assInit)
@@ -172,6 +175,8 @@ export function AdminEmpresaDetalhe({ empresa: empInit, assinaturas: assInit, no
     ...(subEmpresas.length > 0 || empresa.plano === "gestao"
       ? [{ id: "empresas" as Aba, label: `Empresas (${subEmpresas.length})` }]
       : []),
+    { id: "acessos",      label: "Acessos" },
+    { id: "historico",    label: "Histórico" },
     { id: "notas",        label: `Notas${notas.length ? ` (${notas.length})` : ""}` },
     { id: "email",        label: "E-mail" },
     { id: "perigo",       label: "⚠️ Perigo" },
@@ -557,6 +562,142 @@ export function AdminEmpresaDetalhe({ empresa: empInit, assinaturas: assInit, no
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── ABA ACESSOS + RESUMO MOVIMENTAÇÕES ── */}
+      {aba === "acessos" && (
+        <div className="space-y-6">
+          {/* Resumo de Movimentações / Faturamento */}
+          <div className={`rounded-2xl border ${t.border} ${t.subBg} p-5 space-y-4`}>
+            <h3 className={`font-bold text-sm ${t.text} flex items-center gap-2`}>
+              <CreditCard className="w-4 h-4 text-emerald-400" /> Resumo de Movimentações
+            </h3>
+            {vendas.length > 0 ? (() => {
+              const totalFaturado = vendas.reduce((s, v) => s + v.total, 0)
+              const totalVendas = vendas.length
+              const ticketMedio = totalVendas > 0 ? totalFaturado / totalVendas : 0
+              // Últimos 30 dias
+              const agora = new Date()
+              const d30 = new Date(agora.getTime() - 30 * 24 * 60 * 60 * 1000)
+              const vendas30d = vendas.filter(v => new Date(v.created_at) >= d30)
+              const faturamento30d = vendas30d.reduce((s, v) => s + v.total, 0)
+              // Formas de pagamento
+              const porForma: Record<string, number> = {}
+              vendas.forEach(v => { porForma[v.forma_pagamento] = (porForma[v.forma_pagamento] || 0) + v.total })
+              const entradas = movimentacoes.filter(m => m.tipo === "entrada").reduce((s, m) => s + m.valor, 0)
+              const saidas = movimentacoes.filter(m => m.tipo === "saida").reduce((s, m) => s + m.valor, 0)
+
+              return (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className={`p-3 rounded-xl ${t.bg} border ${t.border}`}>
+                      <p className={`text-[10px] uppercase ${t.textMuted}`}>Faturamento total</p>
+                      <p className={`text-lg font-black ${t.text}`}>{formatarMoeda(totalFaturado)}</p>
+                    </div>
+                    <div className={`p-3 rounded-xl ${t.bg} border ${t.border}`}>
+                      <p className={`text-[10px] uppercase ${t.textMuted}`}>Últimos 30 dias</p>
+                      <p className={`text-lg font-black text-emerald-400`}>{formatarMoeda(faturamento30d)}</p>
+                    </div>
+                    <div className={`p-3 rounded-xl ${t.bg} border ${t.border}`}>
+                      <p className={`text-[10px] uppercase ${t.textMuted}`}>Total de vendas</p>
+                      <p className={`text-lg font-black ${t.text}`}>{totalVendas}</p>
+                    </div>
+                    <div className={`p-3 rounded-xl ${t.bg} border ${t.border}`}>
+                      <p className={`text-[10px] uppercase ${t.textMuted}`}>Ticket médio</p>
+                      <p className={`text-lg font-black ${t.text}`}>{formatarMoeda(ticketMedio)}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className={`p-3 rounded-xl ${t.bg} border ${t.border}`}>
+                      <p className={`text-[10px] uppercase ${t.textMuted}`}>Entradas (caixa)</p>
+                      <p className={`text-sm font-bold text-emerald-400`}>{formatarMoeda(entradas)}</p>
+                    </div>
+                    <div className={`p-3 rounded-xl ${t.bg} border ${t.border}`}>
+                      <p className={`text-[10px] uppercase ${t.textMuted}`}>Saídas (caixa)</p>
+                      <p className={`text-sm font-bold text-red-400`}>{formatarMoeda(saidas)}</p>
+                    </div>
+                  </div>
+                  {Object.keys(porForma).length > 0 && (
+                    <div>
+                      <p className={`text-xs font-semibold ${t.textMuted} mb-2`}>Por forma de pagamento</p>
+                      <div className="space-y-1">
+                        {Object.entries(porForma).sort(([,a],[,b]) => b - a).map(([fp, val]) => (
+                          <div key={fp} className={`flex items-center justify-between text-xs px-3 py-1.5 rounded-lg ${t.bg}`}>
+                            <span className={`${t.text} capitalize`}>{fp.replace(/_/g, " ")}</span>
+                            <span className={`font-bold ${t.text}`}>{formatarMoeda(val)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })() : (
+              <p className={`text-sm ${t.textMuted}`}>Nenhuma venda registrada.</p>
+            )}
+          </div>
+
+          {/* Histórico de Acessos */}
+          <div className={`rounded-2xl border ${t.border} ${t.subBg} p-5 space-y-3`}>
+            <h3 className={`font-bold text-sm ${t.text} flex items-center gap-2`}>
+              <Clock className="w-4 h-4 text-blue-400" /> Histórico de Acessos
+            </h3>
+            <p className={`text-xs ${t.textMuted}`}>
+              Acessos são rastreados pelo Supabase Auth. Último acesso disponível no painel do Supabase.
+            </p>
+            <div className={`p-3 rounded-xl ${t.bg} border ${t.border} space-y-1`}>
+              <div className="flex items-center justify-between">
+                <span className={`text-xs ${t.textMuted}`}>Email da conta</span>
+                <span className={`text-xs font-medium ${t.text}`}>{empresa.email}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className={`text-xs ${t.textMuted}`}>Data de cadastro</span>
+                <span className={`text-xs font-medium ${t.text}`}>{format(parseISO(empresa.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className={`text-xs ${t.textMuted}`}>Plano atual</span>
+                <span className={`text-xs font-medium ${t.text} capitalize`}>{empresa.plano} {empresa.plano_ativo ? "✓" : "(inativo)"}</span>
+              </div>
+            </div>
+            <p className={`text-[10px] ${t.textMuted} italic`}>
+              Para histórico detalhado de logins, consulte o painel Supabase → Authentication → Users.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── ABA HISTÓRICO DE ALTERAÇÕES ── */}
+      {aba === "historico" && (
+        <div className={`rounded-2xl border ${t.border} ${t.subBg} p-5 space-y-4`}>
+          <h3 className={`font-bold text-sm ${t.text} flex items-center gap-2`}>
+            <Calendar className="w-4 h-4 text-purple-400" /> Histórico de Alterações
+          </h3>
+          {auditLog.length > 0 ? (
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {auditLog.map((log) => (
+                <div key={log.id} className={`p-3 rounded-xl ${t.bg} border ${t.border} flex items-start gap-3`}>
+                  <div className="w-2 h-2 rounded-full bg-purple-400 mt-1.5 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-xs font-semibold ${t.text}`}>{log.acao}</p>
+                    {log.detalhes && <p className={`text-[10px] ${t.textMuted} mt-0.5`}>{log.detalhes}</p>}
+                    <p className={`text-[10px] ${t.textMuted} mt-1`}>
+                      {format(parseISO(log.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                      {log.usuario && ` · ${log.usuario}`}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className={`text-center py-8`}>
+              <Calendar className={`w-8 h-8 mx-auto mb-2 opacity-30 ${t.textMuted}`} />
+              <p className={`text-sm ${t.textMuted}`}>Nenhuma alteração registrada ainda.</p>
+              <p className={`text-[10px] ${t.textMuted} mt-1`}>
+                Alterações feitas pelo admin (plano, dados, assinaturas) aparecerão aqui.
+              </p>
             </div>
           )}
         </div>
