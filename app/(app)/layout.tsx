@@ -7,6 +7,7 @@ import { Topbar } from "@/components/layout/topbar"
 import { MobileNav } from "@/components/layout/mobile-nav"
 import { ChatIA } from "@/components/chat/chat-ia"
 import { PullToRefresh } from "@/components/layout/pull-to-refresh"
+import { PinGuard } from "@/components/ui/pin-guard"
 import { useEmpresa } from "@/hooks/use-empresa"
 import { useRealtimeRefresh } from "@/hooks/use-realtime-refresh"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
@@ -51,6 +52,43 @@ function ShortcutPanel({ onClose }: { onClose: () => void }) {
         <p className="text-xs text-muted-foreground mt-4 text-center">Pressione Esc para fechar</p>
       </motion.div>
     </motion.div>
+  )
+}
+
+// Mapeamento de rotas para áreas protegidas
+const ROTA_AREA_MAP: Record<string, { area: string; nome: string }> = {
+  "/financeiro": { area: "financeiro", nome: "Financeiro" },
+  "/caixa": { area: "financeiro", nome: "Financeiro" },
+  "/dashboard": { area: "relatorios", nome: "Relatórios" },
+  "/configuracoes": { area: "configuracoes", nome: "Configurações" },
+  "/produtos-servicos": { area: "produtos_precos", nome: "Preços de Produtos" },
+  "/funcionarios": { area: "funcionarios", nome: "Comissões" },
+}
+
+function PinGuardWrapper({ empresa, pathname, children }: { empresa: any; pathname: string; children: React.ReactNode }) {
+  if (!empresa) return <>{children}</>
+
+  const restricoes = empresa.restricoes_acesso as { areas_protegidas?: string[] } | null
+  const areasProtegidas = restricoes?.areas_protegidas || []
+  const pinConfigurado = !!empresa.pin_gerente
+
+  // Verificar se a rota atual precisa de PIN
+  const rotaInfo = ROTA_AREA_MAP[pathname]
+  const areaProtegida = rotaInfo ? areasProtegidas.includes(rotaInfo.area) : false
+
+  if (!pinConfigurado || !areaProtegida || !rotaInfo) {
+    return <>{children}</>
+  }
+
+  return (
+    <PinGuard
+      empresaId={empresa.id}
+      pinConfigurado={pinConfigurado}
+      areaProtegida={areaProtegida}
+      nomeArea={rotaInfo.nome}
+    >
+      {children}
+    </PinGuard>
   )
 }
 
@@ -103,7 +141,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           className="flex-1 p-4 lg:p-5 pb-20 md:pb-5 max-w-[1600px] w-full mx-auto"
         >
           <PullToRefresh>
-            {children}
+            <PinGuardWrapper empresa={empresa} pathname={pathname}>
+              {children}
+            </PinGuardWrapper>
           </PullToRefresh>
         </motion.main>
       </AnimatePresence>

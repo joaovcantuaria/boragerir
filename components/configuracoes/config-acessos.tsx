@@ -22,12 +22,61 @@ interface ConfigAcessosProps {
 }
 
 const AREAS_DISPONIVEIS = [
-  { id: "financeiro", label: "Financeiro", descricao: "Acesso ao módulo financeiro e movimentações" },
-  { id: "relatorios", label: "Relatórios", descricao: "Visualização de relatórios e métricas" },
-  { id: "configuracoes", label: "Configurações", descricao: "Alterações nas configurações do sistema" },
-  { id: "produtos_precos", label: "Preços de Produtos", descricao: "Alteração de preços de produtos e serviços" },
-  { id: "comissoes", label: "Comissões", descricao: "Configuração e visualização de comissões" },
-  { id: "excluir_vendas", label: "Excluir Vendas", descricao: "Permissão para excluir vendas registradas" },
+  {
+    id: "financeiro",
+    label: "Financeiro",
+    descricao: "Acesso ao módulo financeiro e caixa",
+    subitens: [
+      { id: "financeiro_ver_movimentacoes", label: "Ver movimentações" },
+      { id: "financeiro_fechar_caixa", label: "Fechar caixa" },
+      { id: "financeiro_sangria", label: "Realizar sangria/suprimento" },
+      { id: "financeiro_relatorio_caixa", label: "Relatório do caixa" },
+    ],
+  },
+  {
+    id: "relatorios",
+    label: "Relatórios",
+    descricao: "Visualização de relatórios e métricas",
+    subitens: [
+      { id: "relatorios_dashboard", label: "Ver dashboard" },
+      { id: "relatorios_exportar", label: "Exportar dados" },
+    ],
+  },
+  {
+    id: "configuracoes",
+    label: "Configurações",
+    descricao: "Alterações nas configurações do sistema",
+    subitens: [
+      { id: "configuracoes_dados", label: "Dados do negócio" },
+      { id: "configuracoes_plano", label: "Plano e assinatura" },
+      { id: "configuracoes_categorias", label: "Categorias" },
+    ],
+  },
+  {
+    id: "produtos_precos",
+    label: "Preços de Produtos",
+    descricao: "Alteração de preços de produtos e serviços",
+    subitens: [
+      { id: "produtos_editar_preco", label: "Editar preços" },
+      { id: "produtos_cadastrar", label: "Cadastrar produto/serviço" },
+      { id: "produtos_excluir", label: "Excluir produto/serviço" },
+    ],
+  },
+  {
+    id: "comissoes",
+    label: "Comissões",
+    descricao: "Configuração e visualização de comissões",
+    subitens: [
+      { id: "comissoes_ver", label: "Ver comissões" },
+      { id: "comissoes_alterar", label: "Alterar percentuais" },
+    ],
+  },
+  {
+    id: "excluir_vendas",
+    label: "Excluir Vendas",
+    descricao: "Permissão para excluir vendas registradas",
+    subitens: [],
+  },
 ] as const
 
 export function ConfigAcessos({ empresa }: ConfigAcessosProps) {
@@ -257,35 +306,71 @@ export function ConfigAcessos({ empresa }: ConfigAcessosProps) {
           {AREAS_DISPONIVEIS.map((area) => {
             const ativo = areasProtegidas.includes(area.id)
             return (
-              <button
-                key={area.id}
-                type="button"
-                onClick={() => pinSalvo && toggleArea(area.id)}
-                disabled={!pinSalvo}
-                className={`w-full flex items-center justify-between p-3.5 rounded-xl border-2 transition-all text-left ${
-                  ativo
-                    ? "border-orange-500 bg-orange-50 dark:bg-orange-500/10"
-                    : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-orange-300 dark:hover:border-orange-700"
-                } ${!pinSalvo ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-              >
-                <div className="space-y-0.5">
-                  <span className={`text-sm font-semibold ${ativo ? "text-orange-700 dark:text-orange-300" : "text-foreground"}`}>
-                    {area.label}
-                  </span>
-                  <p className={`text-xs ${ativo ? "text-orange-600/70 dark:text-orange-400/70" : "text-muted-foreground"}`}>
-                    {area.descricao}
-                  </p>
-                </div>
-                <div className={`w-12 h-7 rounded-full flex items-center transition-all px-1 ${
-                  ativo
-                    ? "bg-orange-500 justify-end"
-                    : "bg-zinc-300 dark:bg-zinc-600 justify-start"
-                }`}>
-                  <div className={`w-5 h-5 rounded-full shadow-sm transition-all ${
-                    ativo ? "bg-white" : "bg-white dark:bg-zinc-300"
-                  }`} />
-                </div>
-              </button>
+              <div key={area.id} className="space-y-0">
+                <button
+                  type="button"
+                  onClick={() => pinSalvo && toggleArea(area.id)}
+                  disabled={!pinSalvo}
+                  className={`w-full flex items-center justify-between p-3.5 rounded-xl border-2 transition-all text-left ${
+                    ativo
+                      ? "border-orange-500 bg-orange-50 dark:bg-orange-500/10 rounded-b-none"
+                      : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-orange-300 dark:hover:border-orange-700"
+                  } ${!pinSalvo ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                >
+                  <div className="space-y-0.5">
+                    <span className={`text-sm font-semibold ${ativo ? "text-orange-700 dark:text-orange-300" : "text-foreground"}`}>
+                      {area.label}
+                    </span>
+                    <p className={`text-xs ${ativo ? "text-orange-600/70 dark:text-orange-400/70" : "text-muted-foreground"}`}>
+                      {area.descricao}
+                    </p>
+                  </div>
+                  <div className={`w-12 h-7 rounded-full flex items-center transition-all px-1 ${
+                    ativo
+                      ? "bg-orange-500 justify-end"
+                      : "bg-zinc-300 dark:bg-zinc-600 justify-start"
+                  }`}>
+                    <div className={`w-5 h-5 rounded-full shadow-sm transition-all ${
+                      ativo ? "bg-white" : "bg-white dark:bg-zinc-300"
+                    }`} />
+                  </div>
+                </button>
+
+                {/* Subitens — expandem ao ativar a área */}
+                {ativo && area.subitens.length > 0 && (
+                  <div className="border-2 border-t-0 border-orange-500 rounded-b-xl bg-orange-50/50 dark:bg-orange-500/5 p-3 space-y-1.5">
+                    <p className="text-[10px] font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-wider mb-2">
+                      Funções protegidas dentro de {area.label}:
+                    </p>
+                    {area.subitens.map((sub) => {
+                      const subAtivo = areasProtegidas.includes(sub.id)
+                      return (
+                        <button
+                          key={sub.id}
+                          type="button"
+                          onClick={() => toggleArea(sub.id)}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all text-left ${
+                            subAtivo
+                              ? "bg-orange-100 dark:bg-orange-500/20 border border-orange-300 dark:border-orange-600"
+                              : "bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:border-orange-200"
+                          }`}
+                        >
+                          <span className={`text-xs font-medium ${subAtivo ? "text-orange-700 dark:text-orange-300" : "text-foreground"}`}>
+                            {sub.label}
+                          </span>
+                          <div className={`w-9 h-5 rounded-full flex items-center transition-all px-0.5 ${
+                            subAtivo
+                              ? "bg-orange-500 justify-end"
+                              : "bg-zinc-300 dark:bg-zinc-600 justify-start"
+                          }`}>
+                            <div className="w-4 h-4 rounded-full bg-white shadow-sm" />
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
             )
           })}
         </div>
