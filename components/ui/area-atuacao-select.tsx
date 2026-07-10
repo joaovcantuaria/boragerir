@@ -66,10 +66,16 @@ export function AreaAtuacaoSelect({
     return () => document.removeEventListener("mousedown", handler)
   }, [])
 
-  // Fechar ao rolar a página
+  // Fechar ao rolar a página (mas NÃO quando rolar dentro do dropdown)
   useEffect(() => {
     if (!aberto) return
-    function handler() { setAberto(false); setBusca("") }
+    function handler(e: Event) {
+      const target = e.target as HTMLElement | null
+      // Ignorar scroll dentro do próprio dropdown
+      if (target?.closest?.("[data-area-dropdown]")) return
+      setAberto(false)
+      setBusca("")
+    }
     window.addEventListener("scroll", handler, true)
     return () => window.removeEventListener("scroll", handler, true)
   }, [aberto])
@@ -118,6 +124,14 @@ export function AreaAtuacaoSelect({
           <div
             style={{ position: "fixed", inset: 0, zIndex: 99998 }}
             onClick={() => { setAberto(false); setBusca("") }}
+            onTouchEnd={(e) => {
+              // Apenas fecha se o toque não foi dentro do dropdown
+              const target = e.target as HTMLElement
+              if (!target.closest("[data-area-dropdown]")) {
+                setAberto(false)
+                setBusca("")
+              }
+            }}
           />
 
           {/* Menu */}
@@ -149,7 +163,7 @@ export function AreaAtuacaoSelect({
             </div>
 
             {/* Lista */}
-            <div style={{ maxHeight: "240px", overflowY: "auto" }}>
+            <div style={{ maxHeight: "240px", overflowY: "auto", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch" }}>
               {mostrarCriar && (
                 <button
                   type="button"
