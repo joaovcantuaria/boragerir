@@ -80,17 +80,28 @@ function PinGuardWrapper({ empresa, pathname, children }: { empresa: any; pathna
 
   // Verificar se a rota atual precisa de PIN
   const rotaInfo = ROTA_AREA_MAP[pathname]
-  const areaProtegida = rotaInfo ? areasProtegidas.includes(rotaInfo.area) : false
+  if (!pinConfigurado || !rotaInfo) return <>{children}</>
 
-  if (!pinConfigurado || !areaProtegida || !rotaInfo) {
-    return <>{children}</>
-  }
+  // Bloquear a página INTEIRA somente se o ID raiz da área estiver marcado
+  // E NÃO tiver nenhum sub-item daquela área marcado (controle granular)
+  // Se tem sub-itens marcados (ex: "caixa_sangria"), a página abre normal
+  // e o PIN é pedido apenas na ação específica
+  const areaRaizMarcada = areasProtegidas.includes(rotaInfo.area)
+  const temSubItensMarcados = areasProtegidas.some(
+    (a) => a.startsWith(rotaInfo.area + "_")
+  )
+
+  // Se marcou a área raiz MAS também marcou sub-itens, não bloqueia a página
+  // (o bloqueio será feito nas ações individuais)
+  const devBloquearPagina = areaRaizMarcada && !temSubItensMarcados
+
+  if (!devBloquearPagina) return <>{children}</>
 
   return (
     <PinGuard
       empresaId={empresa.id}
       pinConfigurado={pinConfigurado}
-      areaProtegida={areaProtegida}
+      areaProtegida={true}
       nomeArea={rotaInfo.nome}
     >
       {children}
