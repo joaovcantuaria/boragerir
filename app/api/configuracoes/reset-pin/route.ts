@@ -3,9 +3,6 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { enviarEmail, templateBase } from "@/lib/email/brevo"
 import crypto from "crypto"
 
-// Armazena códigos temporários em memória (expira em 10min)
-const codigosPendentes = new Map<string, { codigo: string; expira: number }>()
-
 export async function POST(req: NextRequest) {
   const { empresa_id, acao, codigo } = await req.json()
 
@@ -15,10 +12,10 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient()
 
-  // Buscar empresa e email
+  // Buscar empresa
   const { data: empresa } = await admin
     .from("empresas")
-    .select("id, email, nome, user_id")
+    .select("id, email, nome, user_id, restricoes_acesso")
     .eq("id", empresa_id)
     .single()
 
@@ -29,14 +26,22 @@ export async function POST(req: NextRequest) {
   // AÇÃO: Enviar código por email
   if (acao === "enviar") {
     const codigoReset = Math.floor(100000 + Math.random() * 900000).toString()
+    const codigoHash = crypto.createHash("sha256").update(codigoReset).digest("hex")
+    const expira = Date.now() + 10 * 60 * 1000 // 10 minutos
 
-    // Salvar código com expiração de 10 minutos
-    codigosPendentes.set(empresa_id, {
-      codigo: crypto.createHash("sha256").update(codigoReset).digest("hex"),
-      expira: Date.now() + 10 * 60 * 1000,
-    })
+    // Salvar código no banco (dentro de restricoes_acesso como campo temporário)
+    const restricoesAtuais = empresa.restricoes_acesso || {}
+    await admin
+      .from("empresas")
+      .update({
+        restricoes_acesso: {
+          ...restricoesAtuais,
+          _reset_pin: { hash: codigoHash, expira },
+        },
+      })
+      .eq("id", empresa_id)
 
-    // Buscar email do usuário dono da empresa
+    // Buscar email do usuário dono
     const { data: userData } = await admin.auth.admin.getUserById(empresa.user_id)
     const emailDestino = userData?.user?.email || empresa.email
 
@@ -50,7 +55,7 @@ export async function POST(req: NextRequest) {
         <p style="margin:8px 0 0;color:#F26E1D;font-size:32px;font-weight:900;letter-spacing:8px;">${codigoReset}</p>
       </div>
       <p>Este código expira em <strong>10 minutos</strong>.</p>
-      <p style="color:#999;font-size:11px;">Se você não solicitou esta ação, ignore este e-mail. Seu PIN permanecerá inalterado.</p>
+      <p style="color:#999;font-size:11px;">Se você não solicitou esta ação, ignore este e-mail.</p>
     `)
 
     const resultado = await enviarEmail({
@@ -63,7 +68,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ erro: resultado.erro || "Erro ao enviar email" }, { status: 500 })
     }
 
-    // Mascarar email para resposta
     const emailMascarado = emailDestino.replace(
       /(.{2})(.*)(@.*)/,
       (_, a, b, c) => a + "*".repeat(Math.min(b.length, 5)) + c
@@ -78,29 +82,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ valido: false, erro: "Código inválido" }, { status: 400 })
     }
 
-    const pendente = codigosPendentes.get(empresa_id)
+    const restricoes = empresa.restricoes_acesso as Record<string, unknown> || {}
+    const resetData = restricoes._reset_pin as { hash: string; expira: number } | undefined
 
-    if (!pendente) {
+    if (!resetData) {
       return NextResponse.json({ valido: false, erro: "Nenhum código pendente. Solicite novamente." }, { status: 400 })
     }
 
-    if (Date.now() > pendente.expira) {
-      codigosPendentes.delete(empresa_id)
+    if (Date.now() > resetData.expira) {
+      // Limpar código expirado
+      const { _reset_pin, ...resto } = restricoes
+      await admin.from("empresas").update({ restricoes_acesso: resto }).eq("id", empresa_id)
       return NextResponse.json({ valido: false, erro: "Código expirado. Solicite novamente." }, { status: 400 })
     }
 
     const codigoHash = crypto.createHash("sha256").update(codigo).digest("hex")
 
-    if (codigoHash !== pendente.codigo) {
+    if (codigoHash !== resetData.hash) {
       return NextResponse.json({ valido: false, erro: "Código incorreto" }, { status: 400 })
     }
 
-    // Código correto — resetar PIN
-    codigosPendentes.delete(empresa_id)
-
+    // Código correto — resetar PIN e limpar código temporário
+    const { _reset_pin, ...restoRestricoes } = restricoes
     await admin
       .from("empresas")
-      .update({ pin_gerente: null })
+      .update({ pin_gerente: null, restricoes_acesso: restoRestricoes })
       .eq("id", empresa_id)
 
     return NextResponse.json({ valido: true, sucesso: true })
