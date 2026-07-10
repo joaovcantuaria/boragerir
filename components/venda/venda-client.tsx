@@ -83,6 +83,7 @@ export function VendaClient({
   const [dataVenda, setDataVenda] = useState<string>(new Date().toISOString().slice(0, 10))
   const [buscaCliente, setBuscaCliente] = useState("")
   const [buscaProduto, setBuscaProduto] = useState("")
+  const [qtdProduto, setQtdProduto] = useState<number>(1)
   const [mostrarBuscaCliente, setMostrarBuscaCliente] = useState(false)
   const [mostrarBuscaProduto, setMostrarBuscaProduto] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -141,25 +142,27 @@ export function VendaClient({
   }).slice(0, 15)
 
   function adicionarItem(produto: ProdutoSimples) {
+    const qtd = qtdProduto || 1
     setItens((prev) => {
       const existente = prev.find((i) => i.produto_servico_id === produto.id)
       if (existente) {
         return prev.map((i) =>
           i.produto_servico_id === produto.id
-            ? { ...i, quantidade: i.quantidade + 1, subtotal: (i.quantidade + 1) * i.preco_unitario }
+            ? { ...i, quantidade: i.quantidade + qtd, subtotal: (i.quantidade + qtd) * i.preco_unitario }
             : i
         )
       }
       return [...prev, {
         produto_servico_id: produto.id,
         nome_item: produto.nome,
-        quantidade: 1,
+        quantidade: qtd,
         preco_unitario: produto.preco,
         comissao_percentual: produto.comissao_percentual,
-        subtotal: produto.preco,
+        subtotal: produto.preco * qtd,
       }]
     })
     setBuscaProduto("")
+    setQtdProduto(1)
     setMostrarBuscaProduto(false)
   }
 
@@ -456,51 +459,74 @@ export function VendaClient({
           <Card>
             <CardContent className="p-4">
               <Label className="text-sm font-medium mb-2 block">Adicionar produto/serviço</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por nome ou código de barras..."
-                  className="pl-9"
-                  value={buscaProduto}
-                  onChange={(e) => {
-                    setBuscaProduto(e.target.value)
-                    setMostrarBuscaProduto(true)
-                    // Auto-adicionar se leitor de código de barras digitou e bateu exato
-                    const match = produtos.find((p) => p.codigo_barras && p.codigo_barras === e.target.value.trim())
-                    if (match) {
-                      setTimeout(() => { adicionarItem(match); setBuscaProduto("") }, 100)
-                    }
-                  }}
-                  onFocus={() => setMostrarBuscaProduto(true)}
-                  onKeyDown={(e) => {
-                    // Enter adiciona o primeiro resultado
-                    if (e.key === "Enter" && produtosFiltrados.length > 0) {
-                      adicionarItem(produtosFiltrados[0])
-                      setBuscaProduto("")
-                    }
-                  }}
-                />
-                {mostrarBuscaProduto && (
-                  <div className="absolute top-full left-0 right-0 z-50 bg-white dark:bg-zinc-900 border border-border rounded-xl shadow-xl mt-1 max-h-60 overflow-y-auto">
-                    {produtosFiltrados.length > 0 ? produtosFiltrados.map((p) => (
-                      <button
-                        key={p.id}
-                        className="w-full text-left px-3 py-2.5 hover:bg-muted flex items-center justify-between text-sm transition-colors"
-                        onClick={() => adicionarItem(p)}
-                      >
-                        <div>
-                          <span className="font-semibold text-foreground">{p.nome}</span>
-                          <span className="ml-2 text-xs text-muted-foreground capitalize">({p.tipo})</span>
-                          {p.codigo_barras && <span className="ml-2 text-xs text-muted-foreground/60">{p.codigo_barras}</span>}
-                        </div>
-                        <span className="font-bold text-primary">{formatarMoeda(p.preco)}</span>
-                      </button>
-                    )) : (
-                      <p className="px-3 py-2 text-sm text-muted-foreground">Nenhum resultado</p>
-                    )}
-                  </div>
-                )}
+              <div className="flex gap-2">
+                <div className="w-20">
+                  <Input
+                    type="number"
+                    min="1"
+                    value={qtdProduto}
+                    onChange={(e) => setQtdProduto(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="text-center font-bold"
+                    title="Quantidade"
+                  />
+                </div>
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por nome ou código de barras..."
+                    className="pl-9"
+                    value={buscaProduto}
+                    onChange={(e) => {
+                      const valor = e.target.value
+                      setBuscaProduto(valor)
+                      setMostrarBuscaProduto(true)
+                      // Auto-adicionar se leitor de código de barras digitou e bateu exato
+                      const match = produtos.find((p) => p.codigo_barras && p.codigo_barras === valor.trim())
+                      if (match) {
+                        // Debounce para evitar duplo disparo do leitor
+                        e.target.disabled = true
+                        setTimeout(() => {
+                          adicionarItem(match)
+                          setBuscaProduto("")
+                          e.target.disabled = false
+                          e.target.focus()
+                        }, 200)
+                      }
+                    }}
+                    onFocus={() => setMostrarBuscaProduto(true)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault()
+                        if (produtosFiltrados.length > 0) {
+                          adicionarItem(produtosFiltrados[0])
+                          setBuscaProduto("")
+                        }
+                      }
+                    }}
+                  />
+                  {mostrarBuscaProduto && (
+                    <div className="absolute top-full left-0 right-0 z-50 bg-white dark:bg-zinc-900 border border-border rounded-xl shadow-xl mt-1 max-h-60 overflow-y-auto">
+                      {produtosFiltrados.length > 0 ? produtosFiltrados.map((p) => (
+                        <button
+                          key={p.id}
+                          className="w-full text-left px-3 py-2.5 hover:bg-muted flex items-center justify-between text-sm transition-colors"
+                          onClick={() => adicionarItem(p)}
+                        >
+                          <div>
+                            <span className="font-semibold text-foreground">{p.nome}</span>
+                            <span className="ml-2 text-xs text-muted-foreground capitalize">({p.tipo})</span>
+                            {p.codigo_barras && <span className="ml-2 text-xs text-muted-foreground/60">{p.codigo_barras}</span>}
+                          </div>
+                          <span className="font-bold text-primary">{formatarMoeda(p.preco)}</span>
+                        </button>
+                      )) : (
+                        <p className="px-3 py-2 text-sm text-muted-foreground">Nenhum resultado</p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
+              <p className="text-xs text-muted-foreground mt-1.5">Qtd × busca — escaneie o código ou digite o nome</p>
             </CardContent>
           </Card>
 
