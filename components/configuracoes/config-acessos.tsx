@@ -23,39 +23,68 @@ interface ConfigAcessosProps {
 
 const AREAS_DISPONIVEIS = [
   {
+    id: "dashboard",
+    label: "Dashboard",
+    descricao: "Painel principal com métricas e resumos",
+    subitens: [
+      { id: "dashboard_faturamento", label: "Ver faturamento" },
+      { id: "dashboard_metricas", label: "Ver métricas e indicadores" },
+    ],
+  },
+  {
+    id: "caixa",
+    label: "Caixa",
+    descricao: "Controle de caixa e movimentações",
+    subitens: [
+      { id: "caixa_abrir", label: "Abrir caixa" },
+      { id: "caixa_fechar", label: "Fechar caixa" },
+      { id: "caixa_sangria", label: "Realizar sangria/suprimento" },
+      { id: "caixa_ver_anteriores", label: "Ver caixas anteriores" },
+    ],
+  },
+  {
+    id: "venda",
+    label: "Nova Venda",
+    descricao: "Tela de PDV e vendas",
+    subitens: [
+      { id: "venda_desconto", label: "Aplicar desconto" },
+      { id: "venda_excluir", label: "Excluir/cancelar vendas" },
+      { id: "venda_debito_cliente", label: "Lançar débito no cliente" },
+    ],
+  },
+  {
+    id: "agendamentos",
+    label: "Agendamentos",
+    descricao: "Agenda de atendimentos",
+    subitens: [
+      { id: "agendamentos_cancelar", label: "Cancelar agendamentos" },
+      { id: "agendamentos_editar", label: "Editar agendamentos" },
+    ],
+  },
+  {
+    id: "clientes",
+    label: "Clientes",
+    descricao: "Cadastro e gestão de clientes",
+    subitens: [
+      { id: "clientes_editar", label: "Editar dados de clientes" },
+      { id: "clientes_excluir", label: "Excluir clientes" },
+      { id: "clientes_ver_debitos", label: "Ver débitos" },
+    ],
+  },
+  {
     id: "financeiro",
     label: "Financeiro",
-    descricao: "Acesso ao módulo financeiro e caixa",
+    descricao: "Módulo financeiro e relatórios",
     subitens: [
       { id: "financeiro_ver_movimentacoes", label: "Ver movimentações" },
-      { id: "financeiro_fechar_caixa", label: "Fechar caixa" },
-      { id: "financeiro_sangria", label: "Realizar sangria/suprimento" },
-      { id: "financeiro_relatorio_caixa", label: "Relatório do caixa" },
+      { id: "financeiro_relatorios", label: "Gerar relatórios" },
+      { id: "financeiro_exportar", label: "Exportar dados" },
     ],
   },
   {
-    id: "relatorios",
-    label: "Relatórios",
-    descricao: "Visualização de relatórios e métricas",
-    subitens: [
-      { id: "relatorios_dashboard", label: "Ver dashboard" },
-      { id: "relatorios_exportar", label: "Exportar dados" },
-    ],
-  },
-  {
-    id: "configuracoes",
-    label: "Configurações",
-    descricao: "Alterações nas configurações do sistema",
-    subitens: [
-      { id: "configuracoes_dados", label: "Dados do negócio" },
-      { id: "configuracoes_plano", label: "Plano e assinatura" },
-      { id: "configuracoes_categorias", label: "Categorias" },
-    ],
-  },
-  {
-    id: "produtos_precos",
-    label: "Preços de Produtos",
-    descricao: "Alteração de preços de produtos e serviços",
+    id: "produtos_servicos",
+    label: "Produtos/Serviços",
+    descricao: "Cadastro de produtos e serviços",
     subitens: [
       { id: "produtos_editar_preco", label: "Editar preços" },
       { id: "produtos_cadastrar", label: "Cadastrar produto/serviço" },
@@ -63,19 +92,49 @@ const AREAS_DISPONIVEIS = [
     ],
   },
   {
-    id: "comissoes",
-    label: "Comissões",
-    descricao: "Configuração e visualização de comissões",
+    id: "orcamentos",
+    label: "Orçamentos",
+    descricao: "Criação e gestão de orçamentos",
     subitens: [
-      { id: "comissoes_ver", label: "Ver comissões" },
-      { id: "comissoes_alterar", label: "Alterar percentuais" },
+      { id: "orcamentos_criar", label: "Criar orçamento" },
+      { id: "orcamentos_excluir", label: "Excluir orçamento" },
     ],
   },
   {
-    id: "excluir_vendas",
-    label: "Excluir Vendas",
-    descricao: "Permissão para excluir vendas registradas",
+    id: "contratos",
+    label: "Contratos",
+    descricao: "Gestão de contratos",
+    subitens: [
+      { id: "contratos_criar", label: "Criar contrato" },
+      { id: "contratos_cancelar", label: "Cancelar contrato" },
+    ],
+  },
+  {
+    id: "tarefas",
+    label: "Tarefas",
+    descricao: "Gestão de tarefas da equipe",
     subitens: [],
+  },
+  {
+    id: "funcionarios",
+    label: "Colaboradores",
+    descricao: "Cadastro e gestão de funcionários",
+    subitens: [
+      { id: "funcionarios_cadastrar", label: "Cadastrar colaborador" },
+      { id: "funcionarios_excluir", label: "Excluir colaborador" },
+      { id: "funcionarios_comissoes", label: "Ver/alterar comissões" },
+    ],
+  },
+  {
+    id: "configuracoes",
+    label: "Configurações",
+    descricao: "Configurações gerais do sistema",
+    subitens: [
+      { id: "configuracoes_dados", label: "Dados do negócio" },
+      { id: "configuracoes_plano", label: "Plano e assinatura" },
+      { id: "configuracoes_categorias", label: "Categorias" },
+      { id: "configuracoes_documentos", label: "Documentos" },
+    ],
   },
 ] as const
 

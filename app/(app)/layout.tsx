@@ -57,12 +57,18 @@ function ShortcutPanel({ onClose }: { onClose: () => void }) {
 
 // Mapeamento de rotas para áreas protegidas
 const ROTA_AREA_MAP: Record<string, { area: string; nome: string }> = {
+  "/dashboard": { area: "dashboard", nome: "Dashboard" },
+  "/caixa": { area: "caixa", nome: "Caixa" },
+  "/venda": { area: "venda", nome: "Nova Venda" },
+  "/agendamentos": { area: "agendamentos", nome: "Agendamentos" },
+  "/clientes": { area: "clientes", nome: "Clientes" },
   "/financeiro": { area: "financeiro", nome: "Financeiro" },
-  "/caixa": { area: "financeiro", nome: "Financeiro" },
-  "/dashboard": { area: "relatorios", nome: "Relatórios" },
+  "/produtos-servicos": { area: "produtos_servicos", nome: "Produtos/Serviços" },
+  "/orcamentos": { area: "orcamentos", nome: "Orçamentos" },
+  "/contratos": { area: "contratos", nome: "Contratos" },
+  "/tarefas": { area: "tarefas", nome: "Tarefas" },
+  "/funcionarios": { area: "funcionarios", nome: "Colaboradores" },
   "/configuracoes": { area: "configuracoes", nome: "Configurações" },
-  "/produtos-servicos": { area: "produtos_precos", nome: "Preços de Produtos" },
-  "/funcionarios": { area: "funcionarios", nome: "Comissões" },
 }
 
 function PinGuardWrapper({ empresa, pathname, children }: { empresa: any; pathname: string; children: React.ReactNode }) {
