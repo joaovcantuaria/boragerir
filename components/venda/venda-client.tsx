@@ -95,6 +95,8 @@ export function VendaClient({
   const inputClienteRef = useRef<HTMLInputElement>(null)
   const inputDescontoRef = useRef<HTMLInputElement>(null)
   const inputQtdRef = useRef<HTMLInputElement>(null)
+  const produtoDropdownRef = useRef<HTMLDivElement>(null)
+  const clienteDropdownRef = useRef<HTMLDivElement>(null)
 
   // Recompensas/brindes disponíveis
   const [recompensas, setRecompensas] = useState<RecompensaDisponivel[]>([])
@@ -115,6 +117,23 @@ export function VendaClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Fechar dropdowns ao clicar fora
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      const target = e.target as Node
+      if (produtoDropdownRef.current && !produtoDropdownRef.current.contains(target) &&
+          inputBuscaRef.current && !inputBuscaRef.current.contains(target)) {
+        setMostrarBuscaProduto(false)
+      }
+      if (clienteDropdownRef.current && !clienteDropdownRef.current.contains(target) &&
+          inputClienteRef.current && !inputClienteRef.current.contains(target)) {
+        setMostrarBuscaCliente(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
   // Atalhos de teclado do PDV
   useEffect(() => {
     function handler(e: KeyboardEvent) {
@@ -125,12 +144,14 @@ export function VendaClient({
       if (e.key === "F2") {
         e.preventDefault()
         inputBuscaRef.current?.focus()
+        setMostrarBuscaProduto(true)
         return
       }
       // F3 — Focar busca de cliente
       if (e.key === "F3") {
         e.preventDefault()
         inputClienteRef.current?.focus()
+        setMostrarBuscaCliente(true)
         return
       }
       // F4 — Finalizar venda (funciona em qualquer contexto)
@@ -597,13 +618,8 @@ export function VendaClient({
                     setBuscaProduto(valor)
                     setMostrarBuscaProduto(true)
                     setIndiceProduto(0)
-                    const match = produtos.find((p) => p.codigo_barras && p.codigo_barras === valor.trim())
-                    if (match) {
-                      setBuscaProduto("")
-                      setTimeout(() => adicionarItem(match), 50)
-                    }
                   }}
-                  onFocus={() => { setMostrarBuscaProduto(true); setIndiceProduto(0) }}
+                  onFocus={() => { setIndiceProduto(0) }}
                   onKeyDown={(e) => {
                     if (e.key === "ArrowDown") {
                       e.preventDefault()
@@ -613,9 +629,18 @@ export function VendaClient({
                       setIndiceProduto((prev) => Math.max(prev - 1, 0))
                     } else if (e.key === "Enter") {
                       e.preventDefault()
-                      if (mostrarBuscaProduto && produtosFiltrados.length > 0) {
+                      const valorAtual = buscaProduto.trim()
+                      if (!valorAtual) return
+                      // Verificar match exato por código de barras primeiro
+                      const matchBarcode = produtos.find((p) => p.codigo_barras && p.codigo_barras === valorAtual)
+                      if (matchBarcode) {
+                        adicionarItem(matchBarcode)
+                        setBuscaProduto("")
+                        setMostrarBuscaProduto(false)
+                      } else if (mostrarBuscaProduto && produtosFiltrados.length > 0) {
                         adicionarItem(produtosFiltrados[indiceProduto])
                         setBuscaProduto("")
+                        setMostrarBuscaProduto(false)
                       }
                     } else if (e.key === "Escape") {
                       setMostrarBuscaProduto(false)
@@ -625,7 +650,7 @@ export function VendaClient({
                 <Kbd>F2</Kbd>
 
                 {mostrarBuscaProduto && (
-                  <div className="absolute top-full left-0 right-0 z-50 bg-white dark:bg-zinc-900 border border-border rounded-lg shadow-2xl mt-1 max-h-56 overflow-y-auto">
+                  <div ref={produtoDropdownRef} className="absolute top-full left-0 right-0 z-50 bg-white dark:bg-zinc-900 border border-border rounded-lg shadow-2xl mt-1 max-h-56 overflow-y-auto">
                     {produtosFiltrados.length > 0 ? produtosFiltrados.map((p, idx) => (
                       <button
                         key={p.id}
@@ -752,7 +777,7 @@ export function VendaClient({
                   className="pl-8 h-8 text-sm"
                   value={clienteSelecionado ? clienteSelecionado.nome_completo : buscaCliente}
                   onChange={(e) => { setBuscaCliente(e.target.value); setClienteSelecionado(null); setMostrarBuscaCliente(true); setIndiceCliente(0) }}
-                  onFocus={() => { setMostrarBuscaCliente(true); setIndiceCliente(0) }}
+                  onFocus={() => { setIndiceCliente(0) }}
                   onKeyDown={(e) => {
                     if (e.key === "ArrowDown") {
                       e.preventDefault()
@@ -774,7 +799,7 @@ export function VendaClient({
                   }}
                 />
                 {mostrarBuscaCliente && buscaCliente && !clienteSelecionado && (
-                  <div className="absolute top-full left-0 right-0 z-50 bg-white dark:bg-zinc-900 border border-border rounded-lg shadow-xl mt-1 max-h-40 overflow-y-auto">
+                  <div ref={clienteDropdownRef} className="absolute top-full left-0 right-0 z-50 bg-white dark:bg-zinc-900 border border-border rounded-lg shadow-xl mt-1 max-h-40 overflow-y-auto">
                     {clientesFiltrados.map((c, idx) => (
                       <button key={c.id} className={`w-full text-left px-3 py-2 text-sm transition-colors ${
                         idx === indiceCliente ? "bg-orange-50 dark:bg-orange-500/10" : "hover:bg-muted"
