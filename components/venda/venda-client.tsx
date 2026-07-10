@@ -1,15 +1,12 @@
 "use client"
 
-import { useState, useCallback, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Search, Plus, Minus, Trash2, ShoppingCart, Check, Loader2, X, User, ChevronDown, Gift } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import { Search, Plus, Minus, Trash2, ShoppingCart, Check, Loader2, X, User, Gift, Keyboard } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
@@ -92,6 +89,7 @@ export function VendaClient({
   const [vendaFinalizada, setVendaFinalizada] = useState<{ id: string; numero: number; total: number } | null>(null)
   const [valorRecebido, setValorRecebido] = useState("")
   const supabase = createClient()
+  const inputBuscaRef = useRef<HTMLInputElement>(null)
 
   // Recompensas/brindes disponíveis
   const [recompensas, setRecompensas] = useState<RecompensaDisponivel[]>([])
@@ -112,15 +110,57 @@ export function VendaClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Atalhos de teclado do PDV
+  useEffect(() => {
+    function handler(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement).tagName
+      const isInput = ["INPUT", "TEXTAREA", "SELECT"].includes(tag)
+
+      // F2 — Focar busca de produto
+      if (e.key === "F2") {
+        e.preventDefault()
+        inputBuscaRef.current?.focus()
+        return
+      }
+      // F4 — Finalizar venda
+      if (e.key === "F4" && !isInput) {
+        e.preventDefault()
+        if (itens.length > 0 && formaPagamento) finalizarVenda()
+        return
+      }
+      // F5 — Nova venda
+      if (e.key === "F5" && !isInput) {
+        e.preventDefault()
+        novaVenda()
+        return
+      }
+      // F8 — Formas de pagamento rápidas
+      if (e.key === "F8" && !isInput) {
+        e.preventDefault()
+        const formas = ["dinheiro", "pix", "cartao_debito", "cartao_credito", "outro"]
+        const idx = formas.indexOf(formaPagamento)
+        setFormaPagamento(formas[(idx + 1) % formas.length])
+        return
+      }
+      // Escape — Limpar busca
+      if (e.key === "Escape") {
+        setMostrarBuscaProduto(false)
+        setMostrarBuscaCliente(false)
+        return
+      }
+    }
+    document.addEventListener("keydown", handler)
+    return () => document.removeEventListener("keydown", handler)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itens, formaPagamento])
+
   // Calcular totais
   const subtotal = itens.reduce((s, i) => s + i.subtotal, 0)
   const descontoValor = tipoDesconto === "reais"
     ? parseFloat(desconto) || 0
     : (subtotal * (parseFloat(desconto) || 0)) / 100
-  // Desconto de pontos de fidelidade
   const pontosPorReal = empresa.pontos_para_desconto ?? 100
   const descontoPontos = pontosUsar > 0 ? pontosUsar / pontosPorReal : 0
-  // Pontos reservados para brinde (não contam como desconto, mas saem do saldo)
   const pontosResgateBrinde = recompensaSelecionada?.pontos_necessarios ?? 0
   const total = Math.max(0, subtotal - descontoValor - descontoPontos)
   const troco = formaPagamento === "dinheiro" && valorRecebido
@@ -136,7 +176,7 @@ export function VendaClient({
   // Busca de produtos — por nome OU código de barras
   const produtosFiltrados = produtos.filter((p) => {
     const termo = buscaProduto.toLowerCase()
-    if (!termo) return true // Mostrar todos quando vazio (lista aberta)
+    if (!termo) return true
     return p.nome.toLowerCase().includes(termo) ||
       (p.codigo_barras ?? "").includes(buscaProduto)
   }).slice(0, 15)
@@ -167,12 +207,11 @@ export function VendaClient({
   }
 
   function alterarQuantidade(id: string, delta: number) {
-    setItens((prev) => prev
-      .map((i) => i.produto_servico_id === id
+    setItens((prev) => prev.map((i) =>
+      i.produto_servico_id === id
         ? { ...i, quantidade: Math.max(1, i.quantidade + delta), subtotal: Math.max(1, i.quantidade + delta) * i.preco_unitario }
         : i
-      )
-    )
+    ))
   }
 
   function alterarPreco(id: string, novoPreco: string) {
@@ -209,7 +248,7 @@ export function VendaClient({
     const formaPagFinal = isDebito
       ? (valorPagoAgora > 0 ? "dinheiro" : "outro")
       : formaPagamento as "dinheiro" | "cartao_credito" | "cartao_debito" | "pix" | "outro"
-    // Criar venda
+
     const { data: venda, error: errVenda } = await supabase
       .from("vendas")
       .insert({
@@ -231,7 +270,6 @@ export function VendaClient({
 
     if (errVenda) { toast.error("Erro ao registrar venda."); setLoading(false); return }
 
-    // Criar itens
     const itensPayload = itens.map((i) => ({
       venda_id: venda.id,
       empresa_id: empresa.id,
@@ -246,7 +284,6 @@ export function VendaClient({
 
     await supabase.from("itens_venda").insert(itensPayload)
 
-    // Registrar movimentação no caixa
     await supabase.from("movimentacoes_caixa").insert({
       empresa_id: empresa.id,
       caixa_id: caixaId,
@@ -257,7 +294,6 @@ export function VendaClient({
       venda_id: venda.id,
     })
 
-    // Registrar débito do cliente se for pagamento em débito
     if (isDebito && clienteSelecionado) {
       const valorAberto = total - valorPagoAgora
       if (valorAberto > 0) {
@@ -274,7 +310,6 @@ export function VendaClient({
       }
     }
 
-    // Atualizar estoque de produtos
     for (const item of itens) {
       const prod = produtos.find((p) => p.id === item.produto_servico_id)
       if (prod?.tipo === "produto" && prod.estoque_atual !== null) {
@@ -285,7 +320,6 @@ export function VendaClient({
       }
     }
 
-    // Atualizar pontos de fidelidade do cliente
     if (clienteSelecionado) {
       const pontosGanhos = Math.floor(total * (empresa.pontos_por_real ?? 1))
       const { data: clienteAtual } = await supabase
@@ -294,7 +328,6 @@ export function VendaClient({
         .eq("id", clienteSelecionado.id)
         .single()
       const pontosAtuais = clienteAtual?.pontos_fidelidade ?? 0
-      // Subtrai pontos usados (desconto + brinde) e soma pontos ganhos
       const totalPontosUsados = pontosUsar + pontosResgateBrinde
       const novoSaldo = Math.max(0, pontosAtuais - totalPontosUsados + pontosGanhos)
       await supabase
@@ -302,7 +335,6 @@ export function VendaClient({
         .update({ pontos_fidelidade: novoSaldo })
         .eq("id", clienteSelecionado.id)
 
-      // Registrar resgate de brinde
       if (recompensaSelecionada) {
         await supabase.from("resgates_recompensas").insert({
           empresa_id: empresa.id,
@@ -312,7 +344,6 @@ export function VendaClient({
           pontos_usados: recompensaSelecionada.pontos_necessarios,
           nome_recompensa: recompensaSelecionada.nome,
         })
-        // Decrementar estoque do brinde se aplicável
         if (recompensaSelecionada.estoque !== null) {
           await supabase
             .from("recompensas_fidelidade")
@@ -342,11 +373,12 @@ export function VendaClient({
     setModalSucesso(false)
     setBuscaCliente("")
     setBuscaProduto("")
+    setTimeout(() => inputBuscaRef.current?.focus(), 100)
   }
 
   async function imprimirReciboTermica() {
     if (!vendaFinalizada) return
-    const largura = 48 // caracteres por linha (bobina 80mm)
+    const largura = 48
     const sep = "-".repeat(largura)
     const centro = (txt: string) => {
       const pad = Math.max(0, Math.floor((largura - txt.length) / 2))
@@ -395,9 +427,8 @@ export function VendaClient({
     recibo += sep + "\n"
     recibo += centro("Obrigado pela preferência!") + "\n"
     recibo += centro(empresa.nome) + "\n"
-    recibo += "\n\n\n" // Espaço para corte
+    recibo += "\n\n\n"
 
-    // Abrir em nova janela para impressão
     const win = window.open("", "_blank", "width=350,height=600")
     if (win) {
       win.document.write(`<html><head><title>Recibo #${vendaFinalizada.numero}</title>
@@ -441,183 +472,235 @@ export function VendaClient({
     window.open(gerarLinkWhatsApp(clienteSelecionado.telefone, msg), "_blank")
   }
 
+  // Componente de badge de atalho
+  const Kbd = ({ children }: { children: React.ReactNode }) => (
+    <kbd className="hidden lg:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono font-semibold text-zinc-500 bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 rounded ml-1.5 leading-none">
+      {children}
+    </kbd>
+  )
+
   return (
-    <div className="space-y-4 max-w-4xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold">Nova Venda</h1>
-        {!caixaId && (
-          <div className="mt-2 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg text-sm text-yellow-600 dark:text-yellow-400 flex items-center gap-2">
-            ⚠️ Caixa fechado. <a href="/caixa" className="underline font-medium">Abrir caixa</a>
-          </div>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Coluna esquerda — itens */}
-        <div className="lg:col-span-2 space-y-4">
-          {/* Busca de produto */}
-          <Card>
-            <CardContent className="p-4">
-              <Label className="text-sm font-medium mb-2 block">Adicionar produto/serviço</Label>
-              <div className="flex gap-2">
-                <div className="w-20">
-                  <Input
-                    type="number"
-                    min="1"
-                    value={qtdProduto}
-                    onChange={(e) => setQtdProduto(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="text-center font-bold"
-                    title="Quantidade"
-                  />
-                </div>
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Buscar por nome ou código de barras..."
-                    className="pl-9"
-                    value={buscaProduto}
-                    onChange={(e) => {
-                      const valor = e.target.value
-                      setBuscaProduto(valor)
-                      setMostrarBuscaProduto(true)
-                      // Auto-adicionar se leitor de código de barras digitou e bateu exato
-                      const match = produtos.find((p) => p.codigo_barras && p.codigo_barras === valor.trim())
-                      if (match) {
-                        // Marcar como processado para evitar duplo disparo
-                        setBuscaProduto("")
-                        setTimeout(() => {
-                          adicionarItem(match)
-                        }, 50)
-                      }
-                    }}
-                    onFocus={() => setMostrarBuscaProduto(true)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault()
-                        // Só adicionar se tem texto na busca (evita duplo com leitor)
-                        if (buscaProduto.trim() && produtosFiltrados.length > 0) {
-                          adicionarItem(produtosFiltrados[0])
-                          setBuscaProduto("")
-                        }
-                      }
-                    }}
-                  />
-                  {mostrarBuscaProduto && (
-                    <div className="absolute top-full left-0 right-0 z-50 bg-white dark:bg-zinc-900 border border-border rounded-xl shadow-xl mt-1 max-h-60 overflow-y-auto">
-                      {produtosFiltrados.length > 0 ? produtosFiltrados.map((p) => (
-                        <button
-                          key={p.id}
-                          className="w-full text-left px-3 py-2.5 hover:bg-muted flex items-center justify-between text-sm transition-colors"
-                          onClick={() => adicionarItem(p)}
-                        >
-                          <div>
-                            <span className="font-semibold text-foreground">{p.nome}</span>
-                            <span className="ml-2 text-xs text-muted-foreground capitalize">({p.tipo})</span>
-                            {p.codigo_barras && <span className="ml-2 text-xs text-muted-foreground/60">{p.codigo_barras}</span>}
-                          </div>
-                          <span className="font-bold text-primary">{formatarMoeda(p.preco)}</span>
-                        </button>
-                      )) : (
-                        <p className="px-3 py-2 text-sm text-muted-foreground">Nenhum resultado</p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1.5">Qtd × busca — escaneie o código ou digite o nome</p>
-            </CardContent>
-          </Card>
-
-          {/* Lista de itens */}
-          {itens.length > 0 ? (
-            <Card>
-              <CardContent className="p-0">
-                {itens.map((item, idx) => (
-                  <div key={item.produto_servico_id} className={`p-4 ${idx < itens.length - 1 ? "border-b border-border" : ""}`}>
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{item.nome_item}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-muted-foreground">Preço unit.:</span>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={item.preco_unitario}
-                            onChange={(e) => alterarPreco(item.produto_servico_id, e.target.value)}
-                            className="h-7 w-24 text-xs px-2"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button variant="outline" size="xs" onClick={() => alterarQuantidade(item.produto_servico_id, -1)}>
-                          <Minus className="w-3 h-3" />
-                        </Button>
-                        <span className="w-8 text-center text-sm font-medium">{item.quantidade}</span>
-                        <Button variant="outline" size="xs" onClick={() => alterarQuantidade(item.produto_servico_id, 1)}>
-                          <Plus className="w-3 h-3" />
-                        </Button>
-                      </div>
-                      <span className="font-semibold text-sm w-20 text-right">{formatarMoeda(item.subtotal)}</span>
-                      <Button variant="ghost" size="xs" onClick={() => removerItem(item.produto_servico_id)} className="text-destructive hover:text-destructive">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="py-12 text-center text-muted-foreground border border-dashed border-border rounded-xl">
-              <ShoppingCart className="w-10 h-10 mx-auto mb-2 opacity-40" />
-              <p className="text-sm">Nenhum item adicionado</p>
+    <div className="h-[calc(100vh-4rem)] flex flex-col overflow-hidden">
+      {/* Header do PDV */}
+      <div className="shrink-0 flex items-center justify-between px-4 py-2 border-b border-border bg-white dark:bg-zinc-950">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center">
+              <ShoppingCart className="w-4 h-4 text-white" />
             </div>
+            <div>
+              <h1 className="text-base font-bold leading-tight">PDV</h1>
+              <p className="text-[10px] text-muted-foreground leading-none">{empresa.nome}</p>
+            </div>
+          </div>
+          {!caixaId && (
+            <a href="/caixa" className="text-[11px] px-2.5 py-1 bg-yellow-500/10 border border-yellow-500/30 rounded-full text-yellow-600 dark:text-yellow-400 font-medium hover:bg-yellow-500/20 transition-colors">
+              ⚠️ Caixa fechado
+            </a>
           )}
         </div>
+        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+          <span className="hidden md:flex items-center gap-1 px-2 py-1 rounded bg-zinc-100 dark:bg-zinc-800">
+            <Keyboard className="w-3 h-3" /> F2 Buscar · F4 Finalizar · F5 Nova · F8 Pagamento
+          </span>
+        </div>
+      </div>
 
-        {/* Coluna direita — resumo e pagamento */}
-        <div className="space-y-4">
-          {/* Cliente */}
-          <Card>
-            <CardContent className="p-4 space-y-3">
-              <Label className="text-sm font-medium">Cliente (opcional)</Label>
+      {/* Corpo principal — 2 colunas fixas */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* COLUNA ESQUERDA — Produtos e lista de itens */}
+        <div className="flex-1 flex flex-col border-r border-border min-w-0">
+          {/* Barra de busca de produto */}
+          <div className="shrink-0 p-3 border-b border-border bg-zinc-50/50 dark:bg-zinc-900/50">
+            <div className="flex gap-2 items-center">
+              <div className="w-16">
+                <Input
+                  type="number"
+                  min="1"
+                  value={qtdProduto}
+                  onChange={(e) => setQtdProduto(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="text-center font-bold h-9 text-sm"
+                  title="Quantidade"
+                  aria-label="Quantidade"
+                />
+              </div>
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  ref={inputBuscaRef}
+                  placeholder="Buscar produto ou escanear código de barras..."
+                  className="pl-9 h-9 text-sm"
+                  value={buscaProduto}
+                  onChange={(e) => {
+                    const valor = e.target.value
+                    setBuscaProduto(valor)
+                    setMostrarBuscaProduto(true)
+                    const match = produtos.find((p) => p.codigo_barras && p.codigo_barras === valor.trim())
+                    if (match) {
+                      setBuscaProduto("")
+                      setTimeout(() => adicionarItem(match), 50)
+                    }
+                  }}
+                  onFocus={() => setMostrarBuscaProduto(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      if (buscaProduto.trim() && produtosFiltrados.length > 0) {
+                        adicionarItem(produtosFiltrados[0])
+                        setBuscaProduto("")
+                      }
+                    }
+                  }}
+                />
+                <Kbd>F2</Kbd>
+
+                {mostrarBuscaProduto && (
+                  <div className="absolute top-full left-0 right-0 z-50 bg-white dark:bg-zinc-900 border border-border rounded-lg shadow-2xl mt-1 max-h-56 overflow-y-auto">
+                    {produtosFiltrados.length > 0 ? produtosFiltrados.map((p) => (
+                      <button
+                        key={p.id}
+                        className="w-full text-left px-3 py-2 hover:bg-orange-50 dark:hover:bg-orange-500/10 flex items-center justify-between text-sm transition-colors border-b border-border/50 last:border-0"
+                        onClick={() => adicionarItem(p)}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="font-medium text-foreground truncate">{p.nome}</span>
+                          <Badge variant="secondary" className="text-[10px] shrink-0">{p.tipo}</Badge>
+                          {p.codigo_barras && <span className="text-[10px] text-muted-foreground shrink-0">{p.codigo_barras}</span>}
+                        </div>
+                        <span className="font-bold text-orange-600 shrink-0 ml-2">{formatarMoeda(p.preco)}</span>
+                      </button>
+                    )) : (
+                      <p className="px-3 py-3 text-sm text-muted-foreground text-center">Nenhum produto encontrado</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Lista de itens — área com scroll */}
+          <div className="flex-1 overflow-y-auto">
+            {itens.length > 0 ? (
+              <div className="divide-y divide-border">
+                {/* Header da tabela */}
+                <div className="grid grid-cols-[1fr_100px_80px_80px_32px] gap-2 px-4 py-2 bg-zinc-50 dark:bg-zinc-900/80 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider sticky top-0">
+                  <span>Produto</span>
+                  <span className="text-center">Qtd</span>
+                  <span className="text-right">Unit.</span>
+                  <span className="text-right">Subtotal</span>
+                  <span></span>
+                </div>
+
+                {itens.map((item) => (
+                  <div key={item.produto_servico_id} className="grid grid-cols-[1fr_100px_80px_80px_32px] gap-2 px-4 py-2.5 items-center hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-colors">
+                    <span className="text-sm font-medium truncate">{item.nome_item}</span>
+                    <div className="flex items-center justify-center gap-0.5">
+                      <button
+                        onClick={() => alterarQuantidade(item.produto_servico_id, -1)}
+                        className="w-6 h-6 rounded flex items-center justify-center hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                      >
+                        <Minus className="w-3 h-3" />
+                      </button>
+                      <span className="w-8 text-center text-sm font-bold">{item.quantidade}</span>
+                      <button
+                        onClick={() => alterarQuantidade(item.produto_servico_id, 1)}
+                        className="w-6 h-6 rounded flex items-center justify-center hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+                    </div>
+                    <div className="text-right">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={item.preco_unitario}
+                        onChange={(e) => alterarPreco(item.produto_servico_id, e.target.value)}
+                        className="h-6 w-full text-xs text-right px-1 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </div>
+                    <span className="text-sm font-semibold text-right text-orange-600">{formatarMoeda(item.subtotal)}</span>
+                    <button
+                      onClick={() => removerItem(item.produto_servico_id)}
+                      className="w-6 h-6 rounded flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center h-full text-muted-foreground py-16">
+                <ShoppingCart className="w-12 h-12 opacity-20 mb-3" />
+                <p className="text-sm font-medium">Nenhum item adicionado</p>
+                <p className="text-xs mt-1">Escaneie um código ou pressione <Kbd>F2</Kbd> para buscar</p>
+              </div>
+            )}
+          </div>
+
+          {/* Rodapé com totais na coluna esquerda */}
+          <div className="shrink-0 border-t border-border bg-white dark:bg-zinc-950 px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4 text-sm">
+                <span className="text-muted-foreground">{itens.length} {itens.length === 1 ? "item" : "itens"}</span>
+                {descontoValor > 0 && (
+                  <span className="text-red-500">Desc: -{formatarMoeda(descontoValor)}</span>
+                )}
+                {descontoPontos > 0 && (
+                  <span className="text-amber-600">Pontos: -{formatarMoeda(descontoPontos)}</span>
+                )}
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-muted-foreground">Total</p>
+                <p className="text-2xl font-black text-orange-600 leading-none">{formatarMoeda(total)}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* COLUNA DIREITA — Pagamento e opções */}
+        <div className="w-80 lg:w-96 shrink-0 flex flex-col overflow-y-auto bg-zinc-50/30 dark:bg-zinc-900/30">
+          <div className="flex-1 p-4 space-y-4">
+            {/* Cliente */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Cliente</label>
+                {clienteSelecionado && (
+                  <button onClick={() => { setClienteSelecionado(null); setBuscaCliente("") }} className="text-[10px] text-red-400 hover:text-red-500">
+                    Remover
+                  </button>
+                )}
+              </div>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                 <Input
                   placeholder="Buscar cliente..."
-                  className="pl-9"
+                  className="pl-8 h-8 text-sm"
                   value={clienteSelecionado ? clienteSelecionado.nome_completo : buscaCliente}
                   onChange={(e) => { setBuscaCliente(e.target.value); setClienteSelecionado(null); setMostrarBuscaCliente(true) }}
                   onFocus={() => setMostrarBuscaCliente(true)}
                 />
-                {clienteSelecionado && (
-                  <button onClick={() => { setClienteSelecionado(null); setBuscaCliente("") }} className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <X className="w-3.5 h-3.5 text-muted-foreground" />
-                  </button>
-                )}
                 {mostrarBuscaCliente && buscaCliente && !clienteSelecionado && (
-                  <div className="absolute top-full left-0 right-0 z-50 bg-white dark:bg-zinc-900 border border-border rounded-xl shadow-xl mt-1 max-h-48 overflow-y-auto">
+                  <div className="absolute top-full left-0 right-0 z-50 bg-white dark:bg-zinc-900 border border-border rounded-lg shadow-xl mt-1 max-h-40 overflow-y-auto">
                     {clientesFiltrados.map((c) => (
-                      <button key={c.id} className="w-full text-left px-3 py-2.5 hover:bg-muted text-sm transition-colors"
+                      <button key={c.id} className="w-full text-left px-3 py-2 hover:bg-muted text-sm transition-colors"
                         onClick={() => { setClienteSelecionado(c); setBuscaCliente(""); setMostrarBuscaCliente(false) }}>
-                        <p className="font-semibold text-foreground">{c.nome_completo}</p>
-                        <p className="text-xs text-muted-foreground">{c.telefone}</p>
+                        <p className="font-medium text-foreground text-xs">{c.nome_completo}</p>
+                        <p className="text-[10px] text-muted-foreground">{c.telefone} {c.pontos_fidelidade > 0 && `· ⭐ ${c.pontos_fidelidade} pts`}</p>
                       </button>
                     ))}
-                    {clientesFiltrados.length === 0 && <p className="px-3 py-2 text-sm text-muted-foreground">Nenhum resultado</p>}
+                    {clientesFiltrados.length === 0 && <p className="px-3 py-2 text-xs text-muted-foreground">Nenhum resultado</p>}
                   </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
+            </div>
 
-          {/* Funcionário */}
-          {funcionarios.length > 0 && (
-            <Card>
-              <CardContent className="p-4">
-                <Label className="text-sm font-medium mb-2 block">Funcionário (opcional)</Label>
+            {/* Funcionário */}
+            {funcionarios.length > 0 && (
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Atendente</label>
                 <Select value={funcionarioId} onValueChange={setFuncionarioId}>
-                  <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="">Nenhum</SelectItem>
                     {funcionarios.map((f) => (
@@ -625,192 +708,129 @@ export function VendaClient({
                     ))}
                   </SelectContent>
                 </Select>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Resumo */}
-          <Card>
-            <CardContent className="p-4 space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span>{formatarMoeda(subtotal)}</span>
               </div>
+            )}
 
-              {/* Desconto */}
-              <div className="flex items-center gap-2">
-                <div className="flex-1">
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="Desconto"
-                    value={desconto}
-                    onChange={(e) => setDesconto(e.target.value)}
-                    className="h-8 text-sm"
-                  />
-                </div>
+            {/* Desconto */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Desconto</label>
+              <div className="flex gap-1.5">
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0"
+                  value={desconto}
+                  onChange={(e) => setDesconto(e.target.value)}
+                  className="h-8 text-sm flex-1"
+                />
                 <Select value={tipoDesconto} onValueChange={(v: "reais" | "percentual") => setTipoDesconto(v)}>
-                  <SelectTrigger className="w-20 h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-16 h-8 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="reais">R$</SelectItem>
                     <SelectItem value="percentual">%</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              {descontoValor > 0 && (
-                <div className="flex justify-between text-sm text-red-500">
-                  <span>Desconto</span>
-                  <span>- {formatarMoeda(descontoValor)}</span>
-                </div>
-              )}
+            </div>
 
-              {/* Pontos de fidelidade */}
-              {clienteSelecionado && clienteSelecionado.pontos_fidelidade > 0 && (
-                <div className="rounded-lg border border-amber-200 dark:border-amber-700/40 bg-amber-50 dark:bg-amber-900/20 p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
-                      ⭐ Pontos disponíveis
-                    </span>
-                    <span className="text-sm font-bold text-amber-600">
-                      {clienteSelecionado.pontos_fidelidade} pts
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      min="0"
-                      max={clienteSelecionado.pontos_fidelidade}
-                      step="1"
-                      value={pontosUsar || ""}
-                      onChange={(e) => {
-                        const val = Math.min(
-                          parseInt(e.target.value) || 0,
-                          clienteSelecionado.pontos_fidelidade
-                        )
-                        setPontosUsar(val)
-                      }}
-                      placeholder="0"
-                      className="h-8 text-sm flex-1"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setPontosUsar(clienteSelecionado.pontos_fidelidade)}
-                      className="text-[10px] font-bold text-amber-600 hover:text-amber-700 px-2 py-1 rounded bg-amber-100 dark:bg-amber-900/40 hover:bg-amber-200 transition-colors whitespace-nowrap"
-                    >
-                      Usar todos
-                    </button>
-                  </div>
-                  {pontosUsar > 0 && (
-                    <p className="text-xs text-amber-700 dark:text-amber-400">
-                      {pontosUsar} pts = <strong>{formatarMoeda(descontoPontos)}</strong> de desconto
-                      <span className="text-amber-500 ml-1">({pontosPorReal} pts = R$ 1,00)</span>
-                    </p>
-                  )}
+            {/* Pontos de fidelidade */}
+            {clienteSelecionado && clienteSelecionado.pontos_fidelidade > 0 && (
+              <div className="rounded-lg border border-amber-200 dark:border-amber-700/40 bg-amber-50/80 dark:bg-amber-900/20 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider">⭐ Pontos</span>
+                  <span className="text-xs font-bold text-amber-600">{clienteSelecionado.pontos_fidelidade} pts</span>
                 </div>
-              )}
-
-              {descontoPontos > 0 && (
-                <div className="flex justify-between text-sm text-amber-600">
-                  <span>Desconto (pontos)</span>
-                  <span>- {formatarMoeda(descontoPontos)}</span>
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    type="number"
+                    min="0"
+                    max={clienteSelecionado.pontos_fidelidade}
+                    step="1"
+                    value={pontosUsar || ""}
+                    onChange={(e) => {
+                      const val = Math.min(parseInt(e.target.value) || 0, clienteSelecionado.pontos_fidelidade)
+                      setPontosUsar(val)
+                    }}
+                    placeholder="0"
+                    className="h-7 text-xs flex-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setPontosUsar(clienteSelecionado.pontos_fidelidade)}
+                    className="text-[9px] font-bold text-amber-600 hover:text-amber-700 px-2 py-1 rounded bg-amber-100 dark:bg-amber-900/40 transition-colors whitespace-nowrap"
+                  >
+                    Todos
+                  </button>
                 </div>
-              )}
-
-              {/* Trocar pontos por brinde */}
-              {clienteSelecionado && clienteSelecionado.pontos_fidelidade > 0 && recompensas.length > 0 && (
-                <div className="rounded-lg border border-purple-200 dark:border-purple-700/40 bg-purple-50 dark:bg-purple-900/20 p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-purple-800 dark:text-purple-300 flex items-center gap-1.5">
-                      <Gift className="w-3.5 h-3.5" /> Resgatar brinde
-                    </span>
-                    {recompensaSelecionada && (
-                      <button
-                        type="button"
-                        onClick={() => setRecompensaSelecionada(null)}
-                        className="text-[10px] font-bold text-purple-600 hover:text-purple-700 px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-900/40 transition-colors"
-                      >
-                        Cancelar
-                      </button>
-                    )}
-                  </div>
-                  {recompensaSelecionada ? (
-                    <div className="flex items-center gap-2 bg-purple-100 dark:bg-purple-900/40 rounded-md p-2">
-                      <Gift className="w-4 h-4 text-purple-600 shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-purple-800 dark:text-purple-200 truncate">{recompensaSelecionada.nome}</p>
-                        <p className="text-[10px] text-purple-600">{recompensaSelecionada.pontos_necessarios} pontos serão debitados</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-1.5 max-h-32 overflow-y-auto">
-                      {recompensas
-                        .filter((r) => r.estoque === null || r.estoque > 0)
-                        .map((rec) => {
-                          const pontosDisponiveis = clienteSelecionado.pontos_fidelidade - pontosUsar
-                          const podeResgatar = pontosDisponiveis >= rec.pontos_necessarios
-                          const faltam = rec.pontos_necessarios - pontosDisponiveis
-                          return (
-                            <button
-                              key={rec.id}
-                              type="button"
-                              disabled={!podeResgatar}
-                              onClick={() => setRecompensaSelecionada(rec)}
-                              className={`w-full flex items-center justify-between gap-2 p-2 rounded-md border text-left transition-colors ${
-                                podeResgatar
-                                  ? "border-purple-200 hover:bg-purple-100 dark:hover:bg-purple-900/30 cursor-pointer"
-                                  : "border-border opacity-50 cursor-not-allowed"
-                              }`}
-                            >
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-medium truncate">{rec.nome}</p>
-                                {rec.descricao && (
-                                  <p className="text-[10px] text-muted-foreground truncate">{rec.descricao}</p>
-                                )}
-                              </div>
-                              <div className="text-right shrink-0">
-                                <p className="text-xs font-bold text-purple-600">{rec.pontos_necessarios} pts</p>
-                                {!podeResgatar && (
-                                  <p className="text-[10px] text-muted-foreground">faltam {faltam}</p>
-                                )}
-                              </div>
-                            </button>
-                          )
-                        })}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {recompensaSelecionada && (
-                <div className="flex justify-between text-sm text-purple-600">
-                  <span>🎁 {recompensaSelecionada.nome}</span>
-                  <span className="text-xs">-{recompensaSelecionada.pontos_necessarios} pts</span>
-                </div>
-              )}
-
-              <Separator />
-              <div className="flex justify-between font-bold text-lg">
-                <span>Total</span>
-                <span className="text-primary">{formatarMoeda(total)}</span>
+                {pontosUsar > 0 && (
+                  <p className="text-[10px] text-amber-700 dark:text-amber-400">
+                    = <strong>{formatarMoeda(descontoPontos)}</strong> de desconto
+                  </p>
+                )}
               </div>
-            </CardContent>
-          </Card>
+            )}
 
-          {/* Forma de pagamento */}
-          <Card>
-            <CardContent className="p-4 space-y-3">
-              <Label className="text-sm font-medium">Forma de pagamento *</Label>
-              <div className="grid grid-cols-2 gap-2">
+            {/* Recompensas/brindes */}
+            {clienteSelecionado && clienteSelecionado.pontos_fidelidade > 0 && recompensas.length > 0 && (
+              <div className="rounded-lg border border-purple-200 dark:border-purple-700/40 bg-purple-50/80 dark:bg-purple-900/20 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-purple-700 dark:text-purple-300 uppercase tracking-wider flex items-center gap-1">
+                    <Gift className="w-3 h-3" /> Brinde
+                  </span>
+                  {recompensaSelecionada && (
+                    <button type="button" onClick={() => setRecompensaSelecionada(null)} className="text-[10px] text-purple-500 hover:text-purple-700">
+                      Cancelar
+                    </button>
+                  )}
+                </div>
+                {recompensaSelecionada ? (
+                  <div className="flex items-center gap-2 bg-purple-100 dark:bg-purple-900/40 rounded p-2">
+                    <Gift className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-semibold text-purple-800 dark:text-purple-200 truncate">{recompensaSelecionada.nome}</p>
+                      <p className="text-[9px] text-purple-600">-{recompensaSelecionada.pontos_necessarios} pts</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-1 max-h-24 overflow-y-auto">
+                    {recompensas.filter((r) => r.estoque === null || r.estoque > 0).map((rec) => {
+                      const pontosDisponiveis = clienteSelecionado.pontos_fidelidade - pontosUsar
+                      const podeResgatar = pontosDisponiveis >= rec.pontos_necessarios
+                      return (
+                        <button
+                          key={rec.id}
+                          type="button"
+                          disabled={!podeResgatar}
+                          onClick={() => setRecompensaSelecionada(rec)}
+                          className={`w-full flex items-center justify-between p-1.5 rounded text-left text-[11px] transition-colors ${
+                            podeResgatar ? "hover:bg-purple-100 dark:hover:bg-purple-900/30 cursor-pointer" : "opacity-40 cursor-not-allowed"
+                          }`}
+                        >
+                          <span className="truncate">{rec.nome}</span>
+                          <span className="font-bold text-purple-600 shrink-0 ml-1">{rec.pontos_necessarios} pts</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Forma de pagamento */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center">
+                Pagamento <Kbd>F8</Kbd>
+              </label>
+              <div className="grid grid-cols-3 gap-1.5">
                 {(["dinheiro", "pix", "cartao_debito", "cartao_credito", "outro"] as const).map((fp) => (
                   <button
                     key={fp}
                     onClick={() => setFormaPagamento(fp)}
-                    style={formaPagamento === fp ? { backgroundColor: "#F26E1D", color: "#ffffff", borderColor: "#F26E1D" } : {}}
-                    className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all ${
+                    className={`py-2 px-2 rounded-lg border text-[11px] font-bold transition-all ${
                       formaPagamento === fp
-                        ? "shadow-sm"
-                        : "border-border text-foreground hover:border-primary/50 hover:text-primary"
+                        ? "bg-orange-500 text-white border-orange-500 shadow-sm shadow-orange-500/20"
+                        : "border-border text-foreground hover:border-orange-300 hover:text-orange-600"
                     }`}
                   >
                     {labelsFormaPagamento[fp]}
@@ -818,118 +838,117 @@ export function VendaClient({
                 ))}
                 <button
                   onClick={() => setFormaPagamento("debito_cliente")}
-                  style={formaPagamento === "debito_cliente" ? { backgroundColor: "#F26E1D", color: "#ffffff", borderColor: "#F26E1D" } : {}}
-                  className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all col-span-2 ${
+                  className={`py-2 px-2 rounded-lg border text-[11px] font-bold transition-all ${
                     formaPagamento === "debito_cliente"
-                      ? "shadow-sm"
+                      ? "bg-orange-500 text-white border-orange-500 shadow-sm"
                       : "border-dashed border-amber-400 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10"
                   }`}
                 >
-                  📋 Lançar como débito do cliente
+                  📋 Débito
                 </button>
               </div>
-
-              {formaPagamento === "dinheiro" && (
-                <div>
-                  <Label className="text-xs">Valor recebido</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min={total}
-                    placeholder={formatarMoeda(total)}
-                    value={valorRecebido}
-                    onChange={(e) => setValorRecebido(e.target.value)}
-                    className="mt-1 h-8 text-sm"
-                  />
-                  {troco !== null && troco > 0 && (
-                    <p className="text-xs text-emerald-500 mt-1">Troco: {formatarMoeda(troco)}</p>
-                  )}
-                </div>
-              )}
-
-              {formaPagamento === "debito_cliente" && (
-                <div className="space-y-2">
-                  {!clienteSelecionado && (
-                    <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-500/10 px-3 py-2 rounded-lg">
-                      ⚠️ Selecione um cliente para lançar o débito
-                    </p>
-                  )}
-                  <div>
-                    <Label className="text-xs">Valor pago agora (opcional)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max={total}
-                      placeholder="0,00 — deixe vazio para débito total"
-                      value={valorRecebido}
-                      onChange={(e) => setValorRecebido(e.target.value)}
-                      className="mt-1 h-8 text-sm"
-                    />
-                  </div>
-                  {total > 0 && (
-                    <div className="flex justify-between text-xs px-1">
-                      <span className="text-muted-foreground">Valor em débito:</span>
-                      <span className="font-bold text-amber-600">
-                        {formatarMoeda(total - (parseFloat(valorRecebido) || 0))}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {formaPagamento === "cartao_credito" && (
-                <div>
-                  <Label className="text-xs">Parcelas</Label>
-                  <Select value={parcelas} onValueChange={setParcelas}>
-                    <SelectTrigger className="mt-1 h-8 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {[1,2,3,4,5,6,7,8,9,10,11,12].map((n) => (
-                        <SelectItem key={n} value={n.toString()}>{n}x de {formatarMoeda(total / n)}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <div className="space-y-2">
-            <Textarea
-              placeholder="Observações (opcional)"
-              value={observacoes}
-              onChange={(e) => setObservacoes(e.target.value)}
-              className="text-sm"
-              rows={2}
-            />
-
-            {/* Data da venda — padrão hoje, permite retroativa */}
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <span>Data da venda</span>
-                {dataVenda !== new Date().toISOString().slice(0, 10) && (
-                  <span className="text-[10px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-900/30 px-1.5 py-0.5 rounded-full">
-                    Retroativa
-                  </span>
-                )}
-              </Label>
-              <Input
-                type="date"
-                value={dataVenda}
-                max={new Date().toISOString().slice(0, 10)}
-                onChange={(e) => setDataVenda(e.target.value)}
-                className="h-8 text-sm"
-              />
             </div>
 
+            {/* Campos condicionais de pagamento */}
+            {formaPagamento === "dinheiro" && (
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-medium text-muted-foreground">Valor recebido</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min={total}
+                  placeholder={formatarMoeda(total)}
+                  value={valorRecebido}
+                  onChange={(e) => setValorRecebido(e.target.value)}
+                  className="h-8 text-sm"
+                />
+                {troco !== null && troco > 0 && (
+                  <p className="text-xs font-bold text-emerald-500">Troco: {formatarMoeda(troco)}</p>
+                )}
+              </div>
+            )}
+
+            {formaPagamento === "debito_cliente" && (
+              <div className="space-y-1.5">
+                {!clienteSelecionado && (
+                  <p className="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-500/10 px-2 py-1.5 rounded">⚠️ Selecione um cliente</p>
+                )}
+                <label className="text-[10px] font-medium text-muted-foreground">Valor pago agora</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max={total}
+                  placeholder="0,00"
+                  value={valorRecebido}
+                  onChange={(e) => setValorRecebido(e.target.value)}
+                  className="h-8 text-sm"
+                />
+                {total > 0 && (
+                  <p className="text-[10px] text-amber-600 font-medium">
+                    Em débito: {formatarMoeda(total - (parseFloat(valorRecebido) || 0))}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {formaPagamento === "cartao_credito" && (
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-medium text-muted-foreground">Parcelas</label>
+                <Select value={parcelas} onValueChange={setParcelas}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {[1,2,3,4,5,6,7,8,9,10,11,12].map((n) => (
+                      <SelectItem key={n} value={n.toString()}>{n}x de {formatarMoeda(total / n)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Observações e data */}
+            <div className="space-y-2">
+              <Textarea
+                placeholder="Observações (opcional)"
+                value={observacoes}
+                onChange={(e) => setObservacoes(e.target.value)}
+                className="text-xs resize-none"
+                rows={2}
+              />
+              <div className="flex items-center gap-2">
+                <Input
+                  type="date"
+                  value={dataVenda}
+                  max={new Date().toISOString().slice(0, 10)}
+                  onChange={(e) => setDataVenda(e.target.value)}
+                  className="h-7 text-xs flex-1"
+                />
+                {dataVenda !== new Date().toISOString().slice(0, 10) && (
+                  <Badge variant="secondary" className="text-[9px] text-amber-600 bg-amber-50 dark:bg-amber-900/30 shrink-0">Retroativa</Badge>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Botões de ação fixos no rodapé da coluna direita */}
+          <div className="shrink-0 p-4 border-t border-border bg-white dark:bg-zinc-950 space-y-2">
             <Button
-              className="w-full gap-2"
-              size="lg"
+              className="w-full gap-2 h-12 text-sm font-bold bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-lg shadow-orange-500/20"
               disabled={loading || itens.length === 0 || !formaPagamento}
               onClick={finalizarVenda}
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              Finalizar Venda — {formatarMoeda(total)}
+              Finalizar — {formatarMoeda(total)}
+              <Kbd>F4</Kbd>
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full gap-2 h-8 text-xs"
+              onClick={novaVenda}
+            >
+              <Plus className="w-3 h-3" />
+              Nova Venda
+              <Kbd>F5</Kbd>
             </Button>
           </div>
         </div>
@@ -940,18 +959,20 @@ export function VendaClient({
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-emerald-500">
-              <Check className="w-5 h-5" />
+              <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                <Check className="w-4 h-4" />
+              </div>
               Venda Concluída!
             </DialogTitle>
           </DialogHeader>
           <div className="py-4 text-center space-y-2">
-            <p className="text-3xl font-bold text-primary">{formatarMoeda(vendaFinalizada?.total ?? 0)}</p>
+            <p className="text-3xl font-black text-orange-600">{formatarMoeda(vendaFinalizada?.total ?? 0)}</p>
             <p className="text-muted-foreground text-sm">Venda #{vendaFinalizada?.numero}</p>
             {clienteSelecionado && (
               <p className="text-sm">Cliente: <span className="font-medium">{clienteSelecionado.nome_completo}</span></p>
             )}
             {troco !== null && troco > 0 && (
-              <p className="text-emerald-500 font-medium">Troco: {formatarMoeda(troco)}</p>
+              <p className="text-emerald-500 font-bold text-lg">Troco: {formatarMoeda(troco)}</p>
             )}
           </div>
           <DialogFooter className="flex-col gap-2 sm:flex-col">
@@ -966,7 +987,7 @@ export function VendaClient({
                 💬 Enviar por WhatsApp
               </Button>
             )}
-            <Button className="w-full gap-2" onClick={novaVenda}>
+            <Button className="w-full gap-2 bg-orange-500 hover:bg-orange-600" onClick={novaVenda}>
               <Plus className="w-4 h-4" />
               Nova Venda
             </Button>
