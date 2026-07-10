@@ -108,6 +108,8 @@ export default async function FinanceiroPage() {
       caixaAberto={caixasAbertosArr.length > 0}
       contasPagar={contasPagar ?? []}
       agendamentosFuturos={(agendamentosFuturos ?? []) as any[]}
+      pinGerente={empresa.pin_gerente ?? null}
+      restricoesAcesso={empresa.restricoes_acesso ?? null}
     />
   )
 }

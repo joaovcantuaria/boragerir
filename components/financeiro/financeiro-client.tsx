@@ -26,6 +26,8 @@ import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { formatarMoeda, labelsFormaPagamento, coresStatus, labelsStatus } from "@/lib/utils"
 import { RelatoriosGestaoTab } from "@/components/financeiro/relatorios-gestao"
+import { PinProtected } from "@/components/ui/pin-protected"
+import { PinModal } from "@/components/ui/pin-modal"
 
 const CORES = ["#10B981", "#3B82F6", "#F59E0B", "#8B5CF6", "#EF4444"]
 
@@ -67,7 +69,7 @@ const CATEGORIAS_CONTA = [
   { value: "outros", label: "Outros", emoji: "📋" },
 ]
 
-export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, movimentacoes: movimentacoesIniciais, funcionarios, debitos, saldoCaixa = 0, caixaAberto = false, contasPagar: contasPagarIniciais = [], agendamentosFuturos = [] }: {
+export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, movimentacoes: movimentacoesIniciais, funcionarios, debitos, saldoCaixa = 0, caixaAberto = false, contasPagar: contasPagarIniciais = [], agendamentosFuturos = [], pinGerente, restricoesAcesso }: {
   empresaId: string; plano: string
   vendas: Venda[]
   movimentacoes: { id: string; tipo: string; categoria: string; descricao: string; valor: number; created_at: string }[]
@@ -77,6 +79,8 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   caixaAberto?: boolean
   contasPagar?: ContaPagar[]
   agendamentosFuturos?: { id: string; data_hora: string; status: string; produtos_servicos?: { preco: number; nome: string } | null }[]
+  pinGerente?: string | null
+  restricoesAcesso?: { areas_protegidas?: string[]; limite_desconto_sem_pin?: number } | null
 }) {
   const [vendas, setVendas] = useState(vendasIniciais)
   const vendasOrigRef = useRef(vendasIniciais)
@@ -104,6 +108,21 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   const supabase = createClient()
   const router = useRouter()
   const isGestao = plano === "gestao"
+
+  // ── PIN Protection ──
+  const [pinModalOpen, setPinModalOpen] = useState(false)
+  const [pinAcaoPendente, setPinAcaoPendente] = useState<(() => void) | null>(null)
+  const areasProtegidas = restricoesAcesso?.areas_protegidas || []
+  const pinConf = !!pinGerente
+
+  function executarComPin(restricaoId: string, acao: () => void) {
+    if (pinConf && areasProtegidas.includes(restricaoId)) {
+      const chave = `pin_acao_${empresaId}_${restricaoId}`
+      if (sessionStorage.getItem(chave) === "true") { acao(); return }
+      setPinAcaoPendente(() => () => { sessionStorage.setItem(chave, "true"); acao() })
+      setPinModalOpen(true)
+    } else { acao() }
+  }
 
   // Carregar valores a receber na montagem
   useEffect(() => {
@@ -409,6 +428,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
       </div>
 
       {/* Cards */}
+      <PinProtected empresaId={empresaId} pinConfigurado={pinConf} areasProtegidas={areasProtegidas} restricaoId="financeiro_ver_resumo" nomeRestricao="Resumo Financeiro">
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {[
           { label: isGestao ? "Entradas" : "Recebido", valor: totalReceitas, cor: "text-emerald-500", bg: "bg-emerald-500/10", Icon: TrendingUp },
@@ -431,6 +451,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
           </Card>
         ))}
       </div>
+      </PinProtected>
 
       <Tabs defaultValue={isGestao ? "areceber" : "faturamento"}>
         {/* Mobile: grid 2 colunas. Desktop: scroll horizontal */}
@@ -797,10 +818,12 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
         {/* ── ABA RELATÓRIOS — disponível apenas nos planos pagos ── */}
         {plano !== "gratuito" && (
           <TabsContent value="relatorios" className="mt-4">
+            <PinProtected empresaId={empresaId} pinConfigurado={pinConf} areasProtegidas={areasProtegidas} restricaoId="financeiro_relatorio_vendas" nomeRestricao="Relatórios Financeiros">
             {isGestao
               ? <RelatoriosGestaoTab empresaId={empresaId} />
               : <RelatoriosTab vendas={vendas} movimentacoes={movimentacoes} funcionarios={funcionarios} debitos={debitos} empresaId={empresaId} />
             }
+            </PinProtected>
           </TabsContent>
         )}
       </Tabs>
@@ -1000,11 +1023,11 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <PinModal aberto={pinModalOpen} onClose={() => { setPinModalOpen(false); setPinAcaoPendente(null) }} onSuccess={() => { setPinModalOpen(false); if (pinAcaoPendente) { pinAcaoPendente(); setPinAcaoPendente(null) } }} empresaId={empresaId} titulo="Ação Restrita" descricao="Digite o PIN de gerente para executar esta ação" />
     </div>
   )
 }
-
-// ─── Componente de Relatórios ───────────────────────────────────────────────
 
 type RelatoriosProps = {
   empresaId: string

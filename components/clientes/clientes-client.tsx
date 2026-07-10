@@ -23,6 +23,8 @@ import {
 } from "@/lib/utils"
 import type { Cliente } from "@/types"
 import { HistoricoResgates } from "@/components/clientes/historico-resgates"
+import { PinProtected } from "@/components/ui/pin-protected"
+import { PinModal } from "@/components/ui/pin-modal"
 
 // ── Formatação de CNPJ ────────────────────────────────────────────────────────
 function formatarCNPJ(v: string) {
@@ -79,11 +81,15 @@ export function ClientesClient({
   plano,
   clientes: clientesIniciais,
   debitos: debitosIniciais,
+  pinGerente,
+  restricoesAcesso,
 }: {
   empresaId: string
   plano: string
   clientes: Cliente[]
   debitos: { id: string; cliente_id: string; valor_aberto: number; status: string }[]
+  pinGerente?: string | null
+  restricoesAcesso?: { areas_protegidas?: string[]; limite_desconto_sem_pin?: number } | null
 }) {
   const [clientes, setClientes] = useState(clientesIniciais)
   const [debitos, setDebitos] = useState(debitosIniciais)
@@ -108,6 +114,21 @@ export function ClientesClient({
   const [clienteResgatesPontos, setClienteResgatesPontos] = useState(0)
   const supabase = createClient()
   const router = useRouter()
+
+  // ── PIN Protection ──
+  const [pinModalOpen, setPinModalOpen] = useState(false)
+  const [pinAcaoPendente, setPinAcaoPendente] = useState<(() => void) | null>(null)
+  const areasProtegidas = restricoesAcesso?.areas_protegidas || []
+  const pinConf = !!pinGerente
+
+  function executarComPin(restricaoId: string, acao: () => void) {
+    if (pinConf && areasProtegidas.includes(restricaoId)) {
+      const chave = `pin_acao_${empresaId}_${restricaoId}`
+      if (sessionStorage.getItem(chave) === "true") { acao(); return }
+      setPinAcaoPendente(() => () => { sessionStorage.setItem(chave, "true"); acao() })
+      setPinModalOpen(true)
+    } else { acao() }
+  }
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<FormCliente>({
     resolver: zodResolver(schemaCliente),
@@ -261,13 +282,13 @@ export function ClientesClient({
         </div>
         <div className="flex items-center gap-2">
           {temDebito && debitos.length > 0 && (
-            <Button variant="outline" onClick={() => abrirQuitarDebito()} className="gap-2 border-amber-400 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10">
+            <Button variant="outline" onClick={() => executarComPin("clientes_ver_debitos", () => abrirQuitarDebito())} className="gap-2 border-amber-400 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10">
               <AlertTriangle className="w-4 h-4" />
               <span className="hidden sm:inline">Quitar Débitos</span>
               <span className="bg-amber-500 text-white text-xs font-black px-1.5 py-0.5 rounded-full">{debitos.length}</span>
             </Button>
           )}
-          <Button onClick={abrirModalNovo} className="gap-2">
+          <Button onClick={() => executarComPin("clientes_cadastrar", abrirModalNovo)} className="gap-2">
             <UserPlus className="w-4 h-4" />
             <span className="hidden sm:inline">Novo Cliente</span>
           </Button>
@@ -350,7 +371,7 @@ export function ClientesClient({
                         </div>
                       </div>
                     </div>
-                    <Button variant="ghost" size="icon" onClick={() => abrirModalEditar(cliente)}>
+                    <Button variant="ghost" size="icon" onClick={() => executarComPin("clientes_editar", () => abrirModalEditar(cliente))}>
                       <Edit className="w-4 h-4" />
                     </Button>
                   </div>
@@ -648,6 +669,8 @@ export function ClientesClient({
           )}
         </DialogContent>
       </Dialog>
+
+      <PinModal aberto={pinModalOpen} onClose={() => { setPinModalOpen(false); setPinAcaoPendente(null) }} onSuccess={() => { setPinModalOpen(false); if (pinAcaoPendente) { pinAcaoPendente(); setPinAcaoPendente(null) } }} empresaId={empresaId} titulo="Ação Restrita" descricao="Digite o PIN de gerente para executar esta ação" />
     </div>
   )
 }

@@ -29,5 +29,5 @@ export default async function ClientesPage() {
       .in("status", ["aberto", "parcial"]),
   ])
 
-  return <ClientesClient empresaId={empresa.id} plano={empresa.plano} clientes={clientes ?? []} debitos={debitos ?? []} />
+  return <ClientesClient empresaId={empresa.id} plano={empresa.plano} clientes={clientes ?? []} debitos={debitos ?? []} pinGerente={empresa.pin_gerente ?? null} restricoesAcesso={empresa.restricoes_acesso ?? null} />
 }

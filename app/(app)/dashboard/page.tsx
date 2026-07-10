@@ -75,6 +75,8 @@ export default async function DashboardPage() {
       vendasSemana={vendasSemana ?? []}
       vendasHoje={vendasHoje ?? []}
       tarefasPendentes={tarefasPendentes ?? []}
+      pinGerente={empresa.pin_gerente ?? null}
+      restricoesAcesso={empresa.restricoes_acesso ?? null}
     />
   )
 }

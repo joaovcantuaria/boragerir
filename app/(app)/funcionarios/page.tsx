@@ -24,6 +24,8 @@ export default async function FuncionariosPage() {
       empresaId={empresa.id}
       plano={empresa.plano}
       funcionarios={funcionarios ?? []}
+      pinGerente={empresa.pin_gerente ?? null}
+      restricoesAcesso={empresa.restricoes_acesso ?? null}
     />
   )
 }

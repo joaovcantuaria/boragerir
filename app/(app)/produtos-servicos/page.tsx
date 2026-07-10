@@ -26,6 +26,8 @@ export default async function ProdutosServicosPage() {
       plano={empresa.plano}
       produtos={produtos ?? []}
       categorias={categorias ?? []}
+      pinGerente={empresa.pin_gerente ?? null}
+      restricoesAcesso={empresa.restricoes_acesso ?? null}
     />
   )
 }

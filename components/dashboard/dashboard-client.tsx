@@ -20,6 +20,8 @@ import { createClient } from "@/lib/supabase/client"
 import type { Empresa } from "@/types"
 import { format, subDays } from "date-fns"
 import { ptBR } from "date-fns/locale"
+import { PinProtected } from "@/components/ui/pin-protected"
+import { PinModal } from "@/components/ui/pin-modal"
 
 // ── Módulos do launcher ──────────────────────────────────────
 const modulos = [
@@ -57,6 +59,8 @@ interface DashboardClientProps {
     id: string; titulo: string; status: string; prioridade: string
     prazo: string | null; bloco_id: string | null
   }[]
+  pinGerente?: string | null
+  restricoesAcesso?: { areas_protegidas?: string[]; limite_desconto_sem_pin?: number } | null
 }
 
 export function DashboardClient({
@@ -70,11 +74,28 @@ export function DashboardClient({
   vendasSemana,
   vendasHoje,
   tarefasPendentes,
+  pinGerente,
+  restricoesAcesso,
 }: DashboardClientProps) {
   const router = useRouter()
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
+
+  // ── PIN Protection ──
+  const [pinModalOpen, setPinModalOpen] = useState(false)
+  const [pinAcaoPendente, setPinAcaoPendente] = useState<(() => void) | null>(null)
+  const areasProtegidas = restricoesAcesso?.areas_protegidas || []
+  const pinConf = !!pinGerente
+
+  function executarComPin(restricaoId: string, acao: () => void) {
+    if (pinConf && areasProtegidas.includes(restricaoId)) {
+      const chave = `pin_acao_${empresa.id}_${restricaoId}`
+      if (sessionStorage.getItem(chave) === "true") { acao(); return }
+      setPinAcaoPendente(() => () => { sessionStorage.setItem(chave, "true"); acao() })
+      setPinModalOpen(true)
+    } else { acao() }
+  }
 
   // Realtime — atualiza KPIs sem reload
   const [totalVendas, setTotalVendas] = useState(initialVendas)
@@ -185,6 +206,7 @@ export function DashboardClient({
         </div>
 
         {/* KPIs Gestão */}
+        <PinProtected empresaId={empresa.id} pinConfigurado={pinConf} areasProtegidas={areasProtegidas} restricaoId="dashboard_ver_faturamento" nomeRestricao="Faturamento do Dashboard">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             {
@@ -239,6 +261,7 @@ export function DashboardClient({
             </Card>
           ))}
         </div>
+        </PinProtected>
 
         {/* Acesso rápido */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -287,6 +310,8 @@ export function DashboardClient({
             </CardContent>
           </Card>
         )}
+
+        <PinModal aberto={pinModalOpen} onClose={() => { setPinModalOpen(false); setPinAcaoPendente(null) }} onSuccess={() => { setPinModalOpen(false); if (pinAcaoPendente) { pinAcaoPendente(); setPinAcaoPendente(null) } }} empresaId={empresa.id} titulo="Ação Restrita" descricao="Digite o PIN de gerente para executar esta ação" />
       </div>
     )
   }
@@ -402,6 +427,8 @@ export function DashboardClient({
       </AnimatePresence>
 
       {/* KPIs */}
+      {/* KPIs */}
+      <PinProtected empresaId={empresa.id} pinConfigurado={pinConf} areasProtegidas={areasProtegidas} restricaoId="dashboard_ver_faturamento" nomeRestricao="Faturamento do Dashboard">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {kpis.map((kpi, i) => {
           const Icon = kpi.icon
@@ -430,6 +457,7 @@ export function DashboardClient({
           )
         })}
       </div>
+      </PinProtected>
 
       {/* Grid principal */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
@@ -575,6 +603,7 @@ export function DashboardClient({
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
 
         {/* Gráfico 7 dias */}
+        <PinProtected empresaId={empresa.id} pinConfigurado={pinConf} areasProtegidas={areasProtegidas} restricaoId="dashboard_ver_grafico" nomeRestricao="Gráfico de Faturamento">
         <div className="lg:col-span-3 card-v2">
           <div className="card-v2-header">
             <h3 className="text-sm font-semibold text-foreground">Faturamento — 7 dias</h3>
@@ -617,6 +646,7 @@ export function DashboardClient({
             </ResponsiveContainer>
           </div>
         </div>
+        </PinProtected>
 
         {/* Agendamentos do dia */}
         <div className="lg:col-span-2 card-v2 flex flex-col">
@@ -671,6 +701,8 @@ export function DashboardClient({
           </div>
         </div>
       </div>
+
+      <PinModal aberto={pinModalOpen} onClose={() => { setPinModalOpen(false); setPinAcaoPendente(null) }} onSuccess={() => { setPinModalOpen(false); if (pinAcaoPendente) { pinAcaoPendente(); setPinAcaoPendente(null) } }} empresaId={empresa.id} titulo="Ação Restrita" descricao="Digite o PIN de gerente para executar esta ação" />
     </div>
   )
 }

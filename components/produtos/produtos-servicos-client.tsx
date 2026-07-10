@@ -18,6 +18,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { createClient } from "@/lib/supabase/client"
 import { formatarMoeda, calcularMargem } from "@/lib/utils"
 import type { ProdutoServico, Categoria } from "@/types"
+import { PinProtected } from "@/components/ui/pin-protected"
+import { PinModal } from "@/components/ui/pin-modal"
 
 const schemaProduto = z.object({
   nome: z.string().min(1, "Nome obrigatório"),
@@ -55,11 +57,15 @@ export function ProdutosServicosClient({
   plano,
   produtos: produtosIniciais,
   categorias: categoriasIniciais,
+  pinGerente,
+  restricoesAcesso,
 }: {
   empresaId: string
   plano: string
   produtos: ProdutoServico[]
   categorias: Categoria[]
+  pinGerente?: string | null
+  restricoesAcesso?: { areas_protegidas?: string[]; limite_desconto_sem_pin?: number } | null
 }) {
   const [produtos, setProdutos] = useState(produtosIniciais)
   const [categorias, setCategorias] = useState(categoriasIniciais)
@@ -75,6 +81,21 @@ export function ProdutosServicosClient({
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<FormProduto>({
     resolver: zodResolver(schemaProduto),
   })
+
+  // ── PIN Protection ──
+  const [pinModalOpen, setPinModalOpen] = useState(false)
+  const [pinAcaoPendente, setPinAcaoPendente] = useState<(() => void) | null>(null)
+  const areasProtegidas = restricoesAcesso?.areas_protegidas || []
+  const pinConf = !!pinGerente
+
+  function executarComPin(restricaoId: string, acao: () => void) {
+    if (pinConf && areasProtegidas.includes(restricaoId)) {
+      const chave = `pin_acao_${empresaId}_${restricaoId}`
+      if (sessionStorage.getItem(chave) === "true") { acao(); return }
+      setPinAcaoPendente(() => () => { sessionStorage.setItem(chave, "true"); acao() })
+      setPinModalOpen(true)
+    } else { acao() }
+  }
 
   const produtosFiltrados = produtos.filter((p) =>
     p.tipo === "produto" &&
@@ -230,7 +251,7 @@ export function ProdutosServicosClient({
                 {item.comissao_percentual && <span>Comissão: {item.comissao_percentual}%</span>}
               </div>
             </div>
-            <Button variant="ghost" size="icon" onClick={() => abrirModalEditar(item)}>
+            <Button variant="ghost" size="icon" onClick={() => executarComPin("produtos_editar", () => abrirModalEditar(item))}>
               <Edit className="w-4 h-4" />
             </Button>
           </div>
@@ -266,7 +287,7 @@ export function ProdutosServicosClient({
         </div>
 
         <TabsContent value="produtos" className="mt-4 space-y-2">
-          <Button onClick={() => abrirModalNovo("produto")} className="gap-2 w-full sm:w-auto">
+          <Button onClick={() => executarComPin("produtos_cadastrar", () => abrirModalNovo("produto"))} className="gap-2 w-full sm:w-auto">
             <Plus className="w-4 h-4" />Novo Produto
           </Button>
           {produtosFiltrados.length > 0 ? produtosFiltrados.map(renderItem) : (
@@ -278,7 +299,7 @@ export function ProdutosServicosClient({
         </TabsContent>
 
         <TabsContent value="servicos" className="mt-4 space-y-2">
-          <Button onClick={() => abrirModalNovo("servico")} className="gap-2 w-full sm:w-auto">
+          <Button onClick={() => executarComPin("produtos_cadastrar", () => abrirModalNovo("servico"))} className="gap-2 w-full sm:w-auto">
             <Plus className="w-4 h-4" />Novo Serviço
           </Button>
           {servicosFiltrados.length > 0 ? servicosFiltrados.map(renderItem) : (
@@ -421,6 +442,8 @@ export function ProdutosServicosClient({
           </form>
         </DialogContent>
       </Dialog>
+
+      <PinModal aberto={pinModalOpen} onClose={() => { setPinModalOpen(false); setPinAcaoPendente(null) }} onSuccess={() => { setPinModalOpen(false); if (pinAcaoPendente) { pinAcaoPendente(); setPinAcaoPendente(null) } }} empresaId={empresaId} titulo="Ação Restrita" descricao="Digite o PIN de gerente para executar esta ação" />
     </div>
   )
 }

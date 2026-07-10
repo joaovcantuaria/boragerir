@@ -15,6 +15,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { createClient } from "@/lib/supabase/client"
 import { formatarTelefone } from "@/lib/utils"
 import type { Funcionario } from "@/types"
+import { PinProtected } from "@/components/ui/pin-protected"
+import { PinModal } from "@/components/ui/pin-modal"
 
 const schemaFunc = z.object({
   nome: z.string().min(2, "Nome obrigatório"),
@@ -25,14 +27,31 @@ const schemaFunc = z.object({
 })
 type FormFunc = z.infer<typeof schemaFunc>
 
-export function FuncionariosClient({ empresaId, plano, funcionarios: funcInit }: {
+export function FuncionariosClient({ empresaId, plano, funcionarios: funcInit, pinGerente, restricoesAcesso }: {
   empresaId: string; plano: string; funcionarios: Funcionario[]
+  pinGerente?: string | null
+  restricoesAcesso?: { areas_protegidas?: string[]; limite_desconto_sem_pin?: number } | null
 }) {
   const [funcionarios, setFuncionarios] = useState(funcInit)
   const [modalAberto, setModalAberto] = useState(false)
   const [editando, setEditando] = useState<Funcionario | null>(null)
   const [loading, setLoading] = useState(false)
   const supabase = createClient()
+
+  // ── PIN Protection ──
+  const [pinModalOpen, setPinModalOpen] = useState(false)
+  const [pinAcaoPendente, setPinAcaoPendente] = useState<(() => void) | null>(null)
+  const areasProtegidas = restricoesAcesso?.areas_protegidas || []
+  const pinConf = !!pinGerente
+
+  function executarComPin(restricaoId: string, acao: () => void) {
+    if (pinConf && areasProtegidas.includes(restricaoId)) {
+      const chave = `pin_acao_${empresaId}_${restricaoId}`
+      if (sessionStorage.getItem(chave) === "true") { acao(); return }
+      setPinAcaoPendente(() => () => { sessionStorage.setItem(chave, "true"); acao() })
+      setPinModalOpen(true)
+    } else { acao() }
+  }
 
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<FormFunc>({
     resolver: zodResolver(schemaFunc),
@@ -100,7 +119,7 @@ export function FuncionariosClient({ empresaId, plano, funcionarios: funcInit }:
           <h1 className="text-2xl font-bold">Colaboradores</h1>
           <p className="text-muted-foreground">{funcionarios.filter((f) => f.ativo).length} ativo(s)</p>
         </div>
-        <Button onClick={abrirModalNovo} className="gap-2">
+        <Button onClick={() => executarComPin("funcionarios_cadastrar", abrirModalNovo)} className="gap-2">
           <Plus className="w-4 h-4" /><span className="hidden sm:inline">Novo Colaborador</span>
         </Button>
       </div>
@@ -137,8 +156,8 @@ export function FuncionariosClient({ empresaId, plano, funcionarios: funcInit }:
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="xs" onClick={() => abrirModalEditar(f)}><Edit className="w-3.5 h-3.5" /></Button>
-                    <Button variant="ghost" size="xs" className="text-muted-foreground" onClick={() => toggleAtivo(f)}>
+                    <Button variant="ghost" size="xs" onClick={() => executarComPin("funcionarios_editar", () => abrirModalEditar(f))}><Edit className="w-3.5 h-3.5" /></Button>
+                    <Button variant="ghost" size="xs" className="text-muted-foreground" onClick={() => executarComPin("funcionarios_excluir", () => toggleAtivo(f))}>
                       {f.ativo ? "Desativar" : "Reativar"}
                     </Button>
                   </div>
@@ -192,6 +211,8 @@ export function FuncionariosClient({ empresaId, plano, funcionarios: funcInit }:
           </form>
         </DialogContent>
       </Dialog>
+
+      <PinModal aberto={pinModalOpen} onClose={() => { setPinModalOpen(false); setPinAcaoPendente(null) }} onSuccess={() => { setPinModalOpen(false); if (pinAcaoPendente) { pinAcaoPendente(); setPinAcaoPendente(null) } }} empresaId={empresaId} titulo="Ação Restrita" descricao="Digite o PIN de gerente para executar esta ação" />
     </div>
   )
 }
