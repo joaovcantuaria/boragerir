@@ -27,6 +27,7 @@ import { planosInfo } from "@/types"
 import type { Empresa, Categoria } from "@/types"
 import { BackupClient } from "@/components/configuracoes/backup-client"
 import { RecompensasFidelidade } from "@/components/configuracoes/recompensas-fidelidade"
+import { ConfigAcessos } from "@/components/configuracoes/config-acessos"
 
 const schemaNegocio = z.object({
   nome: z.string().min(2),
@@ -222,7 +223,7 @@ export function ConfiguracoesClient({
       </div>
 
       <Tabs defaultValue="negocio">
-        <TabsList className="grid grid-cols-7 w-full">
+        <TabsList className="grid grid-cols-8 w-full">
           <TabsTrigger value="negocio" className="gap-1.5 text-xs font-semibold">
             <Store className="w-3.5 h-3.5" /><span className="hidden sm:inline">Negócio</span>
           </TabsTrigger>
@@ -237,6 +238,9 @@ export function ConfiguracoesClient({
           </TabsTrigger>
           <TabsTrigger value="documentos" className="gap-1.5 text-xs font-semibold">
             <FileText className="w-3.5 h-3.5" /><span className="hidden sm:inline">Documentos</span>
+          </TabsTrigger>
+          <TabsTrigger value="acessos" className="gap-1.5 text-xs font-semibold">
+            <Star className="w-3.5 h-3.5" /><span className="hidden sm:inline">Acessos</span>
           </TabsTrigger>
           <TabsTrigger value="conta" className="gap-1.5 text-xs font-semibold">
             <Lock className="w-3.5 h-3.5" /><span className="hidden sm:inline">Conta</span>
@@ -706,6 +710,11 @@ export function ConfiguracoesClient({
               </Button>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ── ABA ACESSOS ── */}
+        <TabsContent value="acessos" className="mt-4">
+          <ConfigAcessos empresa={{ id: empresa.id, pin_gerente: (empresa as any).pin_gerente ?? null, restricoes_acesso: (empresa as any).restricoes_acesso ?? null }} />
         </TabsContent>
 
         {/* ── ABA CONTA ── */}
