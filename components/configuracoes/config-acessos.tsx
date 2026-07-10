@@ -159,6 +159,10 @@ export function ConfigAcessos({ empresa }: ConfigAcessosProps) {
           empresaId={empresa.id}
           titulo="Desbloquear Acessos"
           descricao="Digite o PIN de gerente para acessar as configurações"
+          onPinResetado={() => {
+            // PIN foi resetado via email — recarregar a página para refletir
+            window.location.reload()
+          }}
         />
       </div>
     )
