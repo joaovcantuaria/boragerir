@@ -732,10 +732,10 @@ export function VendaClient({
         </div>
 
         {/* COLUNA DIREITA — Pagamento e opções */}
-        <div className="w-80 lg:w-96 shrink-0 flex flex-col overflow-y-auto bg-zinc-50/30 dark:bg-zinc-900/30">
-          <div className="flex-1 p-4 space-y-4">
+        <div className="w-80 lg:w-96 shrink-0 flex flex-col overflow-hidden bg-zinc-50/30 dark:bg-zinc-900/30">
+          <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
             {/* Cliente */}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Cliente <Kbd>F3</Kbd></label>
                 {clienteSelecionado && (
@@ -793,7 +793,7 @@ export function VendaClient({
 
             {/* Funcionário */}
             {funcionarios.length > 0 && (
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Atendente <Kbd>F7</Kbd></label>
                 <Select value={funcionarioId} onValueChange={setFuncionarioId}>
                   <SelectTrigger data-funcionario-trigger className="h-8 text-sm"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
@@ -808,7 +808,7 @@ export function VendaClient({
             )}
 
             {/* Desconto */}
-            <div className="space-y-2">
+            <div className="space-y-1">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Desconto <Kbd>F6</Kbd></label>
               <div className="flex gap-1.5">
                 <Input
@@ -841,7 +841,7 @@ export function VendaClient({
 
             {/* Pontos de fidelidade */}
             {clienteSelecionado && clienteSelecionado.pontos_fidelidade > 0 && (
-              <div className="rounded-lg border border-amber-200 dark:border-amber-700/40 bg-amber-50/80 dark:bg-amber-900/20 p-3 space-y-2">
+              <div className="rounded-lg border border-amber-200 dark:border-amber-700/40 bg-amber-50/80 dark:bg-amber-900/20 p-2 space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider">⭐ Pontos</span>
                   <span className="text-xs font-bold text-amber-600">{clienteSelecionado.pontos_fidelidade} pts</span>
@@ -878,7 +878,7 @@ export function VendaClient({
 
             {/* Recompensas/brindes */}
             {clienteSelecionado && clienteSelecionado.pontos_fidelidade > 0 && recompensas.length > 0 && (
-              <div className="rounded-lg border border-purple-200 dark:border-purple-700/40 bg-purple-50/80 dark:bg-purple-900/20 p-3 space-y-2">
+              <div className="rounded-lg border border-purple-200 dark:border-purple-700/40 bg-purple-50/80 dark:bg-purple-900/20 p-2 space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold text-purple-700 dark:text-purple-300 uppercase tracking-wider flex items-center gap-1">
                     <Gift className="w-3 h-3" /> Brinde
@@ -923,16 +923,16 @@ export function VendaClient({
             )}
 
             {/* Forma de pagamento */}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center">
                 Pagamento <Kbd>F8</Kbd>
               </label>
-              <div className="grid grid-cols-3 gap-1.5">
+              <div className="grid grid-cols-3 gap-1">
                 {(["dinheiro", "pix", "cartao_debito", "cartao_credito", "outro"] as const).map((fp) => (
                   <button
                     key={fp}
                     onClick={() => setFormaPagamento(fp)}
-                    className={`py-2 px-2 rounded-lg border text-[11px] font-bold transition-all ${
+                    className={`py-1.5 px-1.5 rounded-lg border text-[10px] font-bold transition-all ${
                       formaPagamento === fp
                         ? "bg-orange-500 text-white border-orange-500 shadow-sm shadow-orange-500/20"
                         : "border-border text-foreground hover:border-orange-300 hover:text-orange-600"
@@ -943,7 +943,7 @@ export function VendaClient({
                 ))}
                 <button
                   onClick={() => setFormaPagamento("debito_cliente")}
-                  className={`py-2 px-2 rounded-lg border text-[11px] font-bold transition-all ${
+                  className={`py-1.5 px-1.5 rounded-lg border text-[10px] font-bold transition-all ${
                     formaPagamento === "debito_cliente"
                       ? "bg-orange-500 text-white border-orange-500 shadow-sm"
                       : "border-dashed border-amber-400 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10"
@@ -1024,13 +1024,13 @@ export function VendaClient({
             )}
 
             {/* Observações e data */}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Textarea
                 placeholder="Observações (opcional)"
                 value={observacoes}
                 onChange={(e) => setObservacoes(e.target.value)}
                 className="text-xs resize-none"
-                rows={2}
+                rows={1}
               />
               <div className="flex items-center gap-2">
                 <Input
@@ -1038,7 +1038,7 @@ export function VendaClient({
                   value={dataVenda}
                   max={new Date().toISOString().slice(0, 10)}
                   onChange={(e) => setDataVenda(e.target.value)}
-                  className="h-7 text-xs flex-1"
+                  className="h-6 text-[10px] flex-1"
                 />
                 {dataVenda !== new Date().toISOString().slice(0, 10) && (
                   <Badge variant="secondary" className="text-[9px] text-amber-600 bg-amber-50 dark:bg-amber-900/30 shrink-0">Retroativa</Badge>
@@ -1048,9 +1048,9 @@ export function VendaClient({
           </div>
 
           {/* Botões de ação fixos no rodapé da coluna direita */}
-          <div className="shrink-0 p-4 border-t border-border bg-white dark:bg-zinc-950 space-y-2">
+          <div className="shrink-0 px-3 py-2 border-t border-border bg-white dark:bg-zinc-950 space-y-1.5">
             <Button
-              className="w-full gap-2 h-12 text-sm font-bold bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-lg shadow-orange-500/20"
+              className="w-full gap-2 h-10 text-sm font-bold bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-lg shadow-orange-500/20"
               disabled={loading || itens.length === 0 || !formaPagamento}
               onClick={finalizarVenda}
             >
@@ -1060,7 +1060,7 @@ export function VendaClient({
             </Button>
             <Button
               variant="outline"
-              className="w-full gap-2 h-8 text-xs"
+              className="w-full gap-2 h-7 text-[11px]"
               onClick={novaVenda}
             >
               <Plus className="w-3 h-3" />
