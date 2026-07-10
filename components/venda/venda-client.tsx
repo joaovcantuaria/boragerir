@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/client"
 import { formatarMoeda, gerarLinkWhatsApp, labelsFormaPagamento } from "@/lib/utils"
 import type { Empresa } from "@/types"
 import { gerarReciboPDF } from "@/lib/pdf/recibo"
+import { PinModal } from "@/components/ui/pin-modal"
 
 interface ItemVendaLocal {
   produto_servico_id: string
@@ -91,6 +92,8 @@ export function VendaClient({
   const [vendaFinalizada, setVendaFinalizada] = useState<{ id: string; numero: number; total: number } | null>(null)
   const [valorRecebido, setValorRecebido] = useState("")
   const [autoprint, setAutoprint] = useState(false)
+  const [pinModalAberto, setPinModalAberto] = useState(false)
+  const [descontoAutorizado, setDescontoAutorizado] = useState(false)
   const supabase = createClient()
   const inputBuscaRef = useRef<HTMLInputElement>(null)
   const inputClienteRef = useRef<HTMLInputElement>(null)
@@ -289,6 +292,20 @@ export function VendaClient({
   async function finalizarVenda() {
     if (itens.length === 0) { toast.error("Adicione ao menos um item."); return }
     if (!formaPagamento) { toast.error("Selecione a forma de pagamento."); return }
+
+    // Verificar se desconto percentual excede o limite sem PIN
+    const restricoes = empresa.restricoes_acesso as { areas_protegidas?: string[], limite_desconto_sem_pin?: number } | null
+    const limiteDescontoSemPin = restricoes?.limite_desconto_sem_pin ?? 100
+    const pinConfigurado = !!empresa.pin_gerente
+    const descontoPercentual = tipoDesconto === "percentual"
+      ? parseFloat(desconto) || 0
+      : subtotal > 0 ? ((parseFloat(desconto) || 0) / subtotal) * 100 : 0
+
+    if (pinConfigurado && descontoPercentual > limiteDescontoSemPin && !descontoAutorizado) {
+      setPinModalAberto(true)
+      return
+    }
+
     if (formaPagamento === "debito_cliente" && !clienteSelecionado) {
       toast.error("Selecione um cliente para lançar o débito."); return
     }
@@ -427,6 +444,7 @@ export function VendaClient({
     setClienteSelecionado(null)
     setFuncionarioId("")
     setDesconto("0")
+    setDescontoAutorizado(false)
     setPontosUsar(0)
     setRecompensaSelecionada(null)
     setFormaPagamento("")
@@ -951,7 +969,7 @@ export function VendaClient({
                   step="0.01"
                   placeholder="0"
                   value={desconto}
-                  onChange={(e) => setDesconto(e.target.value)}
+                  onChange={(e) => { setDesconto(e.target.value); setDescontoAutorizado(false) }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault()
@@ -962,7 +980,7 @@ export function VendaClient({
                   }}
                   className="h-8 text-sm flex-1"
                 />
-                <Select value={tipoDesconto} onValueChange={(v: "reais" | "percentual") => setTipoDesconto(v)}>
+                <Select value={tipoDesconto} onValueChange={(v: "reais" | "percentual") => { setTipoDesconto(v); setDescontoAutorizado(false) }}>
                   <SelectTrigger className="w-16 h-8 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="reais">R$</SelectItem>
@@ -1247,6 +1265,21 @@ export function VendaClient({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* PIN Modal para desconto acima do limite */}
+      <PinModal
+        aberto={pinModalAberto}
+        onClose={() => setPinModalAberto(false)}
+        onSuccess={() => {
+          setDescontoAutorizado(true)
+          setPinModalAberto(false)
+          // Após autorização, finalizar a venda automaticamente
+          setTimeout(() => finalizarVenda(), 100)
+        }}
+        empresaId={empresa.id}
+        titulo="Desconto acima do limite"
+        descricao="Este desconto excede o limite permitido. Digite o PIN de gerente para autorizar."
+      />
     </div>
   )
 }

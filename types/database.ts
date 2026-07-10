@@ -35,6 +35,11 @@ export type Database = {
           recibo_template: "padrao" | "moderno" | "minimalista" | "colorido" | null
           recibo_cor_primaria: string | null
           recibo_rodape: string | null
+          pin_gerente: string | null
+          restricoes_acesso: {
+            areas_protegidas?: string[]
+            limite_desconto_sem_pin?: number
+          } | null
           created_at: string
         }
         Insert: Omit<Database["public"]["Tables"]["empresas"]["Row"], "id" | "created_at"> & {
