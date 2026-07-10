@@ -25,6 +25,7 @@ const schemaProduto = z.object({
   categoria_id: z.string().optional(),
   descricao: z.string().optional(),
   codigo: z.string().optional(),
+  codigo_barras: z.string().optional(),
   unidade_medida: z.string().optional(),
   preco: z.string().min(1, "Preço obrigatório"),
   custo: z.string().optional(),
@@ -131,6 +132,7 @@ export function ProdutosServicosClient({
       tipo: produto.tipo,
       categoria_id: produto.categoria_id ?? "",
       descricao: produto.descricao ?? "",
+      codigo_barras: produto.codigo_barras ?? "",
       preco: produto.preco.toString(),
       custo: produto.custo?.toString() ?? "",
       estoque_atual: produto.estoque_atual?.toString() ?? "",
@@ -143,6 +145,29 @@ export function ProdutosServicosClient({
 
   async function onSubmit(data: FormProduto) {
     setLoading(true)
+
+    // Gerar código de barras automaticamente se não informado
+    let codigoBarras = data.codigo_barras?.trim() || null
+    if (!codigoBarras && !editando) {
+      // Buscar o maior código numérico existente para essa empresa
+      const { data: ultimoProduto } = await supabase
+        .from("produtos_servicos")
+        .select("codigo_barras")
+        .eq("empresa_id", empresaId)
+        .not("codigo_barras", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(50)
+
+      let maiorCodigo = 100000
+      if (ultimoProduto) {
+        for (const p of ultimoProduto) {
+          const num = parseInt(p.codigo_barras ?? "0")
+          if (!isNaN(num) && num >= maiorCodigo) maiorCodigo = num
+        }
+      }
+      codigoBarras = String(maiorCodigo + 1).padStart(6, "0")
+    }
+
     const payload = {
       empresa_id: empresaId,
       nome: data.nome,
@@ -150,6 +175,7 @@ export function ProdutosServicosClient({
       categoria_id: data.categoria_id || null,
       descricao: data.descricao || null,
       codigo: data.codigo || null,
+      codigo_barras: codigoBarras,
       unidade_medida: data.unidade_medida || "unidade",
       preco: parseFloat(data.preco),
       custo: data.custo ? parseFloat(data.custo) : null,
@@ -281,9 +307,9 @@ export function ProdutosServicosClient({
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label>Código (opcional)</Label>
-                <Input placeholder="Ex: PROD001" {...register("codigo")} />
-                <p className="text-xs text-muted-foreground">Para facilitar a busca na venda</p>
+                <Label>Código de barras</Label>
+                <Input placeholder="EAN ou código interno" {...register("codigo_barras")} />
+                <p className="text-xs text-muted-foreground">Deixe vazio para gerar automaticamente</p>
               </div>
               <div className="space-y-2">
                 <Label>Vendido por</Label>
