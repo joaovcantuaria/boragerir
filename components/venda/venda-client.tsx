@@ -34,6 +34,7 @@ interface ProdutoSimples {
   preco: number
   comissao_percentual: number | null
   estoque_atual: number | null
+  codigo_barras?: string | null
 }
 
 interface ClienteSimples {
@@ -131,10 +132,13 @@ export function VendaClient({
     return c.nome_completo.toLowerCase().includes(t) || (c.cpf ?? "").includes(t) || (c.telefone ?? "").includes(t)
   }).slice(0, 8)
 
-  // Busca de produtos
-  const produtosFiltrados = produtos.filter((p) =>
-    p.nome.toLowerCase().includes(buscaProduto.toLowerCase())
-  ).slice(0, 10)
+  // Busca de produtos — por nome OU código de barras
+  const produtosFiltrados = produtos.filter((p) => {
+    const termo = buscaProduto.toLowerCase()
+    if (!termo) return true // Mostrar todos quando vazio (lista aberta)
+    return p.nome.toLowerCase().includes(termo) ||
+      (p.codigo_barras ?? "").includes(buscaProduto)
+  }).slice(0, 15)
 
   function adicionarItem(produto: ProdutoSimples) {
     setItens((prev) => {
@@ -337,6 +341,71 @@ export function VendaClient({
     setBuscaProduto("")
   }
 
+  async function imprimirReciboTermica() {
+    if (!vendaFinalizada) return
+    const largura = 48 // caracteres por linha (bobina 80mm)
+    const sep = "-".repeat(largura)
+    const centro = (txt: string) => {
+      const pad = Math.max(0, Math.floor((largura - txt.length) / 2))
+      return " ".repeat(pad) + txt
+    }
+    const linha = (esq: string, dir: string) => {
+      const espacos = Math.max(1, largura - esq.length - dir.length)
+      return esq + " ".repeat(espacos) + dir
+    }
+
+    const agora = new Date()
+    const dataStr = agora.toLocaleDateString("pt-BR")
+    const horaStr = agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+
+    let recibo = ""
+    recibo += centro(empresa.nome) + "\n"
+    if (empresa.documento) recibo += centro(`CNPJ: ${empresa.documento}`) + "\n"
+    if (empresa.telefone) recibo += centro(`Tel: ${empresa.telefone}`) + "\n"
+    recibo += sep + "\n"
+    recibo += centro("CUPOM NÃO FISCAL") + "\n"
+    recibo += sep + "\n"
+    recibo += `Venda #${vendaFinalizada.numero}\n`
+    recibo += `Data: ${dataStr} ${horaStr}\n`
+    if (clienteSelecionado) recibo += `Cliente: ${clienteSelecionado.nome_completo}\n`
+    if (funcionarioId) {
+      const func = funcionarios.find(f => f.id === funcionarioId)
+      if (func) recibo += `Atendente: ${func.nome}\n`
+    }
+    recibo += sep + "\n"
+    recibo += linha("ITEM", "SUBTOTAL") + "\n"
+    recibo += sep + "\n"
+
+    for (const item of itens) {
+      recibo += `${item.nome_item}\n`
+      recibo += linha(`  ${item.quantidade}x ${formatarMoeda(item.preco_unitario)}`, formatarMoeda(item.subtotal)) + "\n"
+    }
+
+    recibo += sep + "\n"
+    recibo += linha("Subtotal:", formatarMoeda(subtotal)) + "\n"
+    if (descontoValor > 0) recibo += linha("Desconto:", `-${formatarMoeda(descontoValor)}`) + "\n"
+    if (descontoPontos > 0) recibo += linha("Desc. Pontos:", `-${formatarMoeda(descontoPontos)}`) + "\n"
+    recibo += linha("TOTAL:", formatarMoeda(vendaFinalizada.total)) + "\n"
+    recibo += sep + "\n"
+    recibo += `Pagamento: ${labelsFormaPagamento[formaPagamento] ?? formaPagamento}\n`
+    if (troco !== null && troco > 0) recibo += `Troco: ${formatarMoeda(troco)}\n`
+    recibo += sep + "\n"
+    recibo += centro("Obrigado pela preferência!") + "\n"
+    recibo += centro(empresa.nome) + "\n"
+    recibo += "\n\n\n" // Espaço para corte
+
+    // Abrir em nova janela para impressão
+    const win = window.open("", "_blank", "width=350,height=600")
+    if (win) {
+      win.document.write(`<html><head><title>Recibo #${vendaFinalizada.numero}</title>
+        <style>body{font-family:monospace;font-size:12px;margin:8px;white-space:pre-wrap;word-wrap:break-word;}
+        @media print{@page{margin:0;size:80mm auto;}body{margin:2mm;}}</style>
+        </head><body>${recibo.replace(/\n/g, "<br>")}</body></html>`)
+      win.document.close()
+      setTimeout(() => { win.print() }, 300)
+    }
+  }
+
   async function imprimirRecibo() {
     if (!vendaFinalizada) return
     setLoadingRecibo(true)
@@ -390,13 +459,28 @@ export function VendaClient({
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar produto ou serviço..."
+                  placeholder="Buscar por nome ou código de barras..."
                   className="pl-9"
                   value={buscaProduto}
-                  onChange={(e) => { setBuscaProduto(e.target.value); setMostrarBuscaProduto(true) }}
+                  onChange={(e) => {
+                    setBuscaProduto(e.target.value)
+                    setMostrarBuscaProduto(true)
+                    // Auto-adicionar se leitor de código de barras digitou e bateu exato
+                    const match = produtos.find((p) => p.codigo_barras && p.codigo_barras === e.target.value.trim())
+                    if (match) {
+                      setTimeout(() => { adicionarItem(match); setBuscaProduto("") }, 100)
+                    }
+                  }}
                   onFocus={() => setMostrarBuscaProduto(true)}
+                  onKeyDown={(e) => {
+                    // Enter adiciona o primeiro resultado
+                    if (e.key === "Enter" && produtosFiltrados.length > 0) {
+                      adicionarItem(produtosFiltrados[0])
+                      setBuscaProduto("")
+                    }
+                  }}
                 />
-                {mostrarBuscaProduto && buscaProduto && (
+                {mostrarBuscaProduto && (
                   <div className="absolute top-full left-0 right-0 z-50 bg-white dark:bg-zinc-900 border border-border rounded-xl shadow-xl mt-1 max-h-60 overflow-y-auto">
                     {produtosFiltrados.length > 0 ? produtosFiltrados.map((p) => (
                       <button
@@ -407,6 +491,7 @@ export function VendaClient({
                         <div>
                           <span className="font-semibold text-foreground">{p.nome}</span>
                           <span className="ml-2 text-xs text-muted-foreground capitalize">({p.tipo})</span>
+                          {p.codigo_barras && <span className="ml-2 text-xs text-muted-foreground/60">{p.codigo_barras}</span>}
                         </div>
                         <span className="font-bold text-primary">{formatarMoeda(p.preco)}</span>
                       </button>
@@ -846,6 +931,9 @@ export function VendaClient({
             )}
           </div>
           <DialogFooter className="flex-col gap-2 sm:flex-col">
+            <Button variant="outline" className="w-full gap-2" onClick={imprimirReciboTermica}>
+              🧾 Imprimir Recibo (Térmica)
+            </Button>
             <Button variant="outline" className="w-full gap-2" onClick={imprimirRecibo} disabled={loadingRecibo}>
               {loadingRecibo ? <Loader2 className="w-4 h-4 animate-spin" /> : "🖨️"} Imprimir Recibo (PDF)
             </Button>
