@@ -51,7 +51,10 @@ export function PinModal({
       setModoReset(false)
       setResetEtapa("enviar")
       setCodigoReset("")
-      setTimeout(() => inputsRef.current[0]?.focus(), 100)
+      setTimeout(() => {
+        inputsRef.current[0]?.focus()
+        setPin(Array(6).fill(""))
+      }, 300)
     }
   }, [aberto])
 
