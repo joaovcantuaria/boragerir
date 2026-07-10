@@ -495,6 +495,29 @@ export function VendaClient({
     window.open(gerarLinkWhatsApp(clienteSelecionado.telefone, msg), "_blank")
   }
 
+  // Atalhos do modal de sucesso
+  useEffect(() => {
+    if (!modalSucesso) return
+    function handler(e: KeyboardEvent) {
+      if (e.key === "F1") {
+        e.preventDefault()
+        imprimirReciboTermica()
+      } else if (e.key === "F2") {
+        e.preventDefault()
+        imprimirRecibo()
+      } else if (e.key === "F3") {
+        e.preventDefault()
+        enviarWhatsApp()
+      } else if (e.key === "Enter" || e.key === "F5") {
+        e.preventDefault()
+        novaVenda()
+      }
+    }
+    document.addEventListener("keydown", handler)
+    return () => document.removeEventListener("keydown", handler)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modalSucesso, vendaFinalizada])
+
   // Componente de badge de atalho
   const Kbd = ({ children }: { children: React.ReactNode }) => (
     <kbd className="hidden lg:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono font-semibold text-zinc-500 bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 rounded ml-1.5 leading-none">
@@ -1008,20 +1031,23 @@ export function VendaClient({
             )}
           </div>
           <DialogFooter className="flex-col gap-2 sm:flex-col">
-            <Button variant="outline" className="w-full gap-2" onClick={imprimirReciboTermica}>
-              🧾 Imprimir Recibo (Térmica)
+            <Button variant="outline" className="w-full gap-2 justify-between" onClick={imprimirReciboTermica}>
+              <span>🧾 Imprimir Recibo (Térmica)</span>
+              <Kbd>F1</Kbd>
             </Button>
-            <Button variant="outline" className="w-full gap-2" onClick={imprimirRecibo} disabled={loadingRecibo}>
-              {loadingRecibo ? <Loader2 className="w-4 h-4 animate-spin" /> : "🖨️"} Imprimir Recibo (PDF)
+            <Button variant="outline" className="w-full gap-2 justify-between" onClick={imprimirRecibo} disabled={loadingRecibo}>
+              <span>{loadingRecibo ? <Loader2 className="w-4 h-4 animate-spin inline" /> : "🖨️"} Imprimir Recibo (PDF)</span>
+              <Kbd>F2</Kbd>
             </Button>
             {clienteSelecionado?.telefone && (
-              <Button variant="outline" className="w-full gap-2" onClick={enviarWhatsApp}>
-                💬 Enviar por WhatsApp
+              <Button variant="outline" className="w-full gap-2 justify-between" onClick={enviarWhatsApp}>
+                <span>💬 Enviar por WhatsApp</span>
+                <Kbd>F3</Kbd>
               </Button>
             )}
-            <Button className="w-full gap-2 bg-orange-500 hover:bg-orange-600" onClick={novaVenda}>
-              <Plus className="w-4 h-4" />
-              Nova Venda
+            <Button className="w-full gap-2 justify-between bg-orange-500 hover:bg-orange-600" onClick={novaVenda}>
+              <span className="flex items-center gap-2"><Plus className="w-4 h-4" /> Nova Venda</span>
+              <Kbd>Enter</Kbd>
             </Button>
           </DialogFooter>
         </DialogContent>
