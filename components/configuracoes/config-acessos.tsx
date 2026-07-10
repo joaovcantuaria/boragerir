@@ -260,6 +260,8 @@ export function ConfigAcessos({ empresa }: ConfigAcessosProps) {
       const data = await res.json()
       if (data.sucesso) {
         toast.success("Restrições de acesso salvas")
+        // Redirecionar para dashboard após salvar
+        setTimeout(() => { window.location.href = "/dashboard" }, 500)
       } else {
         toast.error(data.erro || "Erro ao salvar restrições")
       }
