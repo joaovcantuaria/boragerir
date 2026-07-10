@@ -90,6 +90,7 @@ export function VendaClient({
   const [modalSucesso, setModalSucesso] = useState(false)
   const [vendaFinalizada, setVendaFinalizada] = useState<{ id: string; numero: number; total: number } | null>(null)
   const [valorRecebido, setValorRecebido] = useState("")
+  const [autoprint, setAutoprint] = useState(false)
   const supabase = createClient()
   const inputBuscaRef = useRef<HTMLInputElement>(null)
   const inputClienteRef = useRef<HTMLInputElement>(null)
@@ -101,6 +102,12 @@ export function VendaClient({
   // Recompensas/brindes disponíveis
   const [recompensas, setRecompensas] = useState<RecompensaDisponivel[]>([])
   const [recompensaSelecionada, setRecompensaSelecionada] = useState<RecompensaDisponivel | null>(null)
+
+  // Carregar preferência de impressão automática
+  useEffect(() => {
+    const saved = localStorage.getItem("pdv_autoprint")
+    if (saved === "true") setAutoprint(true)
+  }, [])
 
   // Carregar recompensas disponíveis
   useEffect(() => {
@@ -408,6 +415,11 @@ export function VendaClient({
     setVendaFinalizada({ id: venda.id, numero: venda.numero_venda, total })
     setModalSucesso(true)
     setLoading(false)
+
+    // Autoprint — imprime recibo térmico automaticamente
+    if (autoprint) {
+      setTimeout(() => imprimirReciboSilencioso(venda.numero_venda, total), 500)
+    }
   }
 
   function novaVenda() {
@@ -490,6 +502,91 @@ export function VendaClient({
       win.document.close()
       setTimeout(() => { win.print() }, 300)
     }
+  }
+
+  // Impressão silenciosa via iframe oculto (autoprint)
+  function imprimirReciboSilencioso(numero: number, valorTotal: number) {
+    const largura = 48
+    const sep = "-".repeat(largura)
+    const centro = (txt: string) => {
+      const pad = Math.max(0, Math.floor((largura - txt.length) / 2))
+      return " ".repeat(pad) + txt
+    }
+    const linha = (esq: string, dir: string) => {
+      const espacos = Math.max(1, largura - esq.length - dir.length)
+      return esq + " ".repeat(espacos) + dir
+    }
+
+    const agora = new Date()
+    const dataStr = agora.toLocaleDateString("pt-BR")
+    const horaStr = agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+
+    let recibo = ""
+    recibo += centro(empresa.nome) + "\n"
+    if (empresa.documento) recibo += centro(`CNPJ: ${empresa.documento}`) + "\n"
+    if (empresa.telefone) recibo += centro(`Tel: ${empresa.telefone}`) + "\n"
+    recibo += sep + "\n"
+    recibo += centro("CUPOM NÃO FISCAL") + "\n"
+    recibo += sep + "\n"
+    recibo += `Venda #${numero}\n`
+    recibo += `Data: ${dataStr} ${horaStr}\n`
+    if (clienteSelecionado) recibo += `Cliente: ${clienteSelecionado.nome_completo}\n`
+    if (funcionarioId) {
+      const func = funcionarios.find(f => f.id === funcionarioId)
+      if (func) recibo += `Atendente: ${func.nome}\n`
+    }
+    recibo += sep + "\n"
+    recibo += linha("ITEM", "SUBTOTAL") + "\n"
+    recibo += sep + "\n"
+
+    for (const item of itens) {
+      recibo += `${item.nome_item}\n`
+      recibo += linha(`  ${item.quantidade}x ${formatarMoeda(item.preco_unitario)}`, formatarMoeda(item.subtotal)) + "\n"
+    }
+
+    recibo += sep + "\n"
+    recibo += linha("Subtotal:", formatarMoeda(subtotal)) + "\n"
+    if (descontoValor > 0) recibo += linha("Desconto:", `-${formatarMoeda(descontoValor)}`) + "\n"
+    if (descontoPontos > 0) recibo += linha("Desc. Pontos:", `-${formatarMoeda(descontoPontos)}`) + "\n"
+    recibo += linha("TOTAL:", formatarMoeda(valorTotal)) + "\n"
+    recibo += sep + "\n"
+    recibo += `Pagamento: ${labelsFormaPagamento[formaPagamento] ?? formaPagamento}\n`
+    if (troco !== null && troco > 0) recibo += `Troco: ${formatarMoeda(troco)}\n`
+    recibo += sep + "\n"
+    recibo += centro("Obrigado pela preferência!") + "\n"
+    recibo += centro(empresa.nome) + "\n"
+    recibo += "\n\n\n"
+
+    // Usa iframe oculto para impressão silenciosa
+    const iframe = document.createElement("iframe")
+    iframe.style.position = "fixed"
+    iframe.style.top = "-9999px"
+    iframe.style.left = "-9999px"
+    iframe.style.width = "0"
+    iframe.style.height = "0"
+    iframe.style.border = "none"
+    document.body.appendChild(iframe)
+
+    const doc = iframe.contentDocument || iframe.contentWindow?.document
+    if (doc) {
+      doc.open()
+      doc.write(`<html><head><title>Recibo #${numero}</title>
+        <style>body{font-family:monospace;font-size:12px;margin:4px;white-space:pre-wrap;word-wrap:break-word;}
+        @media print{@page{margin:0;size:80mm auto;}body{margin:2mm;}}</style>
+        </head><body>${recibo.replace(/\n/g, "<br>")}</body></html>`)
+      doc.close()
+      setTimeout(() => {
+        iframe.contentWindow?.print()
+        setTimeout(() => document.body.removeChild(iframe), 2000)
+      }, 300)
+    }
+  }
+
+  function toggleAutoprint() {
+    const novo = !autoprint
+    setAutoprint(novo)
+    localStorage.setItem("pdv_autoprint", novo.toString())
+    toast.success(novo ? "Impressão automática ativada" : "Impressão automática desativada")
   }
 
   async function imprimirRecibo() {
@@ -575,6 +672,17 @@ export function VendaClient({
           )}
         </div>
         <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+          <button
+            onClick={toggleAutoprint}
+            className={`flex items-center gap-1 px-2 py-1 rounded transition-colors ${
+              autoprint
+                ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400"
+                : "bg-zinc-100 dark:bg-zinc-800 text-muted-foreground hover:text-foreground"
+            }`}
+            title="Impressão automática de recibo após finalizar venda"
+          >
+            🖨️ Auto {autoprint ? "ON" : "OFF"}
+          </button>
           <span className="hidden md:flex items-center gap-1 px-2 py-1 rounded bg-zinc-100 dark:bg-zinc-800">
             <Keyboard className="w-3 h-3" /> F2 Buscar · F3 Cliente · F4 Finalizar · F5 Nova · F6 Desc% · F7 Atendente · F8 Pagamento
           </span>
