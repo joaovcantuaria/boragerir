@@ -66,6 +66,8 @@ export default async function CaixaPage() {
       caixasAbertos={caixasAbertos}
       movimentacoes={movimentacoes}
       caixasAnteriores={caixasAnteriores}
+      pinGerente={empresa.pin_gerente ?? null}
+      restricoesAcesso={empresa.restricoes_acesso ?? null}
     />
   )
 }

@@ -13,6 +13,8 @@ import {
 import { toast } from "sonner"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
+import { PinProtected } from "@/components/ui/pin-protected"
+import { PinModal } from "@/components/ui/pin-modal"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -53,9 +55,11 @@ interface CaixaClientProps {
   }[]
   movimentacoes: Movimentacao[]
   caixasAnteriores: CaixaAnterior[]
+  pinGerente?: string | null
+  restricoesAcesso?: { areas_protegidas?: string[]; limite_desconto_sem_pin?: number } | null
 }
 
-export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto: caixaInicial, caixasAbertos: caixasAbertosInit = [], movimentacoes: movsIniciais, caixasAnteriores: caixasAntInit }: CaixaClientProps) {
+export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto: caixaInicial, caixasAbertos: caixasAbertosInit = [], movimentacoes: movsIniciais, caixasAnteriores: caixasAntInit, pinGerente, restricoesAcesso }: CaixaClientProps) {
   const [caixa, setCaixa] = useState(caixaInicial)
   const [caixasAbertos, setCaixasAbertos] = useState(caixasAbertosInit)
   const [movimentacoes, setMovimentacoes] = useState(movsIniciais)
@@ -71,8 +75,32 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
   const [editandoMov, setEditandoMov] = useState<Movimentacao | null>(null)
   const [loading, setLoading] = useState(false)
   const [valorFechamento, setValorFechamento] = useState("")
+  const [pinModalCaixa, setPinModalCaixa] = useState(false)
+  const [pinAcaoPendente, setPinAcaoPendente] = useState<(() => void) | null>(null)
   const router = useRouter()
   const supabase = createClient()
+
+  const areasProtegidas = restricoesAcesso?.areas_protegidas || []
+  const pinConf = !!pinGerente
+
+  // Verificar se ação precisa de PIN antes de executar
+  function executarComPin(restricaoId: string, acao: () => void) {
+    if (pinConf && areasProtegidas.includes(restricaoId)) {
+      // Verificar se já desbloqueou na sessão
+      const chave = `pin_acao_${empresaId}_${restricaoId}`
+      if (sessionStorage.getItem(chave) === "true") {
+        acao()
+        return
+      }
+      setPinAcaoPendente(() => () => {
+        sessionStorage.setItem(chave, "true")
+        acao()
+      })
+      setPinModalCaixa(true)
+    } else {
+      acao()
+    }
+  }
 
   // Calcular totais
   const totalEntradas = movimentacoes.filter((m) => m.tipo === "entrada").reduce((s, m) => s + m.valor, 0)
@@ -360,7 +388,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
                         {(cxAberto as any).nome_caixa && <span className="text-xs text-muted-foreground">· {(cxAberto as any).nome_caixa}</span>}
                       </div>
                       <Button variant="destructive" size="sm" className="text-xs h-7 px-3"
-                        onClick={() => { setCaixa(cxAberto as any); setModalFecharCaixa(true) }}>
+                        onClick={() => executarComPin("caixa_fechar", () => { setCaixa(cxAberto as any); setModalFecharCaixa(true) })}>
                         Fechar Caixa
                       </Button>
                     </div>
@@ -417,15 +445,15 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
           {/* Ações rápidas */}
           {caixasAbertos.length > 0 && (
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={() => setModalMovimentacao("suprimento")} className="gap-2">
+              <Button variant="outline" onClick={() => executarComPin("caixa_suprimento", () => setModalMovimentacao("suprimento"))} className="gap-2">
                 <ArrowDownCircle className="w-4 h-4 text-emerald-500" />
                 Suprimento
               </Button>
-              <Button variant="outline" onClick={() => setModalMovimentacao("sangria")} className="gap-2">
+              <Button variant="outline" onClick={() => executarComPin("caixa_sangria", () => setModalMovimentacao("sangria"))} className="gap-2">
                 <ArrowUpCircle className="w-4 h-4 text-orange-500" />
                 Sangria
               </Button>
-              <Button variant="outline" onClick={() => setModalMovimentacao("despesa")} className="gap-2">
+              <Button variant="outline" onClick={() => executarComPin("caixa_despesa", () => setModalMovimentacao("despesa"))} className="gap-2">
                 <Minus className="w-4 h-4 text-red-500" />
                 Despesa
               </Button>
@@ -590,20 +618,20 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
 
           {/* Ações rápidas */}
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => setModalMovimentacao("suprimento")} className="gap-2">
+            <Button variant="outline" onClick={() => executarComPin("caixa_suprimento", () => setModalMovimentacao("suprimento"))} className="gap-2">
               <ArrowDownCircle className="w-4 h-4 text-emerald-500" />
               Suprimento
             </Button>
-            <Button variant="outline" onClick={() => setModalMovimentacao("sangria")} className="gap-2">
+            <Button variant="outline" onClick={() => executarComPin("caixa_sangria", () => setModalMovimentacao("sangria"))} className="gap-2">
               <ArrowUpCircle className="w-4 h-4 text-orange-500" />
               Sangria
             </Button>
-            <Button variant="outline" onClick={() => setModalMovimentacao("despesa")} className="gap-2">
+            <Button variant="outline" onClick={() => executarComPin("caixa_despesa", () => setModalMovimentacao("despesa"))} className="gap-2">
               <Minus className="w-4 h-4 text-red-500" />
               Despesa
             </Button>
             {plano !== "gestao" && (
-              <Button variant="destructive" onClick={() => setModalFecharCaixa(true)} className="ml-auto gap-2">
+              <Button variant="destructive" onClick={() => executarComPin("caixa_fechar", () => setModalFecharCaixa(true))} className="ml-auto gap-2">
                 <X className="w-4 h-4" />
                 Fechar Caixa
               </Button>
@@ -666,13 +694,21 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
         {/* ── ABA CAIXAS ANTERIORES ── */}
         {temCaixasAnteriores && (
           <TabsContent value="anteriores" className="mt-4">
-            <CaixasAnterioresTab
-              caixas={caixasAnteriores}
-              busca={buscaAnt}
-              setBusca={setBuscaAnt}
-              onVerDetalhe={verDetalheCaixa}
-              loadingDetalhe={loadingDetalhe}
-            />
+            <PinProtected
+              empresaId={empresaId}
+              pinConfigurado={!!pinGerente}
+              areasProtegidas={restricoesAcesso?.areas_protegidas || []}
+              restricaoId="caixa_ver_anteriores"
+              nomeRestricao="Caixas Anteriores"
+            >
+              <CaixasAnterioresTab
+                caixas={caixasAnteriores}
+                busca={buscaAnt}
+                setBusca={setBuscaAnt}
+                onVerDetalhe={verDetalheCaixa}
+                loadingDetalhe={loadingDetalhe}
+              />
+            </PinProtected>
           </TabsContent>
         )}
       </Tabs>
@@ -1015,6 +1051,22 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* PIN Modal para ações protegidas do caixa */}
+      <PinModal
+        aberto={pinModalCaixa}
+        onClose={() => { setPinModalCaixa(false); setPinAcaoPendente(null) }}
+        onSuccess={() => {
+          setPinModalCaixa(false)
+          if (pinAcaoPendente) {
+            pinAcaoPendente()
+            setPinAcaoPendente(null)
+          }
+        }}
+        empresaId={empresaId}
+        titulo="Ação Restrita"
+        descricao="Digite o PIN de gerente para executar esta ação"
+      />
     </div>
   )
 }
