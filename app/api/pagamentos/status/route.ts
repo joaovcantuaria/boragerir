@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { addMonths, format } from "date-fns"
+import { enviarEmail, templateAssinaturaConfirmada } from "@/lib/email/brevo"
 
 export async function GET(req: NextRequest) {
   const payment_id = req.nextUrl.searchParams.get("payment_id")
@@ -87,6 +89,8 @@ async function ativarAssinatura(paymentId: string, externalReference?: string) {
       const { empresa_id, plano } = updated[0]
       const { error: errEmp } = await admin.from("empresas").update({ plano, plano_ativo: true }).eq("id", empresa_id)
       console.log("Empresa atualizada:", { empresa_id, plano, errEmp })
+      // Enviar email de confirmação
+      await enviarEmailAssinatura(admin, empresa_id, plano)
       return
     }
 
@@ -109,6 +113,8 @@ async function ativarAssinatura(paymentId: string, externalReference?: string) {
           .eq("id", ass.id)
 
         await admin.from("empresas").update({ plano: ass.plano, plano_ativo: true }).eq("id", empresaId)
+        // Enviar email de confirmação
+        await enviarEmailAssinatura(admin, empresaId, ass.plano)
         return
       }
     }
@@ -116,5 +122,43 @@ async function ativarAssinatura(paymentId: string, externalReference?: string) {
     console.warn("ativarAssinatura: nenhuma assinatura encontrada para ativar")
   } catch (e) {
     console.error("Erro ao ativar assinatura:", e)
+  }
+}
+
+async function enviarEmailAssinatura(admin: ReturnType<typeof createAdminClient>, empresaId: string, plano: string) {
+  try {
+    const { data: empresa } = await admin.from("empresas").select("nome, email, user_id").eq("id", empresaId).single()
+    if (!empresa) return
+
+    const { data: assinatura } = await admin.from("assinaturas")
+      .select("valor_total, periodicidade, proximo_vencimento")
+      .eq("empresa_id", empresaId)
+      .eq("status", "ativa")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single()
+
+    const { data: userData } = await admin.auth.admin.getUserById(empresa.user_id)
+    const emailDestino = userData?.user?.email || empresa.email
+    const planoNome = plano.charAt(0).toUpperCase() + plano.slice(1)
+    const valor = assinatura?.valor_total ? `R$ ${Number(assinatura.valor_total).toFixed(2)}` : "—"
+    const periodicidade = assinatura?.periodicidade === "anual" ? "Anual" : "Mensal"
+    const vencimento = assinatura?.proximo_vencimento
+      ? format(new Date(assinatura.proximo_vencimento), "dd/MM/yyyy")
+      : format(addMonths(new Date(), 1), "dd/MM/yyyy")
+
+    await enviarEmail({
+      para: { email: emailDestino, nome: empresa.nome },
+      assunto: `✅ Assinatura confirmada — Plano ${planoNome} | Bora Gerir`,
+      html: templateAssinaturaConfirmada({
+        nomeEmpresa: empresa.nome,
+        plano: planoNome,
+        valor,
+        periodicidade,
+        dataVencimento: vencimento,
+      }),
+    })
+  } catch (e) {
+    console.error("Erro ao enviar email de assinatura:", e)
   }
 }

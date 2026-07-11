@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
-import { addDays, addMonths } from "date-fns"
+import { addDays, addMonths, format } from "date-fns"
+import { enviarEmail, templateTesteGratis, templateAssinaturaConfirmada } from "@/lib/email/brevo"
 
 /**
  * Cria assinatura manual para uma empresa (sem cobrança MP).
@@ -65,6 +66,24 @@ export async function POST(req: NextRequest) {
       plano_ativo: true,
     }).eq("id", empresa_id)
 
+    // Enviar email de teste grátis
+    const { data: empresaData } = await admin.from("empresas").select("nome, email, user_id").eq("id", empresa_id).single()
+    if (empresaData) {
+      const { data: userData } = await admin.auth.admin.getUserById(empresaData.user_id)
+      const emailDestino = userData?.user?.email || empresaData.email
+      const planoNome = (plano ?? "profissional").charAt(0).toUpperCase() + (plano ?? "profissional").slice(1)
+      enviarEmail({
+        para: { email: emailDestino, nome: empresaData.nome },
+        assunto: `🎉 Teste grátis ativado — Plano ${planoNome} | Bora Gerir`,
+        html: templateTesteGratis({
+          nomeEmpresa: empresaData.nome,
+          plano: planoNome,
+          diasTeste: dias_teste,
+          dataVencimento: format(dataFim, "dd/MM/yyyy"),
+        }),
+      }).catch(() => {})
+    }
+
     return NextResponse.json({
       sucesso: true,
       mensagem: `Período de teste de ${dias_teste} dias ativado! Vence em ${dataFim.toLocaleDateString("pt-BR")}.`,
@@ -102,6 +121,25 @@ export async function POST(req: NextRequest) {
       plano,
       plano_ativo: true,
     }).eq("id", empresa_id)
+
+    // Enviar email de confirmação de assinatura
+    const { data: empresaData2 } = await admin.from("empresas").select("nome, email, user_id").eq("id", empresa_id).single()
+    if (empresaData2) {
+      const { data: userData2 } = await admin.auth.admin.getUserById(empresaData2.user_id)
+      const emailDestino2 = userData2?.user?.email || empresaData2.email
+      const planoNome2 = plano.charAt(0).toUpperCase() + plano.slice(1)
+      enviarEmail({
+        para: { email: emailDestino2, nome: empresaData2.nome },
+        assunto: `✅ Assinatura confirmada — Plano ${planoNome2} | Bora Gerir`,
+        html: templateAssinaturaConfirmada({
+          nomeEmpresa: empresaData2.nome,
+          plano: planoNome2,
+          valor: `R$ ${valorRecebidoNum.toFixed(2)}`,
+          periodicidade: meses === 1 ? "Mensal" : `${meses} meses`,
+          dataVencimento: format(addMonths(agora, 1), "dd/MM/yyyy"),
+        }),
+      }).catch(() => {})
+    }
 
     return NextResponse.json({
       sucesso: true,
