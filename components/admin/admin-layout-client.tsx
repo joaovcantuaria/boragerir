@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import {
   LayoutDashboard, Building2, CreditCard, HeadphonesIcon,
   Settings, LogOut, Shield, Tag, Users2, Bell, X, Bot,
-  Sun, Moon, ChevronDown, Grid3X3,
+  Sun, Moon, ChevronDown, Grid3X3, Mail,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { LogoIcon } from "@/components/ui/logo"
@@ -26,6 +26,7 @@ const navPrincipal = [
 const navSecundario = [
   { href: "/admin/vendedores",      icon: Users2,  label: "Vendedores",      color: "#10b981" },
   { href: "/admin/cupons",          icon: Tag,     label: "Cupons",          color: "#f59e0b" },
+  { href: "/admin/email-marketing", icon: Mail,    label: "Email Marketing", color: "#F26E1D" },
   { href: "/admin/atendimentos-ia", icon: Bot,     label: "Atendimentos IA", color: "#6366f1" },
   { href: "/admin/usuarios",        icon: Shield,  label: "Usuários",        color: "#a855f7" },
   { href: "/admin/configuracoes",   icon: Settings,label: "Configurações",   color: "#6b7280" },
