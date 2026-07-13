@@ -127,6 +127,13 @@ export function MobileNav({ prefix = "", plano = "gratuito", empresas = [], empr
                   )
                 })}
                 <button
+                  onClick={() => { setMenuAberto(false); sessionStorage.removeItem("boragerir_colaborador_ativo"); window.location.reload() }}
+                  className="flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-xs font-semibold transition-colors bg-white text-zinc-600 hover:bg-zinc-50"
+                >
+                  <Users className="w-5 h-5" />
+                  <span className="text-center leading-tight">Trocar</span>
+                </button>
+                <button
                   onClick={() => { setMenuAberto(false); handleLogout() }}
                   className="flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-xs font-semibold transition-colors bg-white text-red-500 hover:bg-red-50"
                 >
@@ -155,6 +162,13 @@ export function MobileNav({ prefix = "", plano = "gratuito", empresas = [], empr
                     </Link>
                   )
                 })}
+                <button
+                  onClick={() => { setMenuAberto(false); sessionStorage.removeItem("boragerir_colaborador_ativo"); window.location.reload() }}
+                  className="flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-xs font-semibold transition-colors text-gray-300 hover:bg-white/10"
+                >
+                  <Users className="w-5 h-5" />
+                  <span className="text-center leading-tight">Trocar</span>
+                </button>
                 <button
                   onClick={() => { setMenuAberto(false); handleLogout() }}
                   className="flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-xs font-semibold transition-colors text-red-400 hover:bg-white/10"

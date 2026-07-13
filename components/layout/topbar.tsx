@@ -449,6 +449,16 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl, plano, empr
             )}
             <div style={{ borderTop: "1px solid #e5e7eb", margin: "4px 0" }} />
             <button
+              onClick={() => { sessionStorage.removeItem("boragerir_colaborador_ativo"); window.location.reload() }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-colors"
+              style={{ color: "#374151" }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "#f3f4f6" }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
+            >
+              <Users className="w-3.5 h-3.5" style={{ color: "#9ca3af" }} />
+              Trocar usuário
+            </button>
+            <button
               onClick={handleLogout}
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-colors"
               style={{ color: "#ef4444" }}

@@ -11,6 +11,9 @@ import { PinGuard } from "@/components/ui/pin-guard"
 import { useEmpresa } from "@/hooks/use-empresa"
 import { useRealtimeRefresh } from "@/hooks/use-realtime-refresh"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
+import { ColaboradorProvider, useColaborador } from "@/contexts/colaborador-context"
+import { LoginColaborador } from "@/components/auth/login-colaborador"
+import { createClient } from "@/lib/supabase/client"
 
 // Painel de atalhos
 function ShortcutPanel({ onClose }: { onClose: () => void }) {
@@ -110,8 +113,18 @@ function PinGuardWrapper({ empresa, pathname, children }: { empresa: any; pathna
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <ColaboradorProvider>
+      <AppLayoutInner>{children}</AppLayoutInner>
+    </ColaboradorProvider>
+  )
+}
+
+function AppLayoutInner({ children }: { children: React.ReactNode }) {
   const [showShortcuts, setShowShortcuts] = useState(false)
+  const [funcionariosLogin, setFuncionariosLogin] = useState<{ id: string; nome: string; cargo: string; usuario: string | null; perfil: string }[]>([])
   const { empresa, empresas, selecionarEmpresa } = useEmpresa()
+  const { colaborador, logado, login, loginComoAdmin, carregando: carregandoColab } = useColaborador()
   const pathname = usePathname()
   const plano = empresa?.plano ?? "gratuito"
   const isPlanoAgenda = plano === "agenda"
@@ -119,6 +132,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   useRealtimeRefresh(empresa?.id)
   useKeyboardShortcuts()
+
+  // Carregar funcionários com login configurado
+  useEffect(() => {
+    if (!empresa?.id) return
+    const supabase = createClient()
+    supabase
+      .from("funcionarios")
+      .select("id, nome, cargo, usuario, perfil")
+      .eq("empresa_id", empresa.id)
+      .eq("ativo", true)
+      .not("usuario", "is", null)
+      .order("nome")
+      .then(({ data }) => setFuncionariosLogin(data ?? []))
+  }, [empresa?.id])
 
   // Atalho ? para mostrar painel
   useEffect(() => {
@@ -131,6 +158,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     document.addEventListener("keydown", handler)
     return () => document.removeEventListener("keydown", handler)
   }, [])
+
+  // Mostrar tela de login local se:
+  // 1. Empresa carregada
+  // 2. Existem colaboradores com login configurado
+  // 3. Nenhum colaborador logado na sessão
+  const precisaLoginLocal = empresa && !carregandoColab && !logado && funcionariosLogin.length > 0
+
+  if (precisaLoginLocal) {
+    return (
+      <LoginColaborador
+        empresaNome={empresa.nome}
+        empresaLogoUrl={empresa.logo_url}
+        funcionarios={funcionariosLogin}
+        onLogin={async (usuario, senha) => login(empresa.id, usuario, senha)}
+        onLoginAdmin={() => loginComoAdmin(empresa.nome)}
+      />
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
