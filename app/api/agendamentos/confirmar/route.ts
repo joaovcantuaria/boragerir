@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { enviarEmail, templateBase } from "@/lib/email/brevo"
 import { dispararWebhook, normalizarTelefoneDDI } from "@/lib/webhook/n8n"
+import { enviarWhatsApp, msgAgendamentoConfirmado, msgAgendamentoEspera, msgAgendamentoCancelado } from "@/lib/whatsapp/boragerir-chat"
 import { format, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
@@ -50,6 +51,25 @@ export async function POST(req: NextRequest) {
         data: format(dataISO, "dd/MM/yyyy", { locale: ptBR }),
         horario: format(dataISO, "HH:mm"),
       })
+    }
+    // ─────────────────────────────────────────────────────────
+
+    // ── WhatsApp via BoraGerir Chat ──────────────────────────
+    const telefoneWhats = agendamento.telefone_cliente_avulso ?? ""
+    if (telefoneWhats) {
+      const nomeClienteW = agendamento.nome_cliente_avulso ?? "Cliente"
+      const servicoW = agendamento.produtos_servicos?.nome ?? "Serviço"
+      const dataW = format(parseISO(agendamento.data_hora), "dd/MM/yyyy", { locale: ptBR })
+      const horarioW = format(parseISO(agendamento.data_hora), "HH:mm")
+      const whatsParams = { nomeCliente: nomeClienteW, nomeEmpresa: empresa?.nome ?? "", servico: servicoW, data: dataW, horario: horarioW }
+
+      if (acao === "confirmar") {
+        enviarWhatsApp({ telefone: telefoneWhats, mensagem: msgAgendamentoConfirmado(whatsParams) })
+      } else if (acao === "espera") {
+        enviarWhatsApp({ telefone: telefoneWhats, mensagem: msgAgendamentoEspera(whatsParams) })
+      } else {
+        enviarWhatsApp({ telefone: telefoneWhats, mensagem: msgAgendamentoCancelado(whatsParams) })
+      }
     }
     // ─────────────────────────────────────────────────────────
 
