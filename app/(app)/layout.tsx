@@ -106,6 +106,11 @@ function PinGuardWrapper({ empresa, pathname, children }: { empresa: any; pathna
   }
 
   // ─── Verificação de PIN (fallback existente) ───
+  // Se colaborador logado como admin ou gerente, NUNCA pede PIN
+  if (logado && colaborador && (colaborador.perfil === "admin" || colaborador.perfil === "gerente")) {
+    return <>{children}</>
+  }
+
   const restricoes = empresa.restricoes_acesso as { areas_protegidas?: string[] } | null
   const areasProtegidas = restricoes?.areas_protegidas || []
   const pinConfigurado = !!empresa.pin_gerente
@@ -193,20 +198,18 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
   // 3. Nenhum colaborador logado na sessão
   const precisaLoginLocal = empresa && !carregandoColab && !logado && funcionariosLogin.length > 0
 
-  if (precisaLoginLocal) {
-    return (
-      <LoginColaborador
-        empresaNome={empresa.nome}
-        empresaLogoUrl={empresa.logo_url}
-        funcionarios={funcionariosLogin}
-        onLogin={async (usuario, senha) => login(empresa.id, usuario, senha)}
-        onLoginAdmin={() => loginComoAdmin(empresa.nome)}
-      />
-    )
-  }
-
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      {/* Overlay de login local */}
+      {precisaLoginLocal && (
+        <LoginColaborador
+          empresaNome={empresa.nome}
+          empresaLogoUrl={empresa.logo_url}
+          funcionarios={funcionariosLogin}
+          onLogin={async (usuario, senha) => login(empresa.id, usuario, senha)}
+          onLoginAdmin={() => loginComoAdmin(empresa.nome)}
+        />
+      )}
 
       {/* Topbar — só no desktop (md+). Mobile usa a barra inferior */}
       <div className="hidden md:block">

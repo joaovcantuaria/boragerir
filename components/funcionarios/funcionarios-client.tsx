@@ -340,6 +340,12 @@ export function FuncionariosClient({ empresaId, plano, funcionarios: funcInit, p
             </DialogTitle>
           </DialogHeader>
 
+          {/* Form wrapper com autocomplete desabilitado */}
+          <form autoComplete="off" onSubmit={(e) => { e.preventDefault(); salvarAcesso() }}>
+          {/* Input invisível para enganar o autocomplete do navegador */}
+          <input type="text" name="fake_user" style={{ display: "none" }} tabIndex={-1} />
+          <input type="password" name="fake_pass" style={{ display: "none" }} tabIndex={-1} />
+
           <div className="space-y-5 py-2">
             {/* Usuário */}
             <div className="space-y-2">
@@ -349,7 +355,8 @@ export function FuncionariosClient({ empresaId, plano, funcionarios: funcInit, p
                 value={acessoUsuario}
                 onChange={(e) => setAcessoUsuario(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ""))}
                 autoComplete="off"
-                data-form-type="other"
+                name="local_user_custom"
+                id="local_user_custom"
               />
               <p className="text-[11px] text-muted-foreground">Apenas letras minúsculas, números, ponto, traço e underscore</p>
             </div>
@@ -364,6 +371,8 @@ export function FuncionariosClient({ empresaId, plano, funcionarios: funcInit, p
                   value={acessoSenha}
                   onChange={(e) => setAcessoSenha(e.target.value)}
                   autoComplete="new-password"
+                  name="local_pass_custom"
+                  id="local_pass_custom"
                   data-form-type="other"}
                   className="pr-10"
                 />
@@ -436,12 +445,13 @@ export function FuncionariosClient({ empresaId, plano, funcionarios: funcInit, p
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAcessoModalAberto(false)}>Cancelar</Button>
-            <Button onClick={salvarAcesso} disabled={acessoLoading} className="gap-2">
+            <Button type="button" variant="outline" onClick={() => setAcessoModalAberto(false)}>Cancelar</Button>
+            <Button type="submit" disabled={acessoLoading} className="gap-2">
               {acessoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
               Salvar Acesso
             </Button>
           </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
