@@ -213,6 +213,12 @@ export function ConfigAcessos({ empresa }: ConfigAcessosProps) {
   const [testarPinAberto, setTestarPinAberto] = useState(false)
   const [alterarPinModal, setAlterarPinModal] = useState(false)
 
+  // ─── Senha Admin ───
+  const [senhaAdmin, setSenhaAdmin] = useState("")
+  const [confirmarSenhaAdmin, setConfirmarSenhaAdmin] = useState("")
+  const [mostrarSenhaAdmin, setMostrarSenhaAdmin] = useState(false)
+  const [salvandoSenhaAdmin, setSalvandoSenhaAdmin] = useState(false)
+
   async function salvarPin() {
     if (!pin) { toast.error("Digite o PIN"); return }
     if (pin.length < 4 || pin.length > 6) { toast.error("PIN deve ter entre 4 e 6 dígitos"); return }
@@ -320,12 +326,7 @@ export function ConfigAcessos({ empresa }: ConfigAcessosProps) {
     )
   }
 
-  // ─── Senha Admin ───
-  const [senhaAdmin, setSenhaAdmin] = useState("")
-  const [confirmarSenhaAdmin, setConfirmarSenhaAdmin] = useState("")
-  const [mostrarSenhaAdmin, setMostrarSenhaAdmin] = useState(false)
-  const [salvandoSenhaAdmin, setSalvandoSenhaAdmin] = useState(false)
-
+  // ─── Função salvar senha admin ───
   async function salvarSenhaAdmin() {
     if (!senhaAdmin || senhaAdmin.length < 4) { toast.error("Senha deve ter no mínimo 4 caracteres"); return }
     if (senhaAdmin !== confirmarSenhaAdmin) { toast.error("As senhas não conferem"); return }
