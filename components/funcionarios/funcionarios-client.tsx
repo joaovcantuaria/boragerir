@@ -348,6 +348,8 @@ export function FuncionariosClient({ empresaId, plano, funcionarios: funcInit, p
                 placeholder="ex: maria, joao123"
                 value={acessoUsuario}
                 onChange={(e) => setAcessoUsuario(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ""))}
+                autoComplete="off"
+                data-form-type="other"
               />
               <p className="text-[11px] text-muted-foreground">Apenas letras minúsculas, números, ponto, traço e underscore</p>
             </div>
@@ -361,6 +363,8 @@ export function FuncionariosClient({ empresaId, plano, funcionarios: funcInit, p
                   placeholder="Mínimo 4 caracteres"
                   value={acessoSenha}
                   onChange={(e) => setAcessoSenha(e.target.value)}
+                  autoComplete="new-password"
+                  data-form-type="other"}
                   className="pr-10"
                 />
                 <button
