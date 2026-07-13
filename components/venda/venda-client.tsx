@@ -15,6 +15,7 @@ import { formatarMoeda, gerarLinkWhatsApp, labelsFormaPagamento } from "@/lib/ut
 import type { Empresa } from "@/types"
 import { gerarReciboPDF } from "@/lib/pdf/recibo"
 import { PinModal } from "@/components/ui/pin-modal"
+import { VendaMobile } from "@/components/venda/venda-mobile"
 
 interface ItemVendaLocal {
   produto_servico_id: string
@@ -670,7 +671,62 @@ export function VendaClient({
   )
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col overflow-hidden">
+    <>
+    {/* ─── MOBILE ─── */}
+    <VendaMobile
+      empresa={empresa}
+      caixaId={caixaId}
+      clientes={clientes}
+      produtos={produtos}
+      funcionarios={funcionarios}
+      itens={itens}
+      setItens={setItens}
+      clienteSelecionado={clienteSelecionado}
+      setClienteSelecionado={setClienteSelecionado}
+      funcionarioId={funcionarioId}
+      setFuncionarioId={setFuncionarioId}
+      desconto={desconto}
+      setDesconto={setDesconto}
+      tipoDesconto={tipoDesconto}
+      setTipoDesconto={setTipoDesconto}
+      pontosUsar={pontosUsar}
+      setPontosUsar={setPontosUsar}
+      formaPagamento={formaPagamento}
+      setFormaPagamento={setFormaPagamento}
+      parcelas={parcelas}
+      setParcelas={setParcelas}
+      observacoes={observacoes}
+      setObservacoes={setObservacoes}
+      dataVenda={dataVenda}
+      setDataVenda={setDataVenda}
+      valorRecebido={valorRecebido}
+      setValorRecebido={setValorRecebido}
+      recompensas={recompensas}
+      recompensaSelecionada={recompensaSelecionada}
+      setRecompensaSelecionada={setRecompensaSelecionada}
+      subtotal={subtotal}
+      descontoValor={descontoValor}
+      descontoPontos={descontoPontos}
+      total={total}
+      troco={troco}
+      pontosResgateBrinde={pontosResgateBrinde}
+      adicionarItem={adicionarItem}
+      alterarQuantidade={alterarQuantidade}
+      removerItem={removerItem}
+      finalizarVenda={finalizarVenda}
+      novaVenda={novaVenda}
+      loading={loading}
+      modalSucesso={modalSucesso}
+      setModalSucesso={setModalSucesso}
+      vendaFinalizada={vendaFinalizada}
+      imprimirRecibo={imprimirRecibo}
+      imprimirReciboTermica={imprimirReciboTermica}
+      enviarWhatsApp={enviarWhatsApp}
+      loadingRecibo={loadingRecibo}
+    />
+
+    {/* ─── DESKTOP ─── */}
+    <div className="h-[calc(100vh-4rem)] hidden md:flex flex-col overflow-hidden">
       {/* Header do PDV */}
       <div className="shrink-0 flex items-center justify-between px-4 py-2 border-b border-border bg-white dark:bg-zinc-950">
         <div className="flex items-center gap-3">
@@ -1281,5 +1337,6 @@ export function VendaClient({
         descricao="Este desconto excede o limite permitido. Digite o PIN de gerente para autorizar."
       />
     </div>
+    </>
   )
 }
