@@ -15,7 +15,7 @@ export default async function FuncionariosPage() {
 
   const { data: funcionarios } = await supabase
     .from("funcionarios")
-    .select("*")
+    .select("*, usuario, perfil, permissoes")
     .eq("empresa_id", empresa.id)
     .order("nome")
 

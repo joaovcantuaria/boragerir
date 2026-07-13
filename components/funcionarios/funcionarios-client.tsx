@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Plus, UserCheck, Edit, Loader2, Mail, Phone } from "lucide-react"
+import { Plus, UserCheck, Edit, Loader2, Mail, Phone, Shield, Key, Eye, EyeOff } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,6 +17,8 @@ import { formatarTelefone } from "@/lib/utils"
 import type { Funcionario } from "@/types"
 import { PinProtected } from "@/components/ui/pin-protected"
 import { PinModal } from "@/components/ui/pin-modal"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 
 const schemaFunc = z.object({
   nome: z.string().min(2, "Nome obrigatório"),
@@ -112,6 +114,111 @@ export function FuncionariosClient({ empresaId, plano, funcionarios: funcInit, p
     toast.success(f.ativo ? "Colaborador desativado." : "Colaborador reativado.")
   }
 
+  // ── Login Local / Configurar Acesso ──
+  const [acessoModalAberto, setAcessoModalAberto] = useState(false)
+  const [acessoFuncionario, setAcessoFuncionario] = useState<Funcionario | null>(null)
+  const [acessoUsuario, setAcessoUsuario] = useState("")
+  const [acessoSenha, setAcessoSenha] = useState("")
+  const [acessoMostrarSenha, setAcessoMostrarSenha] = useState(false)
+  const [acessoPerfil, setAcessoPerfil] = useState<"admin" | "gerente" | "colaborador">("colaborador")
+  const [acessoPermissoes, setAcessoPermissoes] = useState<Record<string, boolean | number>>({})
+  const [acessoLoading, setAcessoLoading] = useState(false)
+
+  const PERMISSOES_DISPONIVEIS = [
+    { id: "caixa", label: "Caixa", desc: "Acessar módulo de caixa" },
+    { id: "caixa_abrir", label: "Abrir caixa", desc: "Abrir um novo caixa" },
+    { id: "caixa_fechar", label: "Fechar caixa", desc: "Fechar caixa aberto" },
+    { id: "caixa_sangria", label: "Sangria", desc: "Retirar dinheiro do caixa" },
+    { id: "caixa_suprimento", label: "Suprimento", desc: "Adicionar dinheiro ao caixa" },
+    { id: "caixa_despesa", label: "Despesa", desc: "Registrar despesa no caixa" },
+    { id: "venda", label: "Nova Venda", desc: "Realizar vendas" },
+    { id: "venda_desconto", label: "Dar desconto", desc: "Aplicar desconto nas vendas" },
+    { id: "clientes", label: "Clientes", desc: "Visualizar clientes" },
+    { id: "clientes_editar", label: "Editar clientes", desc: "Alterar dados de clientes" },
+    { id: "clientes_excluir", label: "Excluir clientes", desc: "Remover clientes" },
+    { id: "produtos", label: "Produtos", desc: "Visualizar produtos/serviços" },
+    { id: "produtos_editar", label: "Editar produtos", desc: "Alterar preços e dados" },
+    { id: "produtos_excluir", label: "Excluir produtos", desc: "Remover produtos/serviços" },
+    { id: "agendamentos", label: "Agendamentos", desc: "Gerenciar agenda" },
+    { id: "financeiro", label: "Financeiro", desc: "Ver relatórios financeiros" },
+    { id: "configuracoes", label: "Configurações", desc: "Acessar configurações do sistema" },
+    { id: "funcionarios", label: "Funcionários", desc: "Gerenciar colaboradores" },
+  ]
+
+  function abrirModalAcesso(f: Funcionario) {
+    setAcessoFuncionario(f)
+    setAcessoUsuario((f as any).usuario || "")
+    setAcessoSenha("")
+    setAcessoPerfil(((f as any).perfil as "admin" | "gerente" | "colaborador") || "colaborador")
+    setAcessoPermissoes((f as any).permissoes || {})
+    setAcessoMostrarSenha(false)
+    setAcessoModalAberto(true)
+  }
+
+  function togglePermissao(id: string) {
+    setAcessoPermissoes((prev) => ({ ...prev, [id]: !prev[id] }))
+  }
+
+  async function salvarAcesso() {
+    if (!acessoFuncionario) return
+    if (!acessoUsuario || acessoUsuario.length < 3) {
+      toast.error("Usuário deve ter no mínimo 3 caracteres")
+      return
+    }
+    // Se é novo acesso (não tem usuario salvo), senha é obrigatória
+    const jaTemLogin = !!(acessoFuncionario as any).usuario
+    if (!jaTemLogin && (!acessoSenha || acessoSenha.length < 4)) {
+      toast.error("Senha deve ter no mínimo 4 caracteres")
+      return
+    }
+    if (acessoSenha && acessoSenha.length < 4) {
+      toast.error("Senha deve ter no mínimo 4 caracteres")
+      return
+    }
+
+    setAcessoLoading(true)
+
+    const endpoint = jaTemLogin ? "/api/colaboradores/cadastrar" : "/api/colaboradores/cadastrar"
+    const method = jaTemLogin ? "PUT" : "POST"
+
+    const body: Record<string, unknown> = {
+      empresa_id: empresaId,
+      funcionario_id: acessoFuncionario.id,
+      usuario: acessoUsuario,
+      perfil: acessoPerfil,
+      permissoes: acessoPermissoes,
+    }
+    if (acessoSenha) body.senha = acessoSenha
+
+    try {
+      const res = await fetch(endpoint, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json()
+
+      if (!res.ok) {
+        toast.error(data.erro || "Erro ao salvar acesso")
+        setAcessoLoading(false)
+        return
+      }
+
+      // Atualizar state local
+      setFuncionarios((prev) => prev.map((f) =>
+        f.id === acessoFuncionario.id
+          ? { ...f, usuario: acessoUsuario, perfil: acessoPerfil, permissoes: acessoPermissoes } as any
+          : f
+      ))
+      toast.success("Acesso configurado com sucesso!")
+      setAcessoModalAberto(false)
+    } catch {
+      toast.error("Erro de conexão")
+    } finally {
+      setAcessoLoading(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -148,6 +255,12 @@ export function FuncionariosClient({ empresaId, plano, funcionarios: funcInit, p
                         {f.comissao_percentual_padrao && (
                           <Badge variant="secondary" className="text-xs">{f.comissao_percentual_padrao}% comissão</Badge>
                         )}
+                        {(f as any).usuario && (
+                          <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                            <Shield className="w-2.5 h-2.5 mr-0.5" />
+                            {(f as any).perfil === "gerente" ? "Gerente" : "Login"}
+                          </Badge>
+                        )}
                       </div>
                       <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
                         {f.telefone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{formatarTelefone(f.telefone)}</span>}
@@ -156,6 +269,9 @@ export function FuncionariosClient({ empresaId, plano, funcionarios: funcInit, p
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="xs" onClick={() => executarComPin("funcionarios_editar", () => abrirModalAcesso(f))} title="Configurar acesso">
+                      <Key className="w-3.5 h-3.5" />
+                    </Button>
                     <Button variant="ghost" size="xs" onClick={() => executarComPin("funcionarios_editar", () => abrirModalEditar(f))}><Edit className="w-3.5 h-3.5" /></Button>
                     <Button variant="ghost" size="xs" className="text-muted-foreground" onClick={() => executarComPin("funcionarios_excluir", () => toggleAtivo(f))}>
                       {f.ativo ? "Desativar" : "Reativar"}
@@ -213,6 +329,117 @@ export function FuncionariosClient({ empresaId, plano, funcionarios: funcInit, p
       </Dialog>
 
       <PinModal aberto={pinModalOpen} onClose={() => { setPinModalOpen(false); setPinAcaoPendente(null) }} onSuccess={() => { setPinModalOpen(false); if (pinAcaoPendente) { pinAcaoPendente(); setPinAcaoPendente(null) } }} empresaId={empresaId} titulo="Ação Restrita" descricao="Digite o PIN de gerente para executar esta ação" />
+
+      {/* Modal de Configurar Acesso */}
+      <Dialog open={acessoModalAberto} onOpenChange={setAcessoModalAberto}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Shield className="w-5 h-5 text-orange-500" />
+              Configurar Acesso — {acessoFuncionario?.nome}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-5 py-2">
+            {/* Usuário */}
+            <div className="space-y-2">
+              <Label>Nome de usuário *</Label>
+              <Input
+                placeholder="ex: maria, joao123"
+                value={acessoUsuario}
+                onChange={(e) => setAcessoUsuario(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ""))}
+              />
+              <p className="text-[11px] text-muted-foreground">Apenas letras minúsculas, números, ponto, traço e underscore</p>
+            </div>
+
+            {/* Senha */}
+            <div className="space-y-2">
+              <Label>{(acessoFuncionario as any)?.usuario ? "Nova senha (deixe vazio para manter)" : "Senha *"}</Label>
+              <div className="relative">
+                <Input
+                  type={acessoMostrarSenha ? "text" : "password"}
+                  placeholder="Mínimo 4 caracteres"
+                  value={acessoSenha}
+                  onChange={(e) => setAcessoSenha(e.target.value)}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setAcessoMostrarSenha(!acessoMostrarSenha)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {acessoMostrarSenha ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Perfil */}
+            <div className="space-y-2">
+              <Label>Nível de acesso</Label>
+              <Select value={acessoPerfil} onValueChange={(v: "admin" | "gerente" | "colaborador") => setAcessoPerfil(v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="colaborador">Colaborador — acesso limitado</SelectItem>
+                  <SelectItem value="gerente">Gerente — acesso avançado</SelectItem>
+                  <SelectItem value="admin">Admin — acesso total</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">
+                {acessoPerfil === "admin" && "Acesso total a todas as funções do sistema."}
+                {acessoPerfil === "gerente" && "Acesso avançado. Pode dar descontos, ver financeiro, gerenciar equipe."}
+                {acessoPerfil === "colaborador" && "Acesso básico. Pode vender e acessar a agenda. Permissões personalizáveis abaixo."}
+              </p>
+            </div>
+
+            {/* Permissões granulares (só mostra se não for admin) */}
+            {acessoPerfil !== "admin" && (
+              <div className="space-y-3">
+                <Label>Permissões detalhadas</Label>
+                <div className="border border-border rounded-lg divide-y divide-border">
+                  {PERMISSOES_DISPONIVEIS.map((perm) => (
+                    <div key={perm.id} className="flex items-center justify-between px-3 py-2.5">
+                      <div>
+                        <p className="text-sm font-medium">{perm.label}</p>
+                        <p className="text-[11px] text-muted-foreground">{perm.desc}</p>
+                      </div>
+                      <Switch
+                        checked={acessoPermissoes[perm.id] === true}
+                        onCheckedChange={() => togglePermissao(perm.id)}
+                      />
+                    </div>
+                  ))}
+
+                  {/* Limite de desconto */}
+                  {acessoPermissoes["venda_desconto"] && (
+                    <div className="flex items-center justify-between px-3 py-2.5">
+                      <div>
+                        <p className="text-sm font-medium">Limite de desconto (%)</p>
+                        <p className="text-[11px] text-muted-foreground">Máximo que pode dar sem autorização</p>
+                      </div>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={(acessoPermissoes["venda_limite_desconto"] as number) || 0}
+                        onChange={(e) => setAcessoPermissoes((prev) => ({ ...prev, venda_limite_desconto: parseInt(e.target.value) || 0 }))}
+                        className="w-20 h-8 text-sm text-center"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAcessoModalAberto(false)}>Cancelar</Button>
+            <Button onClick={salvarAcesso} disabled={acessoLoading} className="gap-2">
+              {acessoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
+              Salvar Acesso
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

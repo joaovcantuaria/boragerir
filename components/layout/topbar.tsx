@@ -423,6 +423,13 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl, plano, empr
         >
           <div className="px-3 py-2.5" style={{ borderBottom: "1px solid #e5e7eb" }}>
             <p className="text-xs font-semibold truncate" style={{ color: "#111827" }}>{empresaNome}</p>
+            {typeof window !== "undefined" && (() => {
+              try {
+                const colab = JSON.parse(sessionStorage.getItem("boragerir_colaborador_ativo") || "null")
+                if (colab) return <p className="text-[10px] text-muted-foreground mt-0.5">👤 {colab.nome} ({colab.perfil})</p>
+              } catch {}
+              return null
+            })()}
           </div>
           <div className="p-1.5 space-y-0.5">
             <button

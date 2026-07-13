@@ -14,6 +14,7 @@ import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { ColaboradorProvider, useColaborador } from "@/contexts/colaborador-context"
 import { LoginColaborador } from "@/components/auth/login-colaborador"
 import { createClient } from "@/lib/supabase/client"
+import { Lock } from "lucide-react"
 
 // Painel de atalhos
 function ShortcutPanel({ onClose }: { onClose: () => void }) {
@@ -75,14 +76,41 @@ const ROTA_AREA_MAP: Record<string, { area: string; nome: string }> = {
 }
 
 function PinGuardWrapper({ empresa, pathname, children }: { empresa: any; pathname: string; children: React.ReactNode }) {
+  const { colaborador, logado, temPermissao } = useColaborador()
+
   if (!empresa) return <>{children}</>
 
+  // ─── Verificação de permissão do colaborador ───
+  const rotaInfo = ROTA_AREA_MAP[pathname]
+  if (logado && colaborador && colaborador.perfil !== "admin" && rotaInfo) {
+    // Mapear area da rota para permissão do colaborador
+    const permissaoRota = rotaInfo.area.replace("produtos_servicos", "produtos")
+    if (!temPermissao(permissaoRota)) {
+      return (
+        <div className="flex flex-col items-center justify-center py-16 space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-red-500/10 flex items-center justify-center">
+            <Lock className="w-7 h-7 text-red-500" />
+          </div>
+          <div className="text-center space-y-1.5">
+            <h3 className="text-lg font-bold">Acesso Restrito</h3>
+            <p className="text-sm text-muted-foreground max-w-sm">
+              Você não tem permissão para acessar <strong>{rotaInfo.nome}</strong>.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Logado como <strong>{colaborador.nome}</strong> ({colaborador.perfil}).
+            </p>
+          </div>
+        </div>
+      )
+    }
+  }
+
+  // ─── Verificação de PIN (fallback existente) ───
   const restricoes = empresa.restricoes_acesso as { areas_protegidas?: string[] } | null
   const areasProtegidas = restricoes?.areas_protegidas || []
   const pinConfigurado = !!empresa.pin_gerente
 
   // Verificar se a rota atual precisa de PIN
-  const rotaInfo = ROTA_AREA_MAP[pathname]
   if (!pinConfigurado || !rotaInfo) return <>{children}</>
 
   // Bloquear a página INTEIRA somente se o ID raiz da área estiver marcado
