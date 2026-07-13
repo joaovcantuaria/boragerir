@@ -320,8 +320,79 @@ export function ConfigAcessos({ empresa }: ConfigAcessosProps) {
     )
   }
 
+  // ─── Senha Admin ───
+  const [senhaAdmin, setSenhaAdmin] = useState("")
+  const [confirmarSenhaAdmin, setConfirmarSenhaAdmin] = useState("")
+  const [mostrarSenhaAdmin, setMostrarSenhaAdmin] = useState(false)
+  const [salvandoSenhaAdmin, setSalvandoSenhaAdmin] = useState(false)
+
+  async function salvarSenhaAdmin() {
+    if (!senhaAdmin || senhaAdmin.length < 4) { toast.error("Senha deve ter no mínimo 4 caracteres"); return }
+    if (senhaAdmin !== confirmarSenhaAdmin) { toast.error("As senhas não conferem"); return }
+    setSalvandoSenhaAdmin(true)
+    try {
+      const res = await fetch("/api/colaboradores/senha-admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ empresa_id: empresa.id, senha: senhaAdmin }),
+      })
+      const data = await res.json()
+      if (data.sucesso) {
+        toast.success("Senha do administrador configurada!")
+        setSenhaAdmin("")
+        setConfirmarSenhaAdmin("")
+      } else {
+        toast.error(data.erro || "Erro ao salvar")
+      }
+    } catch { toast.error("Erro de conexão") }
+    finally { setSalvandoSenhaAdmin(false) }
+  }
+
   return (
     <div className="space-y-8">
+      {/* Seção 0: Senha do Administrador */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="w-5 h-5 text-orange-500" />
+          <h3 className="text-lg font-semibold">Senha do Administrador</h3>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Configure uma senha para o login de administrador na tela de seleção de usuários. Sem essa senha, qualquer pessoa pode entrar como admin.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label>Nova senha</Label>
+            <div className="relative">
+              <Input
+                type={mostrarSenhaAdmin ? "text" : "password"}
+                placeholder="Mínimo 4 caracteres"
+                value={senhaAdmin}
+                onChange={(e) => setSenhaAdmin(e.target.value)}
+                autoComplete="off"
+                className="pr-10"
+              />
+              <button type="button" onClick={() => setMostrarSenhaAdmin(!mostrarSenhaAdmin)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                {mostrarSenhaAdmin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Confirmar senha</Label>
+            <Input
+              type={mostrarSenhaAdmin ? "text" : "password"}
+              placeholder="Repita a senha"
+              value={confirmarSenhaAdmin}
+              onChange={(e) => setConfirmarSenhaAdmin(e.target.value)}
+              autoComplete="off"
+            />
+          </div>
+        </div>
+        <Button onClick={salvarSenhaAdmin} disabled={salvandoSenhaAdmin} className="gap-2">
+          {salvandoSenhaAdmin ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+          Salvar Senha do Admin
+        </Button>
+      </div>
+
       {/* Seção 1: Definir PIN */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">

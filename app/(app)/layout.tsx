@@ -156,6 +156,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 function AppLayoutInner({ children }: { children: React.ReactNode }) {
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [funcionariosLogin, setFuncionariosLogin] = useState<{ id: string; nome: string; cargo: string; usuario: string | null; perfil: string }[]>([])
+  const [adminTemSenha, setAdminTemSenha] = useState(false)
   const { empresa, empresas, selecionarEmpresa } = useEmpresa()
   const { colaborador, logado, login, loginComoAdmin, carregando: carregandoColab } = useColaborador()
   const pathname = usePathname()
@@ -166,7 +167,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
   useRealtimeRefresh(empresa?.id)
   useKeyboardShortcuts()
 
-  // Carregar funcionários com login configurado
+  // Carregar funcionários com login configurado + verificar senha admin
   useEffect(() => {
     if (!empresa?.id) return
     const supabase = createClient()
@@ -178,6 +179,12 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
       .not("usuario", "is", null)
       .order("nome")
       .then(({ data }) => setFuncionariosLogin(data ?? []))
+
+    // Verificar se admin tem senha configurada
+    fetch(`/api/colaboradores/senha-admin?empresa_id=${empresa.id}`)
+      .then((r) => r.json())
+      .then((d) => setAdminTemSenha(d.temSenha ?? false))
+      .catch(() => {})
   }, [empresa?.id])
 
   // Atalho ? para mostrar painel
@@ -207,7 +214,30 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
           empresaLogoUrl={empresa.logo_url}
           funcionarios={funcionariosLogin}
           onLogin={async (usuario, senha) => login(empresa.id, usuario, senha)}
-          onLoginAdmin={() => loginComoAdmin(empresa.nome)}
+          adminTemSenha={adminTemSenha}
+          onLoginAdmin={async (senha) => {
+            if (!adminTemSenha || !senha) {
+              // Sem senha configurada — entra direto
+              loginComoAdmin(empresa.nome)
+              return { sucesso: true }
+            }
+            // Verificar senha do admin
+            try {
+              const res = await fetch("/api/colaboradores/login-admin", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ empresa_id: empresa.id, senha }),
+              })
+              const data = await res.json()
+              if (data.sucesso) {
+                loginComoAdmin(empresa.nome)
+                return { sucesso: true }
+              }
+              return { sucesso: false, erro: data.erro || "Senha incorreta" }
+            } catch {
+              return { sucesso: false, erro: "Erro de conexão" }
+            }
+          }}
         />
       )}
 

@@ -20,7 +20,8 @@ interface LoginColaboradorProps {
   empresaLogoUrl?: string | null
   funcionarios: Funcionario[]
   onLogin: (usuario: string, senha: string) => Promise<{ sucesso: boolean; erro?: string }>
-  onLoginAdmin: () => void
+  onLoginAdmin: (senha: string) => Promise<{ sucesso: boolean; erro?: string }>
+  adminTemSenha: boolean
 }
 
 export function LoginColaborador({
@@ -29,8 +30,9 @@ export function LoginColaborador({
   funcionarios,
   onLogin,
   onLoginAdmin,
+  adminTemSenha,
 }: LoginColaboradorProps) {
-  const [etapa, setEtapa] = useState<"selecao" | "senha">("selecao")
+  const [etapa, setEtapa] = useState<"selecao" | "senha" | "senha_admin">("selecao")
   const [selecionado, setSelecionado] = useState<Funcionario | null>(null)
   const [senha, setSenha] = useState("")
   const [mostrarSenha, setMostrarSenha] = useState(false)
@@ -42,7 +44,7 @@ export function LoginColaborador({
   const comLogin = funcionarios.filter((f) => f.usuario)
 
   useEffect(() => {
-    if (etapa === "senha") {
+    if (etapa === "senha" || etapa === "senha_admin") {
       setTimeout(() => inputRef.current?.focus(), 300)
     }
   }, [etapa])
@@ -67,6 +69,30 @@ export function LoginColaborador({
     setSenha("")
     setErro("")
     setEtapa("senha")
+  }
+
+  function clicarAdmin() {
+    if (!adminTemSenha) {
+      // Admin sem senha configurada — entra direto
+      onLoginAdmin("")
+      return
+    }
+    setSenha("")
+    setErro("")
+    setEtapa("senha_admin")
+  }
+
+  async function handleLoginAdmin() {
+    if (!senha) return
+    setLoading(true)
+    setErro("")
+    const result = await onLoginAdmin(senha)
+    if (!result.sucesso) {
+      setErro(result.erro || "Senha incorreta")
+      setSenha("")
+      setTimeout(() => inputRef.current?.focus(), 100)
+    }
+    setLoading(false)
   }
 
   function voltar() {
@@ -110,7 +136,7 @@ export function LoginColaborador({
             >
               {/* Botão Admin/Dono */}
               <button
-                onClick={onLoginAdmin}
+                onClick={clicarAdmin}
                 className="w-full flex items-center gap-3 p-4 rounded-xl bg-orange-500/10 border border-orange-500/30 hover:bg-orange-500/20 transition-all group"
               >
                 <div className="w-11 h-11 rounded-full bg-orange-500/20 flex items-center justify-center shrink-0">
@@ -228,6 +254,75 @@ export function LoginColaborador({
                 className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-semibold text-sm"
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Entrar"}
+              </Button>
+            </motion.div>
+          )}
+
+          {/* ─── ETAPA: Senha do Admin ─── */}
+          {etapa === "senha_admin" && (
+            <motion.div
+              key="senha_admin"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="space-y-4"
+            >
+              <button
+                onClick={voltar}
+                className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                Voltar
+              </button>
+
+              <div className="text-center py-2">
+                <div className="w-16 h-16 rounded-full bg-orange-500/20 flex items-center justify-center mx-auto mb-3">
+                  <Shield className="w-7 h-7 text-orange-400" />
+                </div>
+                <p className="text-lg font-semibold text-white">Administrador</p>
+                <p className="text-xs text-zinc-400">Digite a senha de administrador</p>
+              </div>
+
+              <div className="space-y-2">
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                  <Input
+                    ref={inputRef}
+                    type={mostrarSenha ? "text" : "password"}
+                    placeholder="Senha do administrador"
+                    value={senha}
+                    onChange={(e) => { setSenha(e.target.value); setErro("") }}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleLoginAdmin() }}
+                    disabled={loading}
+                    className="pl-10 pr-10 h-12 bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500 focus:border-orange-500 focus:ring-orange-500/20"
+                    autoComplete="off"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setMostrarSenha(!mostrarSenha)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+                  >
+                    {mostrarSenha ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+
+                {erro && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-sm text-red-400 text-center"
+                  >
+                    {erro}
+                  </motion.p>
+                )}
+              </div>
+
+              <Button
+                onClick={handleLoginAdmin}
+                disabled={loading || !senha}
+                className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-semibold text-sm"
+              >
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Entrar como Admin"}
               </Button>
             </motion.div>
           )}
