@@ -373,7 +373,7 @@ export function FuncionariosClient({ empresaId, plano, funcionarios: funcInit, p
                   autoComplete="new-password"
                   name="local_pass_custom"
                   id="local_pass_custom"
-                  data-form-type="other"}
+                  data-form-type="other"
                   className="pr-10"
                 />
                 <button
