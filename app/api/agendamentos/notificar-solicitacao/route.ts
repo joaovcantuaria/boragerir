@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { enviarEmail, templateBase } from "@/lib/email/brevo"
-import { enviarWhatsApp, msgSolicitacaoRecebida } from "@/lib/whatsapp/boragerir-chat"
+import { enviarWhatsAppTemplate } from "@/lib/whatsapp/boragerir-chat"
 import { format, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
@@ -10,19 +10,18 @@ export async function POST(req: NextRequest) {
 
     const dataFormatada = format(parseISO(dataHora), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })
     const horario = format(parseISO(dataHora), "HH:mm")
+    const dataCurta = format(parseISO(dataHora), "dd/MM/yyyy", { locale: ptBR })
 
-    // ─── Enviar WhatsApp via BoraGerir Chat ───
+    // ─── Enviar WhatsApp via BoraGerir Chat (template aprovado) ───
     const telefoneParaWhats = telefoneCliente || ""
     if (telefoneParaWhats) {
-      enviarWhatsApp({
+      enviarWhatsAppTemplate({
         telefone: telefoneParaWhats,
-        mensagem: msgSolicitacaoRecebida({
-          nomeCliente: nomeCliente || "Cliente",
-          nomeEmpresa,
-          servico,
-          data: format(parseISO(dataHora), "dd/MM/yyyy", { locale: ptBR }),
-          horario,
-        }),
+        template: "solicitacao_agendamento",
+        nomeCliente: nomeCliente || "Cliente",
+        data: dataCurta,
+        horario,
+        nomeEmpresa,
       })
     }
 

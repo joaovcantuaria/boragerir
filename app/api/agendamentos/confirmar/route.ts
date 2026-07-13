@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { enviarEmail, templateBase } from "@/lib/email/brevo"
 import { dispararWebhook, normalizarTelefoneDDI } from "@/lib/webhook/n8n"
-import { enviarWhatsApp, msgAgendamentoConfirmado, msgAgendamentoEspera, msgAgendamentoCancelado } from "@/lib/whatsapp/boragerir-chat"
+import { enviarWhatsAppTemplate } from "@/lib/whatsapp/boragerir-chat"
 import { format, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
@@ -54,21 +54,21 @@ export async function POST(req: NextRequest) {
     }
     // ─────────────────────────────────────────────────────────
 
-    // ── WhatsApp via BoraGerir Chat ──────────────────────────
+    // ── WhatsApp via BoraGerir Chat (templates aprovados) ───
     const telefoneWhats = agendamento.telefone_cliente_avulso ?? ""
     if (telefoneWhats) {
       const nomeClienteW = agendamento.nome_cliente_avulso ?? "Cliente"
-      const servicoW = agendamento.produtos_servicos?.nome ?? "Serviço"
       const dataW = format(parseISO(agendamento.data_hora), "dd/MM/yyyy", { locale: ptBR })
       const horarioW = format(parseISO(agendamento.data_hora), "HH:mm")
-      const whatsParams = { nomeCliente: nomeClienteW, nomeEmpresa: empresa?.nome ?? "", servico: servicoW, data: dataW, horario: horarioW }
+      const baseParams = { telefone: telefoneWhats, nomeCliente: nomeClienteW, data: dataW, horario: horarioW, nomeEmpresa: empresa?.nome ?? "" }
 
       if (acao === "confirmar") {
-        enviarWhatsApp({ telefone: telefoneWhats, mensagem: msgAgendamentoConfirmado(whatsParams) })
+        enviarWhatsAppTemplate({ ...baseParams, template: "confirmacao_agendamento" })
       } else if (acao === "espera") {
-        enviarWhatsApp({ telefone: telefoneWhats, mensagem: msgAgendamentoEspera(whatsParams) })
+        // Usa solicitacao_agendamento como fallback (espera = aguardando confirmação)
+        enviarWhatsAppTemplate({ ...baseParams, template: "solicitacao_agendamento" })
       } else {
-        enviarWhatsApp({ telefone: telefoneWhats, mensagem: msgAgendamentoCancelado(whatsParams) })
+        enviarWhatsAppTemplate({ ...baseParams, template: "agendamento_indisponivel" })
       }
     }
     // ─────────────────────────────────────────────────────────
