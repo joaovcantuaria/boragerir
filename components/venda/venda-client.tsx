@@ -115,6 +115,16 @@ export function VendaClient({
     if (saved === "true") setAutoprint(true)
   }, [])
 
+  // Auto-selecionar o colaborador logado como atendente
+  useEffect(() => {
+    if (colaborador && colaborador.id !== "owner" && funcionarios.length > 0) {
+      const match = funcionarios.find((f) => f.id === colaborador.id)
+      if (match && !funcionarioId) {
+        setFuncionarioId(match.id)
+      }
+    }
+  }, [colaborador, funcionarios])
+
   // Carregar recompensas disponíveis
   useEffect(() => {
     async function carregarRecompensas() {
@@ -458,7 +468,10 @@ export function VendaClient({
   function novaVenda() {
     setItens([])
     setClienteSelecionado(null)
-    setFuncionarioId("")
+    // Manter o colaborador logado como atendente padrão
+    const colabId = (colaborador && colaborador.id !== "owner") ? colaborador.id : ""
+    const match = funcionarios.find((f) => f.id === colabId)
+    setFuncionarioId(match ? match.id : "")
     setDesconto("0")
     setDescontoAutorizado(false)
     setPontosUsar(0)
