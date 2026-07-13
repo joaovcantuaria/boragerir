@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { PinModal } from "@/components/ui/pin-modal"
 import { Lock } from "lucide-react"
+import { useColaborador } from "@/contexts/colaborador-context"
 
 interface PinProtectedProps {
   /** ID da empresa */
@@ -42,20 +43,24 @@ export function PinProtected({
 }: PinProtectedProps) {
   const [desbloqueado, setDesbloqueado] = useState(false)
   const [pedindoPin, setPedindoPin] = useState(false)
+  const { colaborador, logado } = useColaborador()
 
   const precisaProteger = pinConfigurado && areasProtegidas.includes(restricaoId)
 
+  // Se colaborador logado como admin ou gerente, nunca pede PIN
+  const adminOuGerente = logado && colaborador && (colaborador.perfil === "admin" || colaborador.perfil === "gerente")
+
   // Verificar sessionStorage
   useEffect(() => {
-    if (!precisaProteger) return
+    if (!precisaProteger || adminOuGerente) return
     const chave = `pin_acao_${empresaId}_${restricaoId}`
     if (sessionStorage.getItem(chave) === "true") {
       setDesbloqueado(true)
     }
-  }, [empresaId, restricaoId, precisaProteger])
+  }, [empresaId, restricaoId, precisaProteger, adminOuGerente])
 
-  // Se não precisa proteger ou já desbloqueou, mostra normalmente
-  if (!precisaProteger || desbloqueado) {
+  // Se não precisa proteger, já desbloqueou, ou é admin/gerente — mostra normalmente
+  if (!precisaProteger || desbloqueado || adminOuGerente) {
     return <>{children}</>
   }
 
