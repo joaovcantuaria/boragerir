@@ -26,6 +26,7 @@ import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { createClient } from "@/lib/supabase/client"
 import { formatarMoeda, formatarDataHora } from "@/lib/utils"
+import { useColaborador } from "@/contexts/colaborador-context"
 
 type CaixaAnterior = {
   id: string
@@ -77,6 +78,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
   const [valorFechamento, setValorFechamento] = useState("")
   const [pinModalCaixa, setPinModalCaixa] = useState(false)
   const [pinAcaoPendente, setPinAcaoPendente] = useState<(() => void) | null>(null)
+  const { colaborador } = useColaborador()
   const router = useRouter()
   const supabase = createClient()
 
@@ -135,6 +137,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
         valor_abertura: parseFloat(data.valor_abertura) || 0,
         status: "aberto",
         aberto_por: userId,
+        colaborador_id: colaborador?.id !== "owner" ? colaborador?.id : null,
         observacoes_abertura: data.observacoes || null,
         data_abertura: new Date().toISOString(),
       } as any)
@@ -203,6 +206,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
         valor_esperado: valorEsperado,
         diferenca,
         fechado_por: userId,
+        colaborador_fechou_id: colaborador?.id !== "owner" ? colaborador?.id : null,
       })
       .eq("id", caixa.id)
 
@@ -253,6 +257,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
           return data.descricao
         })(),
         valor: parseFloat(data.valor),
+        colaborador_id: colaborador?.id !== "owner" ? colaborador?.id : null,
       })
       .select()
       .single()

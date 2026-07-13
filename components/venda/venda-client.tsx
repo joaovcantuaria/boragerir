@@ -16,6 +16,7 @@ import type { Empresa } from "@/types"
 import { gerarReciboPDF } from "@/lib/pdf/recibo"
 import { PinModal } from "@/components/ui/pin-modal"
 import { VendaMobile } from "@/components/venda/venda-mobile"
+import { useColaborador } from "@/contexts/colaborador-context"
 
 interface ItemVendaLocal {
   produto_servico_id: string
@@ -96,6 +97,7 @@ export function VendaClient({
   const [pinModalAberto, setPinModalAberto] = useState(false)
   const [descontoAutorizado, setDescontoAutorizado] = useState(false)
   const supabase = createClient()
+  const { colaborador } = useColaborador()
   const inputBuscaRef = useRef<HTMLInputElement>(null)
   const inputClienteRef = useRef<HTMLInputElement>(null)
   const inputDescontoRef = useRef<HTMLInputElement>(null)
@@ -333,6 +335,7 @@ export function VendaClient({
         caixa_id: caixaId,
         cliente_id: clienteSelecionado?.id ?? null,
         funcionario_id: funcionarioId || null,
+        colaborador_id: colaborador?.id !== "owner" ? colaborador?.id : null,
         subtotal,
         desconto: descontoValor,
         total,
@@ -369,6 +372,7 @@ export function VendaClient({
       descricao: `Venda #${venda.numero_venda} - ${clienteSelecionado?.nome_completo ?? "Sem cliente"}`,
       valor: isDebito ? valorPagoAgora : total,
       venda_id: venda.id,
+      colaborador_id: colaborador?.id !== "owner" ? colaborador?.id : null,
     })
 
     if (isDebito && clienteSelecionado) {
