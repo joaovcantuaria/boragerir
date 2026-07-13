@@ -296,15 +296,26 @@ export function VendaClient({
     if (itens.length === 0) { toast.error("Adicione ao menos um item."); return }
     if (!formaPagamento) { toast.error("Selecione a forma de pagamento."); return }
 
-    // Verificar se desconto percentual excede o limite sem PIN
-    const restricoes = empresa.restricoes_acesso as { areas_protegidas?: string[], limite_desconto_sem_pin?: number } | null
-    const limiteDescontoSemPin = restricoes?.limite_desconto_sem_pin ?? 100
-    const pinConfigurado = !!empresa.pin_gerente
+    // Verificar se desconto excede o limite do colaborador logado
     const descontoPercentual = tipoDesconto === "percentual"
       ? parseFloat(desconto) || 0
       : subtotal > 0 ? ((parseFloat(desconto) || 0) / subtotal) * 100 : 0
 
-    if (pinConfigurado && descontoPercentual > limiteDescontoSemPin && !descontoAutorizado) {
+    // Limite vem do colaborador logado OU do sistema antigo de PIN
+    const limiteColaborador = colaborador?.permissoes?.venda_limite_desconto as number | undefined
+    const restricoes = empresa.restricoes_acesso as { areas_protegidas?: string[], limite_desconto_sem_pin?: number } | null
+    const limiteDescontoSemPin = restricoes?.limite_desconto_sem_pin ?? 100
+    const pinConfigurado = !!empresa.pin_gerente
+
+    // Se tem colaborador logado, usa o limite do colaborador
+    if (colaborador && colaborador.perfil !== "admin") {
+      const limiteMax = limiteColaborador ?? 0
+      if (descontoPercentual > limiteMax) {
+        toast.error(`Desconto inválido, máximo permitido é ${limiteMax}%.`)
+        return
+      }
+    } else if (pinConfigurado && descontoPercentual > limiteDescontoSemPin && !descontoAutorizado) {
+      // Fallback: sistema antigo de PIN para quando não tem login local
       setPinModalAberto(true)
       return
     }
@@ -1029,7 +1040,19 @@ export function VendaClient({
                   step="0.01"
                   placeholder="0"
                   value={desconto}
-                  onChange={(e) => { setDesconto(e.target.value); setDescontoAutorizado(false) }}
+                  onChange={(e) => {
+                    setDesconto(e.target.value)
+                    setDescontoAutorizado(false)
+                    // Validação em tempo real do limite de desconto
+                    if (colaborador && colaborador.perfil !== "admin") {
+                      const limiteMax = (colaborador.permissoes?.venda_limite_desconto as number) ?? 0
+                      const val = parseFloat(e.target.value) || 0
+                      const pct = tipoDesconto === "percentual" ? val : (subtotal > 0 ? (val / subtotal) * 100 : 0)
+                      if (pct > limiteMax) {
+                        toast.error(`Desconto inválido, máximo permitido é ${limiteMax}%.`)
+                      }
+                    }
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault()
