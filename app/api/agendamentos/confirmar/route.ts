@@ -58,9 +58,10 @@ export async function POST(req: NextRequest) {
     const telefoneWhats = agendamento.telefone_cliente_avulso ?? ""
     if (telefoneWhats) {
       const nomeClienteW = agendamento.nome_cliente_avulso ?? "Cliente"
-      const dataW = format(parseISO(agendamento.data_hora), "dd/MM/yyyy", { locale: ptBR })
+      const dataW = format(parseISO(agendamento.data_hora), "d 'de' MMMM 'de' yyyy", { locale: ptBR })
       const horarioW = format(parseISO(agendamento.data_hora), "HH:mm")
-      const baseParams = { telefone: telefoneWhats, nomeCliente: nomeClienteW, data: dataW, horario: horarioW, nomeEmpresa: empresa?.nome ?? "" }
+      const servicoW = agendamento.produtos_servicos?.nome ?? "Serviço"
+      const baseParams = { telefone: telefoneWhats, nomeCliente: nomeClienteW, data: dataW, horario: horarioW, nomeEmpresa: empresa?.nome ?? "", servico: servicoW }
 
       if (acao === "confirmar") {
         enviarWhatsAppTemplate({ ...baseParams, template: "confirmacao_agendamento" })

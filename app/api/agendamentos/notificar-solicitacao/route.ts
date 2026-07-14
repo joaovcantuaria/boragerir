@@ -10,18 +10,19 @@ export async function POST(req: NextRequest) {
 
     const dataFormatada = format(parseISO(dataHora), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })
     const horario = format(parseISO(dataHora), "HH:mm")
-    const dataCurta = format(parseISO(dataHora), "dd/MM/yyyy", { locale: ptBR })
 
     // ─── Enviar WhatsApp via BoraGerir Chat (template aprovado) ───
     const telefoneParaWhats = telefoneCliente || ""
     if (telefoneParaWhats) {
+      const dataWhats = format(parseISO(dataHora), "d 'de' MMMM 'de' yyyy", { locale: ptBR })
       enviarWhatsAppTemplate({
         telefone: telefoneParaWhats,
         template: "solicitacao_agendamento",
         nomeCliente: nomeCliente || "Cliente",
-        data: dataCurta,
+        data: dataWhats,
         horario,
         nomeEmpresa,
+        servico: servico || "Serviço",
       })
     }
 
