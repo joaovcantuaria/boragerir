@@ -65,10 +65,8 @@ export async function POST(req: NextRequest) {
 
       if (acao === "confirmar") {
         enviarWhatsAppTemplate({ ...baseParams, template: "confirmacao_agendamento" })
-      } else if (acao === "espera") {
-        // Usa solicitacao_agendamento como fallback (espera = aguardando confirmação)
-        enviarWhatsAppTemplate({ ...baseParams, template: "solicitacao_agendamento" })
       } else {
+        // Tanto "espera" quanto "cancelar" = horário indisponível para o cliente
         enviarWhatsAppTemplate({ ...baseParams, template: "agendamento_indisponivel" })
       }
     }
