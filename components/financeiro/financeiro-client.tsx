@@ -9,7 +9,7 @@ import {
 import {
   TrendingUp, TrendingDown, DollarSign, BarChart3, Search, Edit, XCircle, Loader2, Clock,
   Wallet, Download, FileText, FileBarChart, Users, Calendar, ChevronDown,
-  Plus, AlertTriangle, CheckCircle2, Trash2, Receipt, ArrowRightLeft, Search
+  Plus, AlertTriangle, CheckCircle2, Trash2, Receipt, ArrowRightLeft
 } from "lucide-react"
 import { format, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, subMonths, addDays, isBefore, isToday } from "date-fns"
 import { ptBR } from "date-fns/locale"
