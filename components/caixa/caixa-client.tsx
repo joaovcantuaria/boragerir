@@ -277,10 +277,40 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
   }
 
   async function excluirMovimentacao(id: string) {
+    const mov = movimentacoes.find((m) => m.id === id)
+    if (!mov) return
     if (!confirm("Excluir esta movimentação?")) return
+
     await supabase.from("movimentacoes_caixa").delete().eq("id", id)
     setMovimentacoes((prev) => prev.filter((m) => m.id !== id))
-    toast.success("Movimentação excluída!")
+
+    // Se for um pagamento de conta a pagar, reverter o status para "pendente"
+    if (mov.descricao.startsWith("Pagamento:")) {
+      const descConta = mov.descricao
+        .replace(/^Pagamento:\s*/, "")
+        .replace(/\s*\[.*?\]\s*$/, "")
+        .trim()
+      // Buscar a conta correspondente e reverter
+      const { data: contaEncontrada } = await supabase
+        .from("contas_pagar")
+        .select("id")
+        .eq("empresa_id", empresaId)
+        .eq("status", "pago")
+        .ilike("descricao", descConta)
+        .limit(1)
+        .maybeSingle()
+
+      if (contaEncontrada) {
+        await supabase.from("contas_pagar")
+          .update({ status: "pendente", data_pagamento: null })
+          .eq("id", contaEncontrada.id)
+        toast.success("Movimentação excluída e conta revertida para pendente!")
+      } else {
+        toast.success("Movimentação excluída!")
+      }
+    } else {
+      toast.success("Movimentação excluída!")
+    }
   }
 
   function iniciarEdicaoMov(mov: Movimentacao) {
