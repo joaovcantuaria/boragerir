@@ -1022,7 +1022,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setModalBaixa(null); setBaixaFormaPag("") }}>Cancelar</Button>
-            <Button onClick={confirmarBaixa} disabled={loadingReceber} className="gap-2">
+            <Button onClick={confirmarBaixa} disabled={loadingReceber || (baixaCaixaTipo === "banco" && !baixaFormaPag)} className="gap-2">
               {loadingReceber ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               Confirmar
             </Button>
