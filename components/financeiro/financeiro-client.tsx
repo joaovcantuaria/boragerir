@@ -100,6 +100,8 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   const [modalNovoReceber, setModalNovoReceber] = useState(false)
   const [editandoReceberId, setEditandoReceberId] = useState<string | null>(null)
   const [formReceber, setFormReceber] = useState({ devedor: "", valor: "", data_vencimento: "", observacoes: "" })
+  const [buscaReceber, setBuscaReceber] = useState("")
+  const [ordenacaoReceber, setOrdenacaoReceber] = useState<"vencimento" | "alfabetica">("vencimento")
   const [loadingReceber, setLoadingReceber] = useState(false)
   // Baixa modal — pergunta de qual caixa
   const [modalBaixa, setModalBaixa] = useState<{ tipo: "receber" | "pagar"; id: string; valor: number; descricao: string } | null>(null)
@@ -694,13 +696,42 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
             </div>
           )}
 
+          {/* Busca e ordenação */}
+          {isGestao && valoresReceber.filter((v) => v.status !== "recebido").length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <div className="relative flex-1 min-w-[180px] max-w-xs">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar devedor..."
+                  value={buscaReceber}
+                  onChange={(e) => setBuscaReceber(e.target.value)}
+                  className="pl-9 h-8 text-xs"
+                />
+              </div>
+              <button
+                onClick={() => setOrdenacaoReceber((prev) => prev === "vencimento" ? "alfabetica" : "vencimento")}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-muted text-muted-foreground hover:text-foreground transition-all"
+                title={ordenacaoReceber === "vencimento" ? "Ordenar por nome (A-Z)" : "Ordenar por vencimento"}
+              >
+                {ordenacaoReceber === "vencimento" ? "📅 Vencimento" : "🔤 A-Z"}
+              </button>
+            </div>
+          )}
+
           {/* Lista manual de valores a receber (gestão) */}
           {isGestao && valoresReceber.filter((v) => v.status !== "recebido").length > 0 && (
             <div className="border border-border rounded-xl overflow-hidden">
               <div className="grid grid-cols-5 gap-2 px-4 py-2 bg-muted text-xs font-medium text-muted-foreground">
                 <span>Devedor</span><span>Valor</span><span>Vencimento</span><span>Obs</span><span className="text-right">Ações</span>
               </div>
-              {valoresReceber.filter((v) => v.status !== "recebido").map((v) => {
+              {valoresReceber
+                .filter((v) => v.status !== "recebido")
+                .filter((v) => !buscaReceber || v.devedor.toLowerCase().includes(buscaReceber.toLowerCase()))
+                .sort((a, b) => {
+                  if (ordenacaoReceber === "alfabetica") return a.devedor.localeCompare(b.devedor)
+                  return a.data_vencimento.localeCompare(b.data_vencimento)
+                })
+                .map((v) => {
                 const vencido = new Date(v.data_vencimento) < new Date() && v.status === "pendente"
                 return (
                   <div key={v.id} className="grid grid-cols-5 gap-2 px-4 py-3 border-t border-border text-sm items-center">
