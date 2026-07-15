@@ -270,7 +270,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
       setValoresReceber((prev) => prev.map((v) => v.id === modalBaixa.id ? { ...v, status: "recebido" } : v))
       toast.success("Recebimento registrado no caixa!")
     } else {
-      // Conta a pagar — registrar saída no caixa
+      // Conta a pagar — registrar saída no caixa + marcar como paga
       await supabase.from("movimentacoes_caixa").insert({
         empresa_id: empresaId,
         caixa_id: caixaId,
@@ -279,6 +279,12 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
         descricao: descComPag,
         valor: modalBaixa.valor,
       } as any)
+      // Marcar a conta como paga na API
+      await fetch("/api/financeiro/contas-pagar", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ _acao: "pagar", id: modalBaixa.id }),
+      })
+      setContasPagar((prev) => prev.map((c) => c.id === modalBaixa.id ? { ...c, status: "pago", data_pagamento: new Date().toISOString() } : c))
       toast.success("Pagamento registrado no caixa!")
     }
 
@@ -1473,17 +1479,12 @@ function ContasPagarTab({
 
   async function pagar(id: string) {
     // Para plano gestão: abrir modal para selecionar caixa
+    // A marcação como "pago" acontece apenas após confirmação no modal (confirmarBaixa)
     if (isGestao && onBaixaGestao) {
       const conta = contas.find((c) => c.id === id)
       if (conta) {
         onBaixaGestao(id, conta.valor, `Pagamento: ${conta.descricao}`)
       }
-      // Marcar como pago na API também
-      await fetch("/api/financeiro/contas-pagar", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ _acao: "pagar", id }),
-      })
-      setContas((prev) => prev.map((c) => c.id === id ? { ...c, status: "pago", data_pagamento: new Date().toISOString() } : c))
       return
     }
 
