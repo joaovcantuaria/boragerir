@@ -107,7 +107,10 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
   // Calcular totais
   const totalEntradas = movimentacoes.filter((m) => m.tipo === "entrada").reduce((s, m) => s + m.valor, 0)
   const totalSaidas = movimentacoes.filter((m) => m.tipo === "saida").reduce((s, m) => s + m.valor, 0)
-  const saldoAtual = (caixa?.valor_abertura ?? 0) + totalEntradas - totalSaidas
+  const totalAberturas = caixasAbertos.length > 1
+    ? caixasAbertos.reduce((s, c) => s + (c.valor_abertura ?? 0), 0)
+    : (caixa?.valor_abertura ?? 0)
+  const saldoAtual = totalAberturas + totalEntradas - totalSaidas
   const valorEsperado = saldoAtual
 
   // Formulário abrir caixa
