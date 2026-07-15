@@ -9,7 +9,7 @@ import {
 import {
   TrendingUp, TrendingDown, DollarSign, BarChart3, Search, Edit, XCircle, Loader2, Clock,
   Wallet, Download, FileText, FileBarChart, Users, Calendar, ChevronDown,
-  Plus, AlertTriangle, CheckCircle2, Trash2, Receipt, ArrowRightLeft
+  Plus, AlertTriangle, CheckCircle2, Trash2, Receipt, ArrowRightLeft, Search
 } from "lucide-react"
 import { format, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, subMonths, addDays, isBefore, isToday } from "date-fns"
 import { ptBR } from "date-fns/locale"
@@ -1426,6 +1426,10 @@ function ContasPagarTab({
   const [loading, setLoading] = useState(false)
   const [filtroStatus, setFiltroStatus] = useState<"todos" | "pendente" | "atrasado" | "pago">("todos")
   const [filtroPeriodo, setFiltroPeriodo] = useState<"todos" | "hoje" | "semana" | "mes">("mes")
+  const [busca, setBusca] = useState("")
+  const [ordenacao, setOrdenacao] = useState<"vencimento" | "alfabetica">("vencimento")
+  const [modalJuros, setModalJuros] = useState<{ id: string; valorOriginal: number; descricao: string } | null>(null)
+  const [valorComJuros, setValorComJuros] = useState("")
   const [form, setForm] = useState({
     descricao: "", valor: "", data_vencimento: format(new Date(), "yyyy-MM-dd"),
     categoria: "outros", recorrencia: "avulso", observacoes: "",
@@ -1441,6 +1445,7 @@ function ContasPagarTab({
 
   const contasFiltradas = contasComStatus.filter((c) => {
     if (filtroStatus !== "todos" && c.status !== filtroStatus) return false
+    if (busca && !c.descricao.toLowerCase().includes(busca.toLowerCase())) return false
     if (filtroPeriodo === "hoje") return c.data_vencimento === format(hoje, "yyyy-MM-dd")
     if (filtroPeriodo === "semana") {
       const ini = format(startOfWeek(hoje, { locale: ptBR }), "yyyy-MM-dd")
@@ -1453,6 +1458,9 @@ function ContasPagarTab({
       return c.data_vencimento >= ini && c.data_vencimento <= fim
     }
     return true
+  }).sort((a, b) => {
+    if (ordenacao === "alfabetica") return a.descricao.localeCompare(b.descricao)
+    return a.data_vencimento.localeCompare(b.data_vencimento)
   })
 
   const totalPendente = contasFiltradas.filter((c) => c.status === "pendente" || c.status === "atrasado").reduce((s, c) => s + c.valor, 0)
@@ -1478,13 +1486,22 @@ function ContasPagarTab({
   }
 
   async function pagar(id: string) {
+    const conta = contas.find((c) => c.id === id)
+    if (!conta) return
+
+    // Verificar se está atrasada — perguntar sobre juros
+    const vencimento = new Date(conta.data_vencimento + "T23:59:59")
+    const atrasada = isBefore(vencimento, hoje)
+    if (atrasada && !modalJuros) {
+      setModalJuros({ id, valorOriginal: conta.valor, descricao: conta.descricao })
+      setValorComJuros("")
+      return
+    }
+
     // Para plano gestão: abrir modal para selecionar caixa
     // A marcação como "pago" acontece apenas após confirmação no modal (confirmarBaixa)
     if (isGestao && onBaixaGestao) {
-      const conta = contas.find((c) => c.id === id)
-      if (conta) {
-        onBaixaGestao(id, conta.valor, `Pagamento: ${conta.descricao}`)
-      }
+      onBaixaGestao(id, conta.valor, `Pagamento: ${conta.descricao}`)
       return
     }
 
@@ -1496,6 +1513,38 @@ function ContasPagarTab({
       setContas((prev) => prev.map((c) => c.id === id ? { ...c, status: "pago", data_pagamento: new Date().toISOString() } : c))
       toast.success("Conta marcada como paga!")
     }
+  }
+
+  async function confirmarPagamentoComJuros() {
+    if (!modalJuros) return
+    const valorFinal = valorComJuros ? parseFloat(valorComJuros) : modalJuros.valorOriginal
+
+    // Atualizar o valor da conta se houve juros
+    if (valorComJuros && valorFinal !== modalJuros.valorOriginal) {
+      const supabase = (await import("@/lib/supabase/client")).createClient()
+      await supabase.from("contas_pagar").update({ valor: valorFinal }).eq("id", modalJuros.id)
+      setContas((prev) => prev.map((c) => c.id === modalJuros.id ? { ...c, valor: valorFinal } : c))
+    }
+
+    // Para plano gestão: abrir modal para selecionar caixa
+    if (isGestao && onBaixaGestao) {
+      onBaixaGestao(modalJuros.id, valorFinal, `Pagamento: ${modalJuros.descricao}`)
+      // Marcar como pago é feito pelo confirmarBaixa
+      setModalJuros(null)
+      setValorComJuros("")
+      return
+    }
+
+    const res = await fetch("/api/financeiro/contas-pagar", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ _acao: "pagar", id: modalJuros.id }),
+    })
+    if (res.ok) {
+      setContas((prev) => prev.map((c) => c.id === modalJuros.id ? { ...c, status: "pago", valor: valorFinal, data_pagamento: new Date().toISOString() } : c))
+      toast.success("Conta marcada como paga!")
+    }
+    setModalJuros(null)
+    setValorComJuros("")
   }
 
   async function excluir(conta: ContaPagar) {
@@ -1550,6 +1599,26 @@ function ContasPagarTab({
       </div>
 
       {/* Filtros */}
+      <div className="flex flex-wrap gap-2">
+        {/* Busca */}
+        <div className="relative flex-1 min-w-[180px] max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar conta..."
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            className="pl-9 h-8 text-xs"
+          />
+        </div>
+        {/* Ordenação */}
+        <button
+          onClick={() => setOrdenacao((prev) => prev === "vencimento" ? "alfabetica" : "vencimento")}
+          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-muted text-muted-foreground hover:text-foreground transition-all"
+          title={ordenacao === "vencimento" ? "Ordenar por nome (A-Z)" : "Ordenar por vencimento"}
+        >
+          {ordenacao === "vencimento" ? "📅 Vencimento" : "🔤 A-Z"}
+        </button>
+      </div>
       <div className="flex flex-wrap gap-2">
         <div className="flex gap-1">
           {(["todos", "hoje", "semana", "mes"] as const).map((p) => (
@@ -1684,6 +1753,35 @@ function ContasPagarTab({
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Cadastrar conta
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de juros (contas atrasadas) */}
+      <Dialog open={!!modalJuros} onOpenChange={(o) => { if (!o) { setModalJuros(null); setValorComJuros("") } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Pagamento com juros?</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              A conta <strong>{modalJuros?.descricao}</strong> está atrasada. O valor original é <strong>{formatarMoeda(modalJuros?.valorOriginal ?? 0)}</strong>.
+            </p>
+            <p className="text-sm">Houve juros/multa? Informe o valor total pago:</p>
+            <div className="space-y-1.5">
+              <Label>Valor pago (com juros)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0.01"
+                placeholder={String(modalJuros?.valorOriginal ?? "")}
+                value={valorComJuros}
+                onChange={(e) => setValorComJuros(e.target.value)}
+              />
+              <p className="text-[11px] text-muted-foreground">Deixe vazio para usar o valor original (sem juros).</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setModalJuros(null); setValorComJuros("") }}>Cancelar</Button>
+            <Button onClick={confirmarPagamentoComJuros}>Confirmar pagamento</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
