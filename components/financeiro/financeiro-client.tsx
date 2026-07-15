@@ -279,10 +279,10 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
         descricao: descComPag,
         valor: modalBaixa.valor,
       } as any)
-      // Marcar a conta como paga na API
+      // Marcar a conta como paga na API (skipMovimentacao pois já inseriu acima)
       await fetch("/api/financeiro/contas-pagar", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ _acao: "pagar", id: modalBaixa.id }),
+        body: JSON.stringify({ _acao: "pagar", id: modalBaixa.id, skipMovimentacao: true }),
       })
       setContasPagar((prev) => prev.map((c) => c.id === modalBaixa.id ? { ...c, status: "pago", data_pagamento: new Date().toISOString() } : c))
       toast.success("Pagamento registrado no caixa!")

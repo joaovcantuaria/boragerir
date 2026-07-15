@@ -76,11 +76,47 @@ export async function POST(req: NextRequest) {
 
   // Marcar como pago
   if (body._acao === "pagar") {
+    // Buscar dados da conta para registrar no caixa
+    const { data: conta } = await supabase.from("contas_pagar")
+      .select("descricao, valor")
+      .eq("id", body.id)
+      .eq("empresa_id", empresa.id)
+      .single()
+
     const { error } = await supabase.from("contas_pagar")
       .update({ status: "pago", data_pagamento: new Date().toISOString() })
       .eq("id", body.id)
       .eq("empresa_id", empresa.id)
     if (error) return NextResponse.json({ erro: error.message }, { status: 500 })
+
+    // Registrar movimentação no caixa (se houver caixa aberto)
+    // skipMovimentacao: true quando o frontend já inseriu a movimentação (plano gestão via modal)
+    if (conta && !body.skipMovimentacao) {
+      const { data: caixaAberto } = await supabase
+        .from("caixas")
+        .select("id")
+        .eq("empresa_id", empresa.id)
+        .eq("status", "aberto")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle()
+
+      if (caixaAberto) {
+        const descricaoMov = body.forma_pagamento
+          ? `Pagamento: ${conta.descricao} [${body.forma_pagamento}]`
+          : `Pagamento: ${conta.descricao}`
+
+        await supabase.from("movimentacoes_caixa").insert({
+          empresa_id: empresa.id,
+          caixa_id: caixaAberto.id,
+          tipo: "saida",
+          categoria: "despesa",
+          descricao: descricaoMov,
+          valor: conta.valor,
+        })
+      }
+    }
+
     return NextResponse.json({ sucesso: true })
   }
 
