@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Plus, Search, Package, Scissors, Edit, AlertTriangle, Loader2 } from "lucide-react"
+import { Plus, Search, Package, Scissors, Edit, AlertTriangle, Loader2, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -77,6 +77,7 @@ export function ProdutosServicosClient({
   const [criandoCategoria, setCriandoCategoria] = useState(false)
   const [nomeNovaCategoria, setNomeNovaCategoria] = useState("")
   const [loadingCategoria, setLoadingCategoria] = useState(false)
+  const [unidadeCustom, setUnidadeCustom] = useState("")
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<FormProduto>({
     resolver: zodResolver(schemaProduto),
@@ -148,6 +149,13 @@ export function ProdutosServicosClient({
     setTipoModal(produto.tipo)
     setCriandoCategoria(false)
     setNomeNovaCategoria("")
+    const unidade = produto.unidade_medida ?? "unidade"
+    const isCustom = !UNIDADES.some((u) => u.value === unidade) || (unidade !== "outro" && !UNIDADES.find((u) => u.value === unidade))
+    if (unidade === "outro" || isCustom) {
+      setUnidadeCustom(unidade === "outro" ? "" : unidade)
+    } else {
+      setUnidadeCustom("")
+    }
     reset({
       nome: produto.nome,
       tipo: produto.tipo,
@@ -160,8 +168,17 @@ export function ProdutosServicosClient({
       estoque_minimo: produto.estoque_minimo?.toString() ?? "",
       comissao_percentual: produto.comissao_percentual?.toString() ?? "",
       duracao_minutos: produto.duracao_minutos?.toString() ?? "",
+      unidade_medida: UNIDADES.some((u) => u.value === unidade) ? unidade : "outro",
     })
     setModalAberto(true)
+  }
+
+  async function excluirProduto(id: string) {
+    if (!confirm("Tem certeza que deseja excluir este item?")) return
+    const { error } = await supabase.from("produtos_servicos").update({ ativo: false }).eq("id", id)
+    if (error) { toast.error("Erro ao excluir."); return }
+    setProdutos((prev) => prev.map((p) => p.id === id ? { ...p, ativo: false } : p))
+    toast.success("Item excluído com sucesso!")
   }
 
   async function onSubmit(data: FormProduto) {
@@ -197,7 +214,7 @@ export function ProdutosServicosClient({
       descricao: data.descricao || null,
       codigo: data.codigo || null,
       codigo_barras: codigoBarras,
-      unidade_medida: data.unidade_medida || "unidade",
+      unidade_medida: data.unidade_medida === "outro" && unidadeCustom.trim() ? unidadeCustom.trim() : (data.unidade_medida || "unidade"),
       preco: parseFloat(data.preco),
       custo: data.custo ? parseFloat(data.custo) : null,
       estoque_atual: data.estoque_atual ? parseInt(data.estoque_atual) : null,
@@ -251,9 +268,14 @@ export function ProdutosServicosClient({
                 {item.comissao_percentual && <span>Comissão: {item.comissao_percentual}%</span>}
               </div>
             </div>
-            <Button variant="ghost" size="icon" onClick={() => executarComPin("produtos_editar", () => abrirModalEditar(item))}>
-              <Edit className="w-4 h-4" />
-            </Button>
+            <div className="flex items-center gap-1 shrink-0">
+              <Button variant="ghost" size="icon" onClick={() => executarComPin("produtos_editar", () => abrirModalEditar(item))}>
+                <Edit className="w-4 h-4" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => executarComPin("produtos_editar", () => excluirProduto(item.id))} className="text-muted-foreground hover:text-red-500">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -334,7 +356,7 @@ export function ProdutosServicosClient({
               </div>
               <div className="space-y-2">
                 <Label>Vendido por</Label>
-                <Select defaultValue="unidade" onValueChange={(v) => setValue("unidade_medida", v)}>
+                <Select defaultValue="unidade" onValueChange={(v) => { setValue("unidade_medida", v); if (v !== "outro") setUnidadeCustom("") }}>
                   <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
                   <SelectContent>
                     {UNIDADES.map((u) => (
@@ -342,6 +364,14 @@ export function ProdutosServicosClient({
                     ))}
                   </SelectContent>
                 </Select>
+                {watch("unidade_medida") === "outro" && (
+                  <Input
+                    placeholder="Digite a unidade de medida..."
+                    value={unidadeCustom}
+                    onChange={(e) => setUnidadeCustom(e.target.value)}
+                    className="mt-1"
+                  />
+                )}
               </div>
             </div>
             <div className="space-y-2">

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Plus, Search, UserPlus, Loader2, Cake, Phone, Mail, Edit, Star, User, Building2, AlertTriangle, CreditCard, CheckCircle, Gift } from "lucide-react"
+import { Plus, Search, UserPlus, Loader2, Cake, Phone, Mail, Edit, Star, User, Building2, AlertTriangle, CreditCard, CheckCircle, Gift, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -222,6 +222,14 @@ export function ClientesClient({
     setLoading(false)
   }
 
+  async function excluirCliente(id: string) {
+    if (!confirm("Tem certeza que deseja excluir este cliente?")) return
+    const { error } = await supabase.from("clientes").update({ ativo: false }).eq("id", id)
+    if (error) { toast.error("Erro ao excluir cliente."); return }
+    setClientes((prev) => prev.filter((c) => c.id !== id))
+    toast.success("Cliente excluído!")
+  }
+
   // ── Funções de débito ────────────────────────────────────────────────────────
   function debitosPorCliente(clienteId: string) {
     return debitos.filter((d) => d.cliente_id === clienteId)
@@ -371,9 +379,14 @@ export function ClientesClient({
                         </div>
                       </div>
                     </div>
-                    <Button variant="ghost" size="icon" onClick={() => executarComPin("clientes_editar", () => abrirModalEditar(cliente))}>
-                      <Edit className="w-4 h-4" />
-                    </Button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button variant="ghost" size="icon" onClick={() => executarComPin("clientes_editar", () => abrirModalEditar(cliente))}>
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => executarComPin("clientes_editar", () => excluirCliente(cliente.id))} className="text-muted-foreground hover:text-red-500">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
