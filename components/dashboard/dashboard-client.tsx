@@ -10,7 +10,7 @@ import {
   Wallet, TrendingUp, Users, ShoppingCart, Calendar, CheckSquare,
   Package, AlertTriangle, ArrowRight, Clock, RefreshCw, Moon, Sun,
   ShoppingBag, FileText, BarChart3, Settings, CreditCard,
-  HeadphonesIcon, ClipboardList, UserCheck, ArrowDownUp,
+  HeadphonesIcon, ClipboardList, UserCheck, ArrowDownUp, Eye, EyeOff,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Badge } from "@/components/ui/badge"
@@ -103,6 +103,7 @@ export function DashboardClient({
   const [ticketM,     setTicketM]     = useState(initialTicket)
   const [pulsing,     setPulsing]     = useState(false)
   const [lastUpdate,  setLastUpdate]  = useState<Date | null>(null)
+  const [valoresVisiveis, setValoresVisiveis] = useState(true)
 
   const pulsar = useCallback(() => {
     setPulsing(true)
@@ -154,22 +155,24 @@ export function DashboardClient({
     return { dia: format(dia, "EEE", { locale: ptBR }), total }
   })
 
+  const ocultarValor = (v: string) => valoresVisiveis ? v : "•••••"
+
   const kpis = [
     {
       label: "Vendas hoje",
-      value: formatarMoeda(totalVendas),
+      value: ocultarValor(formatarMoeda(totalVendas)),
       icon: TrendingUp,
       color: "#10b981",
       bg: "#10b98115",
-      trend: qtdAtend > 0 ? `${qtdAtend} atendimento${qtdAtend > 1 ? "s" : ""}` : "Nenhuma venda",
+      trend: valoresVisiveis ? (qtdAtend > 0 ? `${qtdAtend} atendimento${qtdAtend > 1 ? "s" : ""}` : "Nenhuma venda") : "",
     },
     {
       label: "Ticket médio",
-      value: formatarMoeda(ticketM),
+      value: ocultarValor(formatarMoeda(ticketM)),
       icon: ShoppingCart,
       color: "#6366f1",
       bg: "#6366f115",
-      trend: "do dia",
+      trend: valoresVisiveis ? "do dia" : "",
     },
     {
       label: "Agendamentos",
@@ -203,6 +206,13 @@ export function DashboardClient({
               {format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
             </p>
           </div>
+          <button
+            onClick={() => setValoresVisiveis(!valoresVisiveis)}
+            className="p-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+            title={valoresVisiveis ? "Ocultar valores" : "Mostrar valores"}
+          >
+            {valoresVisiveis ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
+          </button>
         </div>
 
         {/* KPIs Gestão */}
@@ -211,20 +221,20 @@ export function DashboardClient({
           {[
             {
               label: "Resumo Geral",
-              value: formatarMoeda(totalVendas),
+              value: ocultarValor(formatarMoeda(totalVendas)),
               icon: TrendingUp,
               color: "#10b981",
               bg: "#10b98115",
-              trend: "receitas do dia",
+              trend: valoresVisiveis ? "receitas do dia" : "",
               onClick: () => router.push("/financeiro"),
             },
             {
               label: "Entradas e Saídas",
-              value: `${qtdAtend} mov.`,
+              value: valoresVisiveis ? `${qtdAtend} mov.` : "•••••",
               icon: ArrowDownUp,
               color: "#6366f1",
               bg: "#6366f115",
-              trend: "movimentações hoje",
+              trend: valoresVisiveis ? "movimentações hoje" : "",
               onClick: () => router.push("/caixa"),
             },
             {
@@ -335,6 +345,15 @@ export function DashboardClient({
         </div>
 
         <div className="flex items-center gap-1">
+          {/* Toggle visibilidade dos valores */}
+          <button
+            onClick={() => setValoresVisiveis(!valoresVisiveis)}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            title={valoresVisiveis ? "Ocultar valores" : "Mostrar valores"}
+          >
+            {valoresVisiveis ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+          </button>
+
           {pulsing && (
             <motion.div
               initial={{ opacity: 0, scale: 0.8 }}

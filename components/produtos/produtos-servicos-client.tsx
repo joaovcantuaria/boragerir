@@ -214,7 +214,7 @@ export function ProdutosServicosClient({
       descricao: data.descricao || null,
       codigo: data.codigo || null,
       codigo_barras: codigoBarras,
-      unidade_medida: data.unidade_medida === "outro" && unidadeCustom.trim() ? unidadeCustom.trim() : (data.unidade_medida || "unidade"),
+      unidade_medida: (data.unidade_medida === "outro" && unidadeCustom.trim() ? unidadeCustom.trim() : (data.unidade_medida || "unidade")) as any,
       preco: parseFloat(data.preco),
       custo: data.custo ? parseFloat(data.custo) : null,
       estoque_atual: data.estoque_atual ? parseInt(data.estoque_atual) : null,
@@ -356,7 +356,7 @@ export function ProdutosServicosClient({
               </div>
               <div className="space-y-2">
                 <Label>Vendido por</Label>
-                <Select defaultValue="unidade" onValueChange={(v) => { setValue("unidade_medida", v); if (v !== "outro") setUnidadeCustom("") }}>
+                <Select value={watch("unidade_medida") || "unidade"} onValueChange={(v) => { setValue("unidade_medida", v); if (v !== "outro") setUnidadeCustom("") }}>
                   <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
                   <SelectContent>
                     {UNIDADES.map((u) => (
