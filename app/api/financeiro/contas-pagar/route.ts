@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Criar nova conta
-  const { descricao, valor, data_vencimento, categoria, recorrencia, observacoes } = body
+  const { descricao, valor, data_vencimento, categoria, recorrencia, observacoes, qtd_parcelas } = body
 
   if (!descricao || !valor || !data_vencimento) {
     return NextResponse.json({ erro: "Descrição, valor e data de vencimento são obrigatórios" }, { status: 400 })
@@ -130,9 +130,10 @@ export async function POST(req: NextRequest) {
   const grupoId = crypto.randomUUID()
   const registros: object[] = []
   const dataBase = new Date(data_vencimento + "T12:00:00")
+  const quantidade = Math.min(Math.max(parseInt(qtd_parcelas) || 12, 1), 120)
 
   if (recorrencia === "mensal") {
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < quantidade; i++) {
       const d = new Date(dataBase)
       d.setMonth(d.getMonth() + i)
       registros.push({
@@ -148,7 +149,7 @@ export async function POST(req: NextRequest) {
       })
     }
   } else if (recorrencia === "semanal") {
-    for (let i = 0; i < 52; i++) {
+    for (let i = 0; i < quantidade; i++) {
       const d = new Date(dataBase)
       d.setDate(d.getDate() + i * 7)
       registros.push({

@@ -102,6 +102,8 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   const [formReceber, setFormReceber] = useState({ devedor: "", valor: "", data_vencimento: "", observacoes: "" })
   const [buscaReceber, setBuscaReceber] = useState("")
   const [ordenacaoReceber, setOrdenacaoReceber] = useState<"vencimento" | "alfabetica">("vencimento")
+  const [clientesLista, setClientesLista] = useState<{ id: string; nome_completo: string }[]>([])
+  const [clienteSelecionado, setClienteSelecionado] = useState("")
   const [loadingReceber, setLoadingReceber] = useState(false)
   // Baixa modal — pergunta de qual caixa
   const [modalBaixa, setModalBaixa] = useState<{ tipo: "receber" | "pagar"; id: string; valor: number; descricao: string } | null>(null)
@@ -128,14 +130,20 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
 
   // Carregar valores a receber na montagem
   useEffect(() => {
-    if (isGestao) {
-      supabase
-        .from("valores_receber")
-        .select("*")
-        .eq("empresa_id", empresaId)
-        .order("data_vencimento", { ascending: true })
-        .then(({ data }) => setValoresReceber(data ?? []))
-    }
+    supabase
+      .from("valores_receber")
+      .select("*")
+      .eq("empresa_id", empresaId)
+      .order("data_vencimento", { ascending: true })
+      .then(({ data }) => setValoresReceber(data ?? []))
+    // Carregar lista de clientes para o modal de A Receber
+    supabase
+      .from("clientes")
+      .select("id, nome_completo")
+      .eq("empresa_id", empresaId)
+      .eq("ativo", true)
+      .order("nome_completo")
+      .then(({ data }) => setClientesLista(data ?? []))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -197,8 +205,23 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
     }).select().single()
 
     if (error) { toast.error("Erro ao adicionar."); setLoadingReceber(false); return }
+
+    // Se vinculou a um cliente, criar débito
+    if (clienteSelecionado) {
+      await supabase.from("debitos_clientes").insert({
+        empresa_id: empresaId,
+        cliente_id: clienteSelecionado,
+        valor_total: parseFloat(valor),
+        valor_pago: 0,
+        valor_aberto: parseFloat(valor),
+        status: "aberto",
+        descricao: observacoes.trim() || devedor.trim(),
+      })
+    }
+
     setValoresReceber((prev) => [...prev, data])
     setFormReceber({ devedor: "", valor: "", data_vencimento: "", observacoes: "" })
+    setClienteSelecionado("")
     setModalNovoReceber(false)
     setLoadingReceber(false)
     toast.success("Valor a receber adicionado!")
@@ -686,18 +709,16 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
         </TabsContent>
 
         <TabsContent value="areceber" className="mt-4 space-y-3">
-          {/* Botão adicionar — plano gestão */}
-          {isGestao && (
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold">Valores a receber</p>
-              <Button size="sm" onClick={() => setModalNovoReceber(true)} className="gap-1.5">
-                <Plus className="w-4 h-4" /> Adicionar
-              </Button>
-            </div>
-          )}
+          {/* Botão adicionar — todos os planos */}
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold">Valores a receber</p>
+            <Button size="sm" onClick={() => setModalNovoReceber(true)} className="gap-1.5">
+              <Plus className="w-4 h-4" /> Adicionar
+            </Button>
+          </div>
 
           {/* Busca e ordenação */}
-          {isGestao && valoresReceber.filter((v) => v.status !== "recebido").length > 0 && (
+          {valoresReceber.filter((v) => v.status !== "recebido").length > 0 && (
             <div className="flex flex-wrap gap-2">
               <div className="relative flex-1 min-w-[180px] max-w-xs">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -718,8 +739,8 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
             </div>
           )}
 
-          {/* Lista manual de valores a receber (gestão) */}
-          {isGestao && valoresReceber.filter((v) => v.status !== "recebido").length > 0 && (
+          {/* Lista manual de valores a receber */}
+          {valoresReceber.filter((v) => v.status !== "recebido").length > 0 && (
             <div className="border border-border rounded-xl overflow-hidden">
               <div className="grid grid-cols-5 gap-2 px-4 py-2 bg-muted text-xs font-medium text-muted-foreground">
                 <span>Devedor</span><span>Valor</span><span>Vencimento</span><span>Obs</span><span className="text-right">Ações</span>
@@ -760,16 +781,10 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
           )}
 
           {/* Débitos de vendas (planos normais) */}
-          {!isGestao && debitos.length === 0 && (
-            <div className="py-12 text-center text-muted-foreground">
-              <Clock className="w-10 h-10 mx-auto mb-2 opacity-30" />
-              <p className="text-sm">Nenhum valor a receber</p>
-            </div>
-          )}
           {!isGestao && debitos.length > 0 && (
             <>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-muted-foreground">{debitos.length} débito(s) em aberto</p>
+              <div className="flex items-center justify-between mb-2 mt-4">
+                <p className="text-sm font-semibold">Débitos de vendas</p>
                 <p className="font-black text-amber-500">{formatarMoeda(totalAReceber)}</p>
               </div>
               <div className="border border-border rounded-xl overflow-hidden">
@@ -788,8 +803,8 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
             </>
           )}
 
-          {/* Gestão: mensagem vazia */}
-          {isGestao && valoresReceber.filter((v) => v.status !== "recebido").length === 0 && (
+          {/* Mensagem vazia */}
+          {valoresReceber.filter((v) => v.status !== "recebido").length === 0 && (!isGestao ? debitos.length === 0 : true) && (
             <div className="py-12 text-center text-muted-foreground">
               <Clock className="w-10 h-10 mx-auto mb-2 opacity-30" />
               <p className="text-sm">Nenhum valor a receber</p>
@@ -916,12 +931,34 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
       </Dialog>
 
       {/* Modal adicionar/editar valor a receber */}
-      <Dialog open={modalNovoReceber} onOpenChange={(open) => { if (!open) { setModalNovoReceber(false); setEditandoReceberId(null); setFormReceber({ devedor: "", valor: "", data_vencimento: "", observacoes: "" }) } }}>
+      <Dialog open={modalNovoReceber} onOpenChange={(open) => { if (!open) { setModalNovoReceber(false); setEditandoReceberId(null); setFormReceber({ devedor: "", valor: "", data_vencimento: "", observacoes: "" }); setClienteSelecionado("") } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{editandoReceberId ? "Editar Valor a Receber" : "Adicionar Valor a Receber"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Seletor de cliente (opcional) */}
+            {!editandoReceberId && clientesLista.length > 0 && (
+              <div className="space-y-2">
+                <Label>Vincular a cliente (opcional)</Label>
+                <select
+                  value={clienteSelecionado}
+                  onChange={(e) => {
+                    setClienteSelecionado(e.target.value)
+                    if (e.target.value) {
+                      const cl = clientesLista.find((c) => c.id === e.target.value)
+                      if (cl) setFormReceber((f) => ({ ...f, devedor: cl.nome_completo }))
+                    }
+                  }}
+                  className="w-full h-10 rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                >
+                  <option value="">Sem cliente (manual)</option>
+                  {clientesLista.map((c) => (
+                    <option key={c.id} value={c.id}>{c.nome_completo}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Nome do devedor *</Label>
               <Input
@@ -1463,7 +1500,7 @@ function ContasPagarTab({
   const [valorComJuros, setValorComJuros] = useState("")
   const [form, setForm] = useState({
     descricao: "", valor: "", data_vencimento: format(new Date(), "yyyy-MM-dd"),
-    categoria: "outros", recorrencia: "avulso", observacoes: "",
+    categoria: "outros", recorrencia: "avulso", observacoes: "", qtd_parcelas: "12",
   })
 
   // Calcular status real (atrasado se pendente e vencida)
@@ -1512,7 +1549,7 @@ function ContasPagarTab({
     toast.success(form.recorrencia === "avulso" ? "Conta cadastrada!" : `Conta recorrente criada!`)
     setContas((prev) => [...(data.data ?? []), ...prev].sort((a, b) => a.data_vencimento.localeCompare(b.data_vencimento)))
     setModalAberto(false)
-    setForm({ descricao: "", valor: "", data_vencimento: format(new Date(), "yyyy-MM-dd"), categoria: "outros", recorrencia: "avulso", observacoes: "" })
+    setForm({ descricao: "", valor: "", data_vencimento: format(new Date(), "yyyy-MM-dd"), categoria: "outros", recorrencia: "avulso", observacoes: "", qtd_parcelas: "12" })
     setLoading(false)
   }
 
@@ -1762,19 +1799,32 @@ function ContasPagarTab({
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="avulso">Avulso (uma vez)</SelectItem>
-                    <SelectItem value="mensal">Mensal (12 meses)</SelectItem>
-                    <SelectItem value="semanal">Semanal (52 semanas)</SelectItem>
+                    <SelectItem value="mensal">Mensal</SelectItem>
+                    <SelectItem value="semanal">Semanal</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
+            {form.recorrencia !== "avulso" && (
+              <div className="space-y-1.5">
+                <Label>Quantidade de {form.recorrencia === "mensal" ? "meses" : "semanas"}</Label>
+                <Input
+                  type="number"
+                  min="2"
+                  max="120"
+                  placeholder={form.recorrencia === "mensal" ? "Ex: 12" : "Ex: 4"}
+                  value={form.qtd_parcelas}
+                  onChange={(e) => setForm((p) => ({ ...p, qtd_parcelas: e.target.value }))}
+                />
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label>Observações</Label>
               <Textarea placeholder="Opcional..." rows={2} value={form.observacoes} onChange={(e) => setForm((p) => ({ ...p, observacoes: e.target.value }))} />
             </div>
             {form.recorrencia !== "avulso" && (
               <p className="text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2">
-                📅 Serão criadas {form.recorrencia === "mensal" ? "12 parcelas mensais" : "52 parcelas semanais"} a partir de {format(new Date(form.data_vencimento + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}.
+                📅 Serão criadas {form.qtd_parcelas || "0"} parcelas {form.recorrencia === "mensal" ? "mensais" : "semanais"} a partir de {format(new Date(form.data_vencimento + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}.
               </p>
             )}
           </div>
