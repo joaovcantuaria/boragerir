@@ -53,7 +53,7 @@ const schemaCliente = z.discriminatedUnion("tipo_pessoa", [
   z.object({
     tipo_pessoa: z.literal("pf"),
     nome_completo: z.string().min(2, "Nome obrigatório"),
-    cpf: z.string().refine((v) => validarCPF(v), "CPF inválido"),
+    cpf: z.string().optional().or(z.literal("")),
     telefone: z.string().min(10, "Telefone inválido"),
     email: z.string().email("E-mail inválido").optional().or(z.literal("")),
     data_nascimento: z.string().optional(),
@@ -65,7 +65,7 @@ const schemaCliente = z.discriminatedUnion("tipo_pessoa", [
     tipo_pessoa: z.literal("pj"),
     nome_completo: z.string().min(2, "Nome do contato obrigatório"),
     razao_social: z.string().min(2, "Razão social obrigatória"),
-    cnpj: z.string().refine((v) => validarCNPJ(v), "CNPJ inválido"),
+    cnpj: z.string().optional().or(z.literal("")),
     telefone: z.string().min(10, "Telefone inválido"),
     email: z.string().email("E-mail inválido").optional().or(z.literal("")),
     data_nascimento: z.string().optional(),
@@ -179,8 +179,8 @@ export function ClientesClient({
   async function onSubmit(data: FormCliente) {
     setLoading(true)
     const isPJ = data.tipo_pessoa === "pj"
-    const cpfLimpo = isPJ ? null : data.cpf?.replace(/\D/g, "") ?? null
-    const cnpjLimpo = isPJ ? data.cnpj?.replace(/\D/g, "") ?? null : null
+    const cpfLimpo = isPJ ? null : (data.cpf?.replace(/\D/g, "") || null)
+    const cnpjLimpo = isPJ ? (data.cnpj?.replace(/\D/g, "") || null) : null
 
     const payload = {
       nome_completo: data.nome_completo,
@@ -608,7 +608,7 @@ export function ClientesClient({
               <div className="space-y-2">
                 {tipoPessoa === "pj" ? (
                   <>
-                    <Label>CNPJ *</Label>
+                    <Label>CNPJ</Label>
                     <Input placeholder="00.000.000/0001-00" maxLength={18}
                       {...register("cnpj")}
                       onChange={(e) => { const f = formatarCNPJ(e.target.value); e.target.value = f; setValue("cnpj", f) }} />
@@ -618,7 +618,7 @@ export function ClientesClient({
                   </>
                 ) : (
                   <>
-                    <Label>CPF *</Label>
+                    <Label>CPF</Label>
                     <Input placeholder="000.000.000-00" maxLength={14}
                       {...register("cpf")}
                       onChange={(e) => { const f = formatarCPF(e.target.value); e.target.value = f; setValue("cpf", f) }} />
