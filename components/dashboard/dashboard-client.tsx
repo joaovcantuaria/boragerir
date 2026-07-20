@@ -176,11 +176,11 @@ export function DashboardClient({
     },
     {
       label: "Agendamentos",
-      value: agendamentosHoje.length.toString(),
+      value: valoresVisiveis ? agendamentosHoje.length.toString() : "•••",
       icon: Calendar,
       color: "#F26E1D",
       bg: "#F26E1D15",
-      trend: "hoje",
+      trend: valoresVisiveis ? "hoje" : "",
     },
     {
       label: "Caixa",
@@ -597,7 +597,7 @@ export function DashboardClient({
                         style={{ background: prioColor[t.prioridade] ?? "#9ca3af" }}
                       />
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium truncate text-foreground">{t.titulo}</p>
+                        <p className="text-xs font-medium truncate text-foreground">{valoresVisiveis ? t.titulo : "•••••••••"}</p>
                       </div>
                       {t.status === "iniciado" && (
                         <span className="text-[10px] font-semibold text-blue-500 shrink-0">▶</span>
@@ -634,6 +634,7 @@ export function DashboardClient({
             </button>
           </div>
           <div className="card-v2-body">
+            {valoresVisiveis ? (
             <ResponsiveContainer width="100%" height={160}>
               <BarChart data={dadosSemana} barSize={28}>
                 <XAxis
@@ -663,6 +664,11 @@ export function DashboardClient({
                 <Bar dataKey="total" fill="#F26E1D" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[160px] text-muted-foreground text-sm">
+                <EyeOff className="w-5 h-5 mr-2 opacity-40" /> Valores ocultos
+              </div>
+            )}
           </div>
         </div>
         </PinProtected>
@@ -703,11 +709,11 @@ export function DashboardClient({
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium truncate text-foreground">
-                        {ag.clientes?.nome_completo ?? ag.nome_cliente_avulso ?? "Avulso"}
+                        {valoresVisiveis ? (ag.clientes?.nome_completo ?? ag.nome_cliente_avulso ?? "Avulso") : "•••••••••"}
                       </p>
                       <p className="text-[10px] text-muted-foreground truncate">
-                        {ag.produtos_servicos?.nome ?? "Serviço"}
-                        {ag.funcionarios?.nome && ` · ${ag.funcionarios.nome}`}
+                        {valoresVisiveis ? (ag.produtos_servicos?.nome ?? "Serviço") : "•••••"}
+                        {valoresVisiveis && ag.funcionarios?.nome && ` · ${ag.funcionarios.nome}`}
                       </p>
                     </div>
                     <Badge className={`text-[10px] shrink-0 ${coresStatus[ag.status as keyof typeof coresStatus] ?? ""}`}>
