@@ -87,7 +87,8 @@ export default function CadastroPage() {
         setEmailCadastrado(data.email)
         setEmailJaExiste(true)
       } else {
-        toast.error("Erro ao criar conta. Tente novamente.")
+        console.error("[cadastro] Erro Supabase Auth:", error.message, error)
+        toast.error(`Erro ao criar conta: ${error.message}`)
       }
       setLoading(false)
       return
