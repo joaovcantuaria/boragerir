@@ -385,16 +385,20 @@ export function VendaClient({
 
     await supabase.from("itens_venda").insert(itensPayload)
 
-    await supabase.from("movimentacoes_caixa").insert({
-      empresa_id: empresa.id,
-      caixa_id: caixaId,
-      tipo: "entrada",
-      categoria: "venda",
-      descricao: `Venda #${venda.numero_venda} - ${clienteSelecionado?.nome_completo ?? "Sem cliente"}`,
-      valor: isDebito ? valorPagoAgora : total,
-      venda_id: venda.id,
-      colaborador_id: colaborador?.id !== "owner" ? colaborador?.id : null,
-    })
+    // Registrar movimentação no caixa — só se houve pagamento efetivo
+    const valorMovimentacao = isDebito ? valorPagoAgora : total
+    if (valorMovimentacao > 0) {
+      await supabase.from("movimentacoes_caixa").insert({
+        empresa_id: empresa.id,
+        caixa_id: caixaId,
+        tipo: "entrada",
+        categoria: "venda",
+        descricao: `Venda #${venda.numero_venda} - ${clienteSelecionado?.nome_completo ?? "Sem cliente"}`,
+        valor: valorMovimentacao,
+        venda_id: venda.id,
+        colaborador_id: colaborador?.id !== "owner" ? colaborador?.id : null,
+      })
+    }
 
     if (isDebito && clienteSelecionado) {
       const valorAberto = total - valorPagoAgora
