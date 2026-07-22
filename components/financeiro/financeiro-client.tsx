@@ -234,9 +234,32 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
       // Abrir modal para selecionar caixa destino
       setModalBaixa({ tipo: "receber", id, valor: item.valor, descricao: `Recebimento: ${item.devedor}` })
     } else {
+      // Planos não-gestão: registrar no caixa automaticamente (primeiro caixa aberto)
+      const { data: caixaAberto } = await supabase
+        .from("caixas")
+        .select("id")
+        .eq("empresa_id", empresaId)
+        .eq("status", "aberto")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle()
+
       await supabase.from("valores_receber").update({ status: "recebido" }).eq("id", id)
+
+      if (caixaAberto) {
+        await supabase.from("movimentacoes_caixa").insert({
+          empresa_id: empresaId,
+          caixa_id: caixaAberto.id,
+          tipo: "entrada",
+          categoria: "suprimento",
+          descricao: `Recebimento: ${item.devedor}`,
+          valor: item.valor,
+        })
+      }
+
       setValoresReceber((prev) => prev.map((v) => v.id === id ? { ...v, status: "recebido" } : v))
-      toast.success("Marcado como recebido!")
+      toast.success(caixaAberto ? "Recebido e registrado no caixa!" : "Marcado como recebido! (Abra o caixa para registrar a movimentação)")
+    }
     }
   }
 

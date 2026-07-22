@@ -149,6 +149,20 @@ export function ContratosClient({ empresaId, contratosInit, parcelasInit, client
       const parcsData = gerarParcelas(contrato.id, dataInicio, duracaoMeses, valor, diaVencimento)
       const { data: parcsInseridas } = await supabase.from("contratos_parcelas").insert(parcsData).select()
 
+      // Criar valores_receber para cada parcela (integração com financeiro)
+      if (parcsInseridas && parcsInseridas.length > 0) {
+        const clienteNome = clientes.find((c) => c.id === clienteId)?.nome_completo ?? titulo
+        const valoresReceber = parcsInseridas.map((p: any) => ({
+          empresa_id: empresaId,
+          devedor: clienteNome,
+          valor: p.valor,
+          data_vencimento: p.data_vencimento,
+          observacoes: `Contrato: ${titulo} — Parcela ${p.numero_parcela}/${duracaoMeses}`,
+          status: "pendente",
+        }))
+        await supabase.from("valores_receber").insert(valoresReceber)
+      }
+
       setContratos((p) => [contrato, ...p])
       if (parcsInseridas) setParcelas((p) => [...p, ...parcsInseridas])
       setExpandido(contrato.id)
@@ -174,7 +188,50 @@ export function ContratosClient({ empresaId, contratosInit, parcelasInit, client
     const { error } = await supabase.from("contratos_parcelas").update(update).eq("id", parcela.id)
     if (error) { toast.error("Erro ao atualizar parcela."); return }
     setParcelas((p) => p.map((par) => par.id === parcela.id ? { ...par, ...update } : par))
-    if (novoStatus === "pago") toast.success("Parcela marcada como paga!")
+
+    if (novoStatus === "pago") {
+      // Registrar entrada no caixa
+      const { data: caixaAberto } = await supabase
+        .from("caixas")
+        .select("id")
+        .eq("empresa_id", empresaId)
+        .eq("status", "aberto")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle()
+
+      if (caixaAberto) {
+        const contrato = contratos.find((c) => c.id === parcela.contrato_id)
+        await supabase.from("movimentacoes_caixa").insert({
+          empresa_id: empresaId,
+          caixa_id: caixaAberto.id,
+          tipo: "entrada",
+          categoria: "suprimento",
+          descricao: `Contrato: ${contrato?.titulo ?? "Parcela"} — Parcela ${parcela.numero_parcela}`,
+          valor: parcela.valor,
+        })
+      }
+
+      // Marcar valor_receber correspondente como recebido (se existir)
+      const contrato = contratos.find((c) => c.id === parcela.contrato_id)
+      if (contrato) {
+        const obsMatch = `Contrato: ${contrato.titulo} — Parcela ${parcela.numero_parcela}/`
+        const { data: vrMatch } = await supabase
+          .from("valores_receber")
+          .select("id")
+          .eq("empresa_id", empresaId)
+          .eq("status", "pendente")
+          .eq("valor", parcela.valor)
+          .ilike("observacoes", `${obsMatch}%`)
+          .limit(1)
+          .maybeSingle()
+        if (vrMatch) {
+          await supabase.from("valores_receber").update({ status: "recebido" }).eq("id", vrMatch.id)
+        }
+      }
+
+      toast.success("Parcela paga e registrada no caixa!")
+    }
   }
 
   async function excluirContrato(id: string) {
