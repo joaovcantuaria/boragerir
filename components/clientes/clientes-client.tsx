@@ -265,6 +265,18 @@ export function ClientesClient({
     if (!formaPagQuite) { toast.error("Selecione a forma de pagamento."); return }
     if (selectedDebitos.size === 0) { toast.error("Selecione ao menos um débito."); return }
     setLoadingQuite(true)
+
+    // Buscar caixa aberto para registrar a entrada
+    const { data: caixaAberto } = await supabase
+      .from("caixas")
+      .select("id")
+      .eq("empresa_id", empresaId)
+      .eq("status", "aberto")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle()
+
+    let totalQuitado = 0
     for (const debitoId of selectedDebitos) {
       const debito = debitosDoCliente.find((d) => d.id === debitoId)
       if (!debito) continue
@@ -274,9 +286,24 @@ export function ClientesClient({
         status: "pago",
         updated_at: new Date().toISOString(),
       }).eq("id", debitoId)
+      totalQuitado += debito.valor_aberto
     }
+
+    // Registrar entrada no caixa
+    if (caixaAberto && totalQuitado > 0) {
+      const clienteNome = clientes.find((c) => c.id === clienteQuitarId)?.nome_completo ?? "Cliente"
+      await supabase.from("movimentacoes_caixa").insert({
+        empresa_id: empresaId,
+        caixa_id: caixaAberto.id,
+        tipo: "entrada",
+        categoria: "suprimento",
+        descricao: `Quitação débito: ${clienteNome} [${formaPagQuite}]`,
+        valor: totalQuitado,
+      })
+    }
+
     setDebitos((prev) => prev.filter((d) => !selectedDebitos.has(d.id)))
-    toast.success(`${selectedDebitos.size} débito(s) quitado(s)!`)
+    toast.success(`${selectedDebitos.size} débito(s) quitado(s)${caixaAberto ? " e registrado(s) no caixa!" : "! (Abra o caixa para registrar)"}`)
     setModalQuitarAberto(false)
     setLoadingQuite(false)
   }
