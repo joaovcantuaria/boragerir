@@ -109,6 +109,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   const [modalBaixa, setModalBaixa] = useState<{ tipo: "receber" | "pagar"; id: string; valor: number; descricao: string } | null>(null)
   const [baixaCaixaTipo, setBaixaCaixaTipo] = useState<"especie" | "banco">("especie")
   const [baixaFormaPag, setBaixaFormaPag] = useState<string>("")
+  const [baixaDataRetroativa, setBaixaDataRetroativa] = useState<string>("")
   const supabase = createClient()
   const router = useRouter()
   const isGestao = plano === "gestao"
@@ -307,26 +308,30 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
     if (modalBaixa.tipo === "receber") {
       // Marcar como recebido + registrar entrada no caixa
       await supabase.from("valores_receber").update({ status: "recebido" }).eq("id", modalBaixa.id)
-      await supabase.from("movimentacoes_caixa").insert({
+      const insertData: any = {
         empresa_id: empresaId,
         caixa_id: caixaId,
         tipo: "entrada",
         categoria: "suprimento",
         descricao: descComPag,
         valor: modalBaixa.valor,
-      } as any)
+      }
+      if (baixaDataRetroativa) insertData.created_at = new Date(baixaDataRetroativa + "T12:00:00").toISOString()
+      await supabase.from("movimentacoes_caixa").insert(insertData)
       setValoresReceber((prev) => prev.map((v) => v.id === modalBaixa.id ? { ...v, status: "recebido" } : v))
       toast.success("Recebimento registrado no caixa!")
     } else {
       // Conta a pagar — registrar saída no caixa + marcar como paga
-      await supabase.from("movimentacoes_caixa").insert({
+      const insertData: any = {
         empresa_id: empresaId,
         caixa_id: caixaId,
         tipo: "saida",
         categoria: "despesa",
         descricao: descComPag,
         valor: modalBaixa.valor,
-      } as any)
+      }
+      if (baixaDataRetroativa) insertData.created_at = new Date(baixaDataRetroativa + "T12:00:00").toISOString()
+      await supabase.from("movimentacoes_caixa").insert(insertData)
       // Marcar a conta como paga na API (skipMovimentacao pois já inseriu acima)
       await fetch("/api/financeiro/contas-pagar", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -338,6 +343,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
 
     setModalBaixa(null)
     setBaixaFormaPag("")
+    setBaixaDataRetroativa("")
     setLoadingReceber(false)
   }
 
@@ -1110,9 +1116,19 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
                 </div>
               </div>
             )}
+            {/* Data retroativa — plano gestão */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Data da transação</Label>
+              <Input
+                type="date"
+                value={baixaDataRetroativa}
+                onChange={(e) => setBaixaDataRetroativa(e.target.value)}
+              />
+              <p className="text-[10px] text-muted-foreground">Deixe vazio para usar a data de hoje.</p>
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setModalBaixa(null); setBaixaFormaPag("") }}>Cancelar</Button>
+            <Button variant="outline" onClick={() => { setModalBaixa(null); setBaixaFormaPag(""); setBaixaDataRetroativa("") }}>Cancelar</Button>
             <Button onClick={confirmarBaixa} disabled={loadingReceber || (baixaCaixaTipo === "banco" && !baixaFormaPag)} className="gap-2">
               {loadingReceber ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               Confirmar
