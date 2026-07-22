@@ -261,7 +261,6 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
       setValoresReceber((prev) => prev.map((v) => v.id === id ? { ...v, status: "recebido" } : v))
       toast.success(caixaAberto ? "Recebido e registrado no caixa!" : "Marcado como recebido! (Abra o caixa para registrar a movimentação)")
     }
-    }
   }
 
   async function confirmarBaixa() {
