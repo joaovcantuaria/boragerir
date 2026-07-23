@@ -12,7 +12,6 @@ import { useRegistrarVisita } from "@/hooks/use-registrar-visita"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { createClient } from "@/lib/supabase/client"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 
@@ -32,11 +31,9 @@ export default function CadastroPage() {
   useRegistrarVisita("cadastro")
   const [mostrarSenha, setMostrarSenha] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [contaCriada, setContaCriada] = useState(false)
   const [emailCadastrado, setEmailCadastrado] = useState("")
   const [emailJaExiste, setEmailJaExiste] = useState(false)
   const router = useRouter()
-  const supabase = createClient()
 
   // Documentos legais
   const [termos, setTermos] = useState<string>("")
@@ -156,59 +153,8 @@ export default function CadastroPage() {
         </motion.div>
       )}
 
-      {/* ── Tela de confirmação de email ── */}
-      {contaCriada && !emailJaExiste && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="space-y-6 text-center"
-        >
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
-            <CheckCircle className="w-8 h-8 text-primary" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-black text-foreground">Conta criada! 🎉</h2>
-            <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
-              Enviamos um e-mail de confirmação para{" "}
-              <strong className="text-foreground">{emailCadastrado}</strong>.
-              <br />
-              Confirme seu e-mail para garantir o acesso completo à sua conta.
-            </p>
-          </div>
-
-          <div className="rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 p-4 text-left space-y-1">
-            <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">📧 Verifique sua caixa de entrada</p>
-            <p className="text-xs text-amber-700 dark:text-amber-400">
-              Procure por um e-mail do Bora Gerir. Se não encontrar, verifique a pasta de spam.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Button
-              onClick={() => { router.push("/onboarding"); router.refresh() }}
-              className="w-full font-bold"
-            >
-              Continuar sem confirmar agora →
-            </Button>
-            <p className="text-xs text-muted-foreground">
-              Você pode confirmar depois. Algumas funcionalidades podem ser limitadas até a confirmação.
-            </p>
-          </div>
-
-          <button
-            onClick={async () => {
-              await supabase.auth.resend({ type: "signup", email: emailCadastrado })
-              toast.success("E-mail reenviado!")
-            }}
-            className="text-xs text-primary hover:underline"
-          >
-            Não recebeu? Reenviar e-mail
-          </button>
-        </motion.div>
-      )}
-
       {/* ── Formulário de cadastro ── */}
-      {!contaCriada && !emailJaExiste && (
+      {!emailJaExiste && (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-black text-foreground">Criar conta grátis</h2>
@@ -407,7 +353,7 @@ export default function CadastroPage() {
         )}
       </AnimatePresence>
     </div>
-    )} {/* fim !contaCriada */}
+    )} {/* fim !emailJaExiste */}
     </div>
   )
 }
