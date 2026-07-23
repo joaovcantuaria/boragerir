@@ -361,30 +361,31 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl bg-gradient-to-r from-[#F26E1D] to-[#ff8c42] p-5 sm:p-6 shadow-lg shadow-orange-500/10">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">Caixa</h1>
-            <p className="text-white/70 text-sm mt-1">Controle de abertura, fechamento e movimentações</p>
-          </div>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-semibold text-foreground">Caixa</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">Controle de abertura, fechamento e movimentações</p>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
-          <div className="rounded-xl bg-white/15 backdrop-blur-sm px-3 py-2 border border-white/10">
-            <p className="text-[10px] text-white/60 font-semibold uppercase tracking-wider">Saldo</p>
-            <p className="text-lg font-black text-white mt-0.5">{formatarMoeda(saldoAtual)}</p>
-          </div>
-          <div className="rounded-xl bg-white/15 backdrop-blur-sm px-3 py-2 border border-white/10">
-            <p className="text-[10px] text-white/60 font-semibold uppercase tracking-wider">Entradas</p>
-            <p className="text-lg font-black text-white mt-0.5">{formatarMoeda(totalEntradas)}</p>
-          </div>
-          <div className="rounded-xl bg-white/15 backdrop-blur-sm px-3 py-2 border border-white/10">
-            <p className="text-[10px] text-white/60 font-semibold uppercase tracking-wider">Saídas</p>
-            <p className="text-lg font-black text-white mt-0.5">{formatarMoeda(totalSaidas)}</p>
-          </div>
-          <div className="rounded-xl bg-white/15 backdrop-blur-sm px-3 py-2 border border-white/10">
-            <p className="text-[10px] text-white/60 font-semibold uppercase tracking-wider">Status</p>
-            <p className="text-lg font-black text-white mt-0.5">{caixa ? "Aberto" : "Fechado"}</p>
-          </div>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="rounded-xl border border-border bg-card p-4 hover:shadow-md hover:-translate-y-0.5 transition-all">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Saldo</p>
+          <p className={`text-xl font-bold mt-1 ${saldoAtual < 0 ? "text-red-500" : "text-foreground"}`}>{formatarMoeda(saldoAtual)}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-4 hover:shadow-md hover:-translate-y-0.5 transition-all">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Entradas</p>
+          <p className="text-xl font-bold mt-1 text-emerald-500">{formatarMoeda(totalEntradas)}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-4 hover:shadow-md hover:-translate-y-0.5 transition-all">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Saídas</p>
+          <p className="text-xl font-bold mt-1 text-red-500">{formatarMoeda(totalSaidas)}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-4 hover:shadow-md hover:-translate-y-0.5 transition-all">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Status</p>
+          <p className={`text-xl font-bold mt-1 ${caixa ? "text-emerald-500" : "text-muted-foreground"}`}>{caixa ? "Aberto" : "Fechado"}</p>
         </div>
       </div>
 

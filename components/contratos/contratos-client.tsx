@@ -252,30 +252,30 @@ export function ContratosClient({ empresaId, contratosInit, parcelasInit, client
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header */}
-      <div className="rounded-2xl bg-gradient-to-r from-[#F26E1D] to-[#ff8c42] p-5 sm:p-6 shadow-lg shadow-orange-500/10">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">Contratos</h1>
-            <p className="text-white/70 text-sm mt-1">Gerencie contratos recorrentes e previsão de receita</p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-lg font-semibold text-foreground">Contratos</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">Gerencie contratos recorrentes e previsão de receita</p>
+        </div>
+        <button onClick={() => setModalNovo(true)} style={{ backgroundColor: "#F26E1D" }}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-sm">
+          <Plus className="w-4 h-4" />Novo Contrato
+        </button>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {[
+          { label: "Receita mensal", valor: formatarMoeda(totalMensalRecorrente), cor: "text-emerald-500" },
+          { label: "Contratos ativos", valor: contratos.filter((c) => c.status === "ativo").length, cor: "text-foreground" },
+          { label: "Parcelas atrasadas", valor: parcelasAtrasadas, cor: parcelasAtrasadas > 0 ? "text-red-500" : "text-foreground" },
+          { label: "Vencendo em 30d", valor: parcelasProximasMes, cor: "text-amber-500" },
+        ].map((c) => (
+          <div key={c.label} className="rounded-xl border border-border bg-card p-4 hover:shadow-md hover:-translate-y-0.5 transition-all">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{c.label}</p>
+            <p className={`text-xl font-bold mt-1 ${c.cor}`}>{c.valor}</p>
           </div>
-          <button onClick={() => setModalNovo(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white text-[#F26E1D] text-sm font-bold hover:opacity-90 shadow-md transition-all">
-            <Plus className="w-3.5 h-3.5" />Novo Contrato
-          </button>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
-          {[
-            { label: "Receita mensal",      valor: formatarMoeda(totalMensalRecorrente) },
-            { label: "Ativos",              valor: contratos.filter((c) => c.status === "ativo").length },
-            { label: "Parcelas atrasadas",  valor: parcelasAtrasadas },
-            { label: "Vencendo em 30d",     valor: parcelasProximasMes },
-          ].map((c) => (
-            <div key={c.label} className="rounded-xl bg-white/15 backdrop-blur-sm px-3 py-2 border border-white/10">
-              <p className="text-[10px] text-white/60 font-semibold uppercase tracking-wider">{c.label}</p>
-              <p className="text-lg font-black text-white mt-0.5">{c.valor}</p>
-            </div>
-          ))}
-        </div>
+        ))}
       </div>
 
       {/* Filtros */}

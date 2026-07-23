@@ -89,19 +89,17 @@ export function SuporteClient({ empresaId, tickets: init }: {
   return (
     <div className="space-y-6 max-w-3xl">
       {/* Header */}
-      <div className="rounded-2xl bg-gradient-to-r from-[#F26E1D] to-[#ff8c42] p-5 sm:p-6 shadow-lg shadow-orange-500/10">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">Suporte</h1>
-            <p className="text-white/70 text-sm mt-1">
-              {abertos > 0 ? `${abertos} ticket(s) em aberto` : "Nenhum ticket em aberto"}
-            </p>
-          </div>
-          <button onClick={() => setModalAberto(true)} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white text-[#F26E1D] text-sm font-bold hover:opacity-90 shadow-md transition-all">
-            <Plus className="w-3.5 h-3.5" />
-            Abrir ticket
-          </button>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-semibold text-foreground">Suporte</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {abertos > 0 ? `${abertos} ticket(s) em aberto` : "Nenhum ticket em aberto"}
+          </p>
         </div>
+        <Button onClick={() => setModalAberto(true)} className="gap-2 font-bold">
+          <Plus className="w-4 h-4" />
+          Abrir ticket
+        </Button>
       </div>
 
       {/* Card informativo */}

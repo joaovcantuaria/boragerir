@@ -217,9 +217,9 @@ export function ConfiguracoesClient({
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <div className="rounded-2xl bg-gradient-to-r from-[#F26E1D] to-[#ff8c42] p-5 sm:p-6 shadow-lg shadow-orange-500/10">
-        <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">Configurações</h1>
-        <p className="text-white/70 text-sm mt-1">Gerencie todos os dados do seu estabelecimento</p>
+      <div>
+        <h1 className="text-lg font-semibold text-foreground">Configurações</h1>
+        <p className="text-xs text-muted-foreground mt-0.5">Gerencie todos os dados do seu estabelecimento</p>
       </div>
 
       <Tabs defaultValue="negocio">

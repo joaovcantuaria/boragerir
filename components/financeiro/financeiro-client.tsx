@@ -469,21 +469,19 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl bg-gradient-to-r from-[#F26E1D] to-[#ff8c42] p-5 sm:p-6 shadow-lg shadow-orange-500/10">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">Financeiro</h1>
-            <p className="text-white/70 text-sm mt-1">Resumo do mês de {format(new Date(), "MMMM yyyy", { locale: ptBR })}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Label className="text-xs text-white/70 whitespace-nowrap">Mês:</Label>
-            <input
-              type="month"
-              value={mesSelecionado}
-              onChange={(e) => setMesSelecionado(e.target.value)}
-              className="h-9 w-40 text-sm rounded-xl border border-white/30 bg-white/10 backdrop-blur-sm text-white px-3 focus:outline-none focus:ring-2 focus:ring-white/30"
-            />
-          </div>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-lg font-semibold text-foreground">Financeiro</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">Resumo do mês de {format(new Date(), "MMMM yyyy", { locale: ptBR })}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Label className="text-xs text-muted-foreground whitespace-nowrap">Mês:</Label>
+          <Input
+            type="month"
+            value={mesSelecionado}
+            onChange={(e) => setMesSelecionado(e.target.value)}
+            className="h-9 w-40 text-sm"
+          />
         </div>
       </div>
 
