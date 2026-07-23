@@ -69,54 +69,42 @@ export default function CadastroPage() {
       return
     }
     setLoading(true)
-    const { data: authData, error } = await supabase.auth.signUp({
-      email: data.email,
-      password: data.senha,
-      options: {
-        data: {
-          nome_completo: data.nome,
-          aceite_termos: true,
-          aceite_termos_data: new Date().toISOString(),
-          aceite_politica: true,
-          aceite_politica_data: new Date().toISOString(),
-        },
-      },
-    })
-    if (error) {
-      if (error.message === "User already registered" || error.message?.includes("already registered")) {
-        setEmailCadastrado(data.email)
-        setEmailJaExiste(true)
-      } else {
-        console.error("[cadastro] Erro Supabase Auth:", error.message, error)
-        toast.error(`Erro ao criar conta: ${error.message}`)
+
+    try {
+      const res = await fetch("/api/auth/cadastro", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nome: data.nome,
+          email: data.email,
+          senha: data.senha,
+        }),
+      })
+
+      const result = await res.json()
+
+      if (!res.ok) {
+        if (result.error === "already_registered") {
+          setEmailCadastrado(data.email)
+          setEmailJaExiste(true)
+        } else {
+          console.error("[cadastro] Erro:", result.message)
+          toast.error(`Erro ao criar conta: ${result.message || "Tente novamente."}`)
+        }
+        setLoading(false)
+        return
       }
+
+      // Conta criada com sucesso — sessão já estabelecida via cookies
+      toast.success("Conta criada! Vamos configurar seu negócio.")
+      router.push("/onboarding")
+      router.refresh()
+    } catch (err) {
+      console.error("[cadastro] Erro de rede:", err)
+      toast.error("Erro de conexão. Verifique sua internet e tente novamente.")
+    } finally {
       setLoading(false)
-      return
     }
-
-    // Supabase pode retornar user sem erro mas com identities vazio quando email já existe
-    if (authData.user && authData.user.identities?.length === 0) {
-      setEmailCadastrado(data.email)
-      setEmailJaExiste(true)
-      setLoading(false)
-      return
-    }
-
-    // Verificar se o Supabase exige confirmação de email
-    // Se o usuário foi criado mas email_confirmed_at é null, mostrar tela de confirmação
-    const precisaConfirmar = authData.user && !authData.user.email_confirmed_at
-
-    if (precisaConfirmar) {
-      setEmailCadastrado(data.email)
-      setContaCriada(true)
-      setLoading(false)
-      return
-    }
-
-    // Email confirmado automaticamente (confirmação desativada no Supabase)
-    toast.success("Conta criada! Vamos configurar seu negócio.")
-    router.push("/onboarding")
-    router.refresh()
   }
 
   return (
