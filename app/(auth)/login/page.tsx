@@ -114,15 +114,21 @@ export default function LoginPage() {
 
   async function onRecuperar(data: FormRecuperar) {
     setLoading(true)
-    const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
-      redirectTo: `${window.location.origin}/auth/reset-password`,
-    })
-    if (error) {
-      toast.error("Erro ao enviar e-mail. Verifique o endereço.")
-      setLoading(false)
-      return
+    try {
+      const res = await fetch("/api/auth/recuperar-senha", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: data.email }),
+      })
+      if (!res.ok) {
+        toast.error("Erro ao enviar e-mail. Verifique o endereço.")
+        setLoading(false)
+        return
+      }
+      setEmailEnviado(true)
+    } catch {
+      toast.error("Erro de conexão. Tente novamente.")
     }
-    setEmailEnviado(true)
     setLoading(false)
   }
 

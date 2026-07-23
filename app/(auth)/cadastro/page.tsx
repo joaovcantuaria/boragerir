@@ -134,8 +134,10 @@ export default function CadastroPage() {
             </Link>
             <button
               onClick={async () => {
-                await supabase.auth.resetPasswordForEmail(emailCadastrado, {
-                  redirectTo: `${window.location.origin}/login?reset=1`,
+                await fetch("/api/auth/recuperar-senha", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ email: emailCadastrado }),
                 })
                 toast.success("E-mail de recuperação enviado! Verifique sua caixa de entrada.")
               }}
