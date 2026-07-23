@@ -630,7 +630,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
                       const qtdVendas = vendasFunc.length
 
                       return (
-                        <div key={func.id} className="border border-border rounded-xl p-4 bg-card space-y-3">
+                        <div key={func.id} className="border border-border rounded-xl p-4 bg-card shadow-card space-y-3">
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                               <span className="text-sm font-bold text-primary">{func.nome.charAt(0)}</span>
@@ -1475,7 +1475,7 @@ function RelatoriosTab({ vendas, movimentacoes, funcionarios, debitos, empresaId
       </div>
 
       {/* Preview e download */}
-      <div className="rounded-xl border border-border p-5 bg-muted/30 space-y-4">
+      <div className="rounded-xl border border-border p-5 bg-card shadow-card space-y-4">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="font-semibold text-sm">

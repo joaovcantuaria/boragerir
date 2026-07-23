@@ -289,7 +289,7 @@ export function AgendamentosClient({
 
         <TabsContent value="calendario" className="mt-4 space-y-4">
           {/* Calendário premium */}
-          <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-card">
             {/* Header do mês */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <button onClick={() => setMesAtual(subMonths(mesAtual, 1))}
@@ -372,7 +372,7 @@ export function AgendamentosClient({
           </div>
 
           {/* Dia selecionado */}
-          <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-card">
             {/* Header do dia */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <div>

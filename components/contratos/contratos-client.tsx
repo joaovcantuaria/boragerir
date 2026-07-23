@@ -320,7 +320,7 @@ export function ContratosClient({ empresaId, contratosInit, parcelasInit, client
           const servico = servicos.find((s) => s.id === contrato.servico_id)
 
           return (
-            <div key={contrato.id} className="rounded-2xl border border-border overflow-hidden bg-card">
+            <div key={contrato.id} className="rounded-2xl border border-border overflow-hidden bg-card shadow-card">
               {/* Header do contrato */}
               <div className="flex items-center gap-3 px-4 py-3.5">
                 <div className="flex-1 min-w-0">

@@ -146,7 +146,7 @@
    SOMBRAS — menos "flutuante", mais estrutural
    ============================================================ */
 .shadow-card {
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
 }
 .shadow-card-hover {
   box-shadow: 0 4px 12px rgba(0,0,0,0.12), 0 2px 4px rgba(0,0,0,0.08);
@@ -268,8 +268,8 @@ tr:hover .row-hover-actions,
 .card-v2 {
   background: hsl(var(--card));
   border: 1px solid hsl(var(--border));
-  border-radius: 0.5rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  border-radius: 0.75rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
 }
 .card-v2-header {
   padding: 0.875rem 1rem;
@@ -288,16 +288,17 @@ tr:hover .row-hover-actions,
 .kpi-card {
   background: hsl(var(--card));
   border: 1px solid hsl(var(--border));
-  border-radius: 0.5rem;
+  border-radius: 0.75rem;
   padding: 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
   transition: box-shadow 0.15s, transform 0.15s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
 }
 .kpi-card:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1), 0 2px 6px rgba(0,0,0,0.06);
+  transform: translateY(-2px);
 }
 .kpi-label {
   font-size: 0.6875rem;
