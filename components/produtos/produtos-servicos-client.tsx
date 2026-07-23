@@ -284,10 +284,12 @@ export function ProdutosServicosClient({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Produtos e Serviços</h1>
-          <p className="text-muted-foreground">{produtos.filter((p) => p.ativo).length} item(ns) cadastrado(s)</p>
+      <div className="rounded-2xl bg-gradient-to-r from-[#F26E1D] to-[#ff8c42] p-5 sm:p-6 shadow-lg shadow-orange-500/10">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">Produtos e Serviços</h1>
+            <p className="text-white/70 text-sm mt-1">{produtos.filter((p) => p.ativo).length} item(ns) cadastrado(s)</p>
+          </div>
         </div>
       </div>
 

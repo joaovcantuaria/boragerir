@@ -310,23 +310,25 @@ export function ClientesClient({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Clientes</h1>
-          <p className="text-muted-foreground">{clientes.length} cliente{clientes.length !== 1 ? "s" : ""} cadastrado{clientes.length !== 1 ? "s" : ""}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {temDebito && debitos.length > 0 && (
-            <Button variant="outline" onClick={() => executarComPin("clientes_ver_debitos", () => abrirQuitarDebito())} className="gap-2 border-amber-400 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10">
-              <AlertTriangle className="w-4 h-4" />
-              <span className="hidden sm:inline">Quitar Débitos</span>
-              <span className="bg-amber-500 text-white text-xs font-black px-1.5 py-0.5 rounded-full">{debitos.length}</span>
-            </Button>
-          )}
-          <Button onClick={() => executarComPin("clientes_cadastrar", abrirModalNovo)} className="gap-2">
-            <UserPlus className="w-4 h-4" />
-            <span className="hidden sm:inline">Novo Cliente</span>
-          </Button>
+      <div className="rounded-2xl bg-gradient-to-r from-[#F26E1D] to-[#ff8c42] p-5 sm:p-6 shadow-lg shadow-orange-500/10">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">Clientes</h1>
+            <p className="text-white/70 text-sm mt-1">{clientes.length} cliente{clientes.length !== 1 ? "s" : ""} cadastrado{clientes.length !== 1 ? "s" : ""}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {temDebito && debitos.length > 0 && (
+              <button onClick={() => executarComPin("clientes_ver_debitos", () => abrirQuitarDebito())} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-white/30 text-white text-sm font-semibold hover:bg-white/10 backdrop-blur-sm transition-all">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Débitos</span>
+                <span className="bg-white text-[#F26E1D] text-xs font-black px-1.5 py-0.5 rounded-full">{debitos.length}</span>
+              </button>
+            )}
+            <button onClick={() => executarComPin("clientes_cadastrar", abrirModalNovo)} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white text-[#F26E1D] text-sm font-bold hover:opacity-90 shadow-md transition-all">
+              <UserPlus className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Novo Cliente</span>
+            </button>
+          </div>
         </div>
       </div>
 

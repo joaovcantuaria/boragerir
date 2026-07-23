@@ -361,9 +361,31 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Caixa</h1>
-        <p className="text-muted-foreground">Controle de abertura, fechamento e movimentações</p>
+      <div className="rounded-2xl bg-gradient-to-r from-[#F26E1D] to-[#ff8c42] p-5 sm:p-6 shadow-lg shadow-orange-500/10">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">Caixa</h1>
+            <p className="text-white/70 text-sm mt-1">Controle de abertura, fechamento e movimentações</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+          <div className="rounded-xl bg-white/15 backdrop-blur-sm px-3 py-2 border border-white/10">
+            <p className="text-[10px] text-white/60 font-semibold uppercase tracking-wider">Saldo</p>
+            <p className="text-lg font-black text-white mt-0.5">{formatarMoeda(saldoAtual)}</p>
+          </div>
+          <div className="rounded-xl bg-white/15 backdrop-blur-sm px-3 py-2 border border-white/10">
+            <p className="text-[10px] text-white/60 font-semibold uppercase tracking-wider">Entradas</p>
+            <p className="text-lg font-black text-white mt-0.5">{formatarMoeda(totalEntradas)}</p>
+          </div>
+          <div className="rounded-xl bg-white/15 backdrop-blur-sm px-3 py-2 border border-white/10">
+            <p className="text-[10px] text-white/60 font-semibold uppercase tracking-wider">Saídas</p>
+            <p className="text-lg font-black text-white mt-0.5">{formatarMoeda(totalSaidas)}</p>
+          </div>
+          <div className="rounded-xl bg-white/15 backdrop-blur-sm px-3 py-2 border border-white/10">
+            <p className="text-[10px] text-white/60 font-semibold uppercase tracking-wider">Status</p>
+            <p className="text-lg font-black text-white mt-0.5">{caixa ? "Aberto" : "Fechado"}</p>
+          </div>
+        </div>
       </div>
 
       <Tabs defaultValue="atual">

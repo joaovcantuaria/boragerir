@@ -221,14 +221,16 @@ export function FuncionariosClient({ empresaId, plano, funcionarios: funcInit, p
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Colaboradores</h1>
-          <p className="text-muted-foreground">{funcionarios.filter((f) => f.ativo).length} ativo(s)</p>
+      <div className="rounded-2xl bg-gradient-to-r from-[#F26E1D] to-[#ff8c42] p-5 sm:p-6 shadow-lg shadow-orange-500/10">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">Colaboradores</h1>
+            <p className="text-white/70 text-sm mt-1">{funcionarios.filter((f) => f.ativo).length} ativo(s)</p>
+          </div>
+          <button onClick={() => executarComPin("funcionarios_cadastrar", abrirModalNovo)} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white text-[#F26E1D] text-sm font-bold hover:opacity-90 shadow-md transition-all">
+            <Plus className="w-3.5 h-3.5" /><span className="hidden sm:inline">Novo Colaborador</span>
+          </button>
         </div>
-        <Button onClick={() => executarComPin("funcionarios_cadastrar", abrirModalNovo)} className="gap-2">
-          <Plus className="w-4 h-4" /><span className="hidden sm:inline">Novo Colaborador</span>
-        </Button>
       </div>
 
       {plano === "gratuito" && (
