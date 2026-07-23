@@ -369,24 +369,24 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
         </div>
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="rounded-xl border border-border bg-card p-4 hover:shadow-md hover:-translate-y-0.5 transition-all">
-          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Saldo</p>
-          <p className={`text-xl font-bold mt-1 ${saldoAtual < 0 ? "text-red-500" : "text-foreground"}`}>{formatarMoeda(saldoAtual)}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4 hover:shadow-md hover:-translate-y-0.5 transition-all">
-          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Entradas</p>
-          <p className="text-xl font-bold mt-1 text-emerald-500">{formatarMoeda(totalEntradas)}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4 hover:shadow-md hover:-translate-y-0.5 transition-all">
-          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Saídas</p>
-          <p className="text-xl font-bold mt-1 text-red-500">{formatarMoeda(totalSaidas)}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4 hover:shadow-md hover:-translate-y-0.5 transition-all">
-          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Status</p>
-          <p className={`text-xl font-bold mt-1 ${caixa ? "text-emerald-500" : "text-muted-foreground"}`}>{caixa ? "Aberto" : "Fechado"}</p>
-        </div>
+      {/* KPIs — mesmo estilo da dashboard */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: "Saldo", valor: formatarMoeda(saldoAtual), icon: Wallet, color: saldoAtual < 0 ? "#ef4444" : "#10b981", bg: saldoAtual < 0 ? "#ef444415" : "#10b98115" },
+          { label: "Entradas", valor: formatarMoeda(totalEntradas), icon: ArrowDownCircle, color: "#10b981", bg: "#10b98115" },
+          { label: "Saídas", valor: formatarMoeda(totalSaidas), icon: ArrowUpCircle, color: "#ef4444", bg: "#ef444415" },
+          { label: "Status", valor: caixa ? "Aberto" : "Fechado", icon: Clock, color: caixa ? "#10b981" : "#6b7280", bg: caixa ? "#10b98115" : "#6b728015" },
+        ].map((kpi) => (
+          <div key={kpi.label} className="kpi-card">
+            <div className="flex items-center justify-between mb-2">
+              <span className="kpi-label">{kpi.label}</span>
+              <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ background: kpi.bg }}>
+                <kpi.icon className="w-3.5 h-3.5" style={{ color: kpi.color }} />
+              </div>
+            </div>
+            <div className="kpi-value" style={{ color: kpi.color }}>{kpi.valor}</div>
+          </div>
+        ))}
       </div>
 
       <Tabs defaultValue="atual">

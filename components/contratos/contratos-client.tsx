@@ -263,17 +263,19 @@ export function ContratosClient({ empresaId, contratosInit, parcelasInit, client
         </button>
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      {/* KPIs — estilo dashboard */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Receita mensal", valor: formatarMoeda(totalMensalRecorrente), cor: "text-emerald-500" },
-          { label: "Contratos ativos", valor: contratos.filter((c) => c.status === "ativo").length, cor: "text-foreground" },
-          { label: "Parcelas atrasadas", valor: parcelasAtrasadas, cor: parcelasAtrasadas > 0 ? "text-red-500" : "text-foreground" },
-          { label: "Vencendo em 30d", valor: parcelasProximasMes, cor: "text-amber-500" },
-        ].map((c) => (
-          <div key={c.label} className="rounded-xl border border-border bg-card p-4 hover:shadow-md hover:-translate-y-0.5 transition-all">
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{c.label}</p>
-            <p className={`text-xl font-bold mt-1 ${c.cor}`}>{c.valor}</p>
+          { label: "Receita mensal", valor: formatarMoeda(totalMensalRecorrente), color: "#10b981", bg: "#10b98115" },
+          { label: "Contratos ativos", valor: contratos.filter((c) => c.status === "ativo").length.toString(), color: "#6366f1", bg: "#6366f115" },
+          { label: "Parcelas atrasadas", valor: parcelasAtrasadas.toString(), color: parcelasAtrasadas > 0 ? "#ef4444" : "#6b7280", bg: parcelasAtrasadas > 0 ? "#ef444415" : "#6b728015" },
+          { label: "Vencendo em 30d", valor: parcelasProximasMes.toString(), color: "#f59e0b", bg: "#f59e0b15" },
+        ].map((kpi) => (
+          <div key={kpi.label} className="kpi-card">
+            <div className="flex items-center justify-between mb-2">
+              <span className="kpi-label">{kpi.label}</span>
+            </div>
+            <div className="kpi-value" style={{ color: kpi.color }}>{kpi.valor}</div>
           </div>
         ))}
       </div>
