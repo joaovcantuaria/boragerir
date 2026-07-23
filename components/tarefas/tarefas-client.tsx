@@ -161,49 +161,50 @@ export function TarefasClient({ empresaId, blocosInit, tarefasInit }: Props) {
   // ── Render ──
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-3xl font-black tracking-tight">Tarefas</h1>
-          <p className="text-muted-foreground text-sm mt-1">Arraste os cards entre as colunas para alterar o status</p>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={() => { setBlocoEditando(null); setNomeBlocoInput(""); setCorBlocoInput(CORES_BLOCO[0]); setModalBloco(true) }}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-all">
-            <Plus className="w-3.5 h-3.5" />Bloco
-          </button>
-          <button onClick={() => setModalTarefa({ aberto: true, blocoId: blocos[0]?.id ?? null })}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-sm bg-[#F26E1D]">
-            <Plus className="w-3.5 h-3.5" />Nova tarefa
-          </button>
-        </div>
-      </div>
-
-      {/* Métricas compactas */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: "Total", valor: total, cor: "text-foreground" },
-          { label: "Em andamento", valor: emAndamento, cor: "text-blue-500" },
-          { label: "Concluídas", valor: concluidas, cor: "text-emerald-500" },
-          { label: "Urgentes", valor: urgentes, cor: "text-red-500" },
-        ].map((c) => (
-          <div key={c.label} className="rounded-xl border border-border bg-card p-3">
-            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">{c.label}</p>
-            <p className={`text-2xl font-black mt-0.5 ${c.cor}`}>{c.valor}</p>
+      {/* Header premium com gradient laranja */}
+      <div className="rounded-2xl bg-gradient-to-r from-[#F26E1D] to-[#ff8c42] p-6 shadow-lg shadow-orange-500/10">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-black tracking-tight text-white">Tarefas</h1>
+            <p className="text-white/70 text-sm mt-1">Arraste os cards entre as colunas para alterar o status</p>
           </div>
-        ))}
+          <div className="flex gap-2">
+            <button onClick={() => { setBlocoEditando(null); setNomeBlocoInput(""); setCorBlocoInput(CORES_BLOCO[0]); setModalBloco(true) }}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-white/30 text-sm font-semibold text-white hover:bg-white/10 transition-all backdrop-blur-sm">
+              <Plus className="w-3.5 h-3.5" />Bloco
+            </button>
+            <button onClick={() => setModalTarefa({ aberto: true, blocoId: blocos[0]?.id ?? null })}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[#F26E1D] text-sm font-bold hover:opacity-90 transition-opacity shadow-md bg-white">
+              <Plus className="w-3.5 h-3.5" />Nova tarefa
+            </button>
+          </div>
+        </div>
+        {/* Métricas inline */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
+          {[
+            { label: "Total", valor: total },
+            { label: "Em andamento", valor: emAndamento },
+            { label: "Concluídas", valor: concluidas },
+            { label: "Urgentes", valor: urgentes },
+          ].map((c) => (
+            <div key={c.label} className="rounded-xl bg-white/15 backdrop-blur-sm px-4 py-2.5 border border-white/10">
+              <p className="text-[10px] text-white/60 font-semibold uppercase tracking-wider">{c.label}</p>
+              <p className="text-xl font-black text-white mt-0.5">{c.valor}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Filtros */}
-      <div className="flex gap-2 flex-wrap items-center">
-        <Filter className="w-3.5 h-3.5 text-muted-foreground" />
+      {/* Filtros premium */}
+      <div className="flex gap-2 flex-wrap items-center bg-white/60 dark:bg-white/5 backdrop-blur-sm rounded-xl px-4 py-2.5 border border-orange-100 dark:border-white/10 shadow-sm">
+        <Filter className="w-3.5 h-3.5 text-[#F26E1D]" />
         <select value={filtroBloco} onChange={(e) => setFiltroBloco(e.target.value)}
-          className="text-xs font-medium px-2.5 py-1.5 rounded-lg border border-border bg-card text-foreground">
+          className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-orange-200 dark:border-white/10 bg-white dark:bg-gray-900 text-foreground">
           <option value="todos">Todos os blocos</option>
           {blocos.map((b) => <option key={b.id} value={b.id}>{b.nome}</option>)}
         </select>
         <select value={filtroPrioridade} onChange={(e) => setFiltroPrioridade(e.target.value as PrioridadeTarefa | "todos")}
-          className="text-xs font-medium px-2.5 py-1.5 rounded-lg border border-border bg-card text-foreground">
+          className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-orange-200 dark:border-white/10 bg-white dark:bg-gray-900 text-foreground">
           <option value="todos">Todas prioridades</option>
           <option value="baixa">Baixa</option>
           <option value="media">Média</option>
@@ -214,7 +215,7 @@ export function TarefasClient({ empresaId, blocosInit, tarefasInit }: Props) {
         <div className="flex gap-1.5 ml-auto flex-wrap">
           {blocos.map((b) => (
             <button key={b.id} onClick={() => { setBlocoEditando(b); setNomeBlocoInput(b.nome); setCorBlocoInput(b.cor); setModalBloco(true) }}
-              className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold border border-border hover:bg-muted transition-colors">
+              className="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold border border-orange-100 dark:border-white/10 hover:bg-orange-50 dark:hover:bg-white/5 transition-colors shadow-sm">
               <div className="w-2 h-2 rounded-full" style={{ backgroundColor: b.cor }} />
               {b.nome}
             </button>
@@ -241,14 +242,16 @@ export function TarefasClient({ empresaId, blocosInit, tarefasInit }: Props) {
       {/* Estado vazio */}
       {blocos.length === 0 && tarefas.length === 0 && (
         <div className="text-center py-16 space-y-5">
-          <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto text-3xl">📋</div>
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#F26E1D] to-[#ff8c42] flex items-center justify-center mx-auto shadow-lg shadow-orange-500/20">
+            <span className="text-3xl">📋</span>
+          </div>
           <div>
             <h3 className="text-lg font-black">Organize suas tarefas</h3>
             <p className="text-muted-foreground text-sm mt-1 max-w-xs mx-auto">Crie blocos para categorizar e adicione tarefas. Arraste entre as colunas para mudar o status.</p>
           </div>
           <div className="flex gap-3 justify-center">
-            <button onClick={() => setModalBloco(true)} className="px-4 py-2.5 rounded-xl border border-border text-sm font-semibold hover:bg-muted transition-all">Criar bloco</button>
-            <button onClick={() => setModalTarefa({ aberto: true })} className="px-4 py-2.5 rounded-xl text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-sm bg-[#F26E1D]">Criar tarefa</button>
+            <button onClick={() => setModalBloco(true)} className="px-4 py-2.5 rounded-xl border border-orange-200 dark:border-orange-800 text-sm font-semibold hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-all">Criar bloco</button>
+            <button onClick={() => setModalTarefa({ aberto: true })} className="px-5 py-2.5 rounded-xl text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-lg shadow-orange-500/20 bg-gradient-to-r from-[#F26E1D] to-[#ff8c42]">Criar tarefa</button>
           </div>
         </div>
       )}
@@ -287,28 +290,35 @@ function KanbanColumn({ col, tarefas, blocos, onAddTarefa, onClickTarefa, onEdit
 }) {
   const Icon = col.icon
   return (
-    <div className={cn("rounded-2xl border border-border flex flex-col min-h-[400px]", col.bg)}>
-      {/* Header da coluna */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
-        <div className="flex items-center gap-2">
-          <Icon className={cn("w-4 h-4", col.cor)} />
-          <span className="text-sm font-bold">{col.label}</span>
-          <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md font-semibold">{tarefas.length}</span>
+    <div className="rounded-2xl flex flex-col min-h-[400px] bg-white/60 dark:bg-white/5 backdrop-blur-sm border border-white/80 dark:border-white/10 shadow-xl shadow-black/5">
+      {/* Header da coluna com acento laranja */}
+      <div className="flex items-center justify-between px-4 py-3.5 border-b border-orange-100 dark:border-white/10">
+        <div className="flex items-center gap-2.5">
+          <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", col.bg)}>
+            <Icon className={cn("w-4 h-4", col.cor)} />
+          </div>
+          <div>
+            <span className="text-sm font-bold text-gray-800 dark:text-gray-100">{col.label}</span>
+            <span className="ml-2 text-xs text-white bg-[#F26E1D] px-1.5 py-0.5 rounded-full font-bold">{tarefas.length}</span>
+          </div>
         </div>
-        <button onClick={onAddTarefa} className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+        <button onClick={onAddTarefa} className="w-7 h-7 rounded-lg bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-100 dark:hover:bg-orange-900/40 flex items-center justify-center text-[#F26E1D] transition-colors">
           <Plus className="w-3.5 h-3.5" />
         </button>
       </div>
       {/* Cards drop zone */}
       <SortableContext items={tarefas.map((t) => t.id)} strategy={verticalListSortingStrategy} id={col.id}>
         <DroppableColumn id={col.id}>
-          <div className="flex-1 p-2 space-y-2 overflow-y-auto max-h-[calc(100vh-320px)]">
+          <div className="flex-1 p-3 space-y-2.5 overflow-y-auto max-h-[calc(100vh-340px)]">
             {tarefas.map((t) => (
               <SortableCard key={t.id} tarefa={t} blocos={blocos} onClick={() => onClickTarefa(t)} onEdit={() => onEditTarefa(t)} />
             ))}
             {tarefas.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-                <p className="text-xs">Arraste tarefas aqui</p>
+              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground/50">
+                <div className="w-10 h-10 rounded-full bg-orange-50 dark:bg-orange-900/10 flex items-center justify-center mb-2">
+                  <Plus className="w-4 h-4 text-[#F26E1D]/50" />
+                </div>
+                <p className="text-xs font-medium">Arraste tarefas aqui</p>
               </div>
             )}
           </div>
@@ -329,10 +339,10 @@ function SortableCard({ tarefa, blocos, onClick, onEdit }: {
   tarefa: Tarefa; blocos: BlocoTarefa[]; onClick: () => void; onEdit: () => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tarefa.id })
-  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0 : 1 }
   return (
     <div ref={setNodeRef} style={style} {...attributes}>
-      <KanbanCard tarefa={tarefa} blocos={blocos} dragListeners={listeners} onClick={onClick} onEdit={onEdit} />
+      {!isDragging && <KanbanCard tarefa={tarefa} blocos={blocos} dragListeners={listeners} onClick={onClick} onEdit={onEdit} />}
     </div>
   )
 }
@@ -349,32 +359,34 @@ function KanbanCard({ tarefa, blocos, isDragging, dragListeners, onClick, onEdit
 
   return (
     <div className={cn(
-      "group rounded-xl border bg-card p-3 cursor-pointer transition-all hover:shadow-md",
-      isDragging && "shadow-xl ring-2 ring-primary/30 rotate-2 scale-105",
-      concluido && "opacity-60",
-      vencido && "border-red-300 dark:border-red-800",
-      !isDragging && !vencido && "border-border hover:border-primary/30"
+      "group rounded-xl p-3.5 cursor-pointer transition-all duration-200",
+      "bg-white dark:bg-gray-900 border",
+      "shadow-md shadow-black/5 hover:shadow-lg hover:shadow-orange-500/10",
+      "hover:-translate-y-0.5",
+      isDragging && "shadow-2xl shadow-orange-500/20 scale-105 rotate-1 ring-2 ring-[#F26E1D]/40 z-50",
+      concluido && "opacity-50",
+      vencido ? "border-red-200 dark:border-red-800" : "border-orange-100 dark:border-gray-800 hover:border-[#F26E1D]/40"
     )} onClick={onClick}>
-      <div className="flex items-start gap-2">
+      <div className="flex items-start gap-2.5">
         {/* Drag handle */}
-        <div {...dragListeners} className="mt-0.5 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground transition-colors">
+        <div {...dragListeners} className="mt-1 cursor-grab active:cursor-grabbing text-orange-300 hover:text-[#F26E1D] transition-colors">
           <GripVertical className="w-3.5 h-3.5" />
         </div>
         <div className="flex-1 min-w-0 space-y-2">
           {/* Bloco tag */}
           {bloco && (
-            <div className="flex items-center gap-1">
-              <div className="h-1.5 w-8 rounded-full" style={{ backgroundColor: bloco.cor }} />
-              <span className="text-[9px] font-semibold text-muted-foreground uppercase">{bloco.nome}</span>
+            <div className="flex items-center gap-1.5">
+              <div className="h-2 w-10 rounded-full opacity-80" style={{ backgroundColor: bloco.cor }} />
+              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wide">{bloco.nome}</span>
             </div>
           )}
           {/* Titulo */}
-          <p className={cn("text-sm font-semibold leading-snug", concluido && "line-through text-muted-foreground")}>{tarefa.titulo}</p>
+          <p className={cn("text-sm font-bold leading-snug text-gray-800 dark:text-gray-100", concluido && "line-through text-muted-foreground")}>{tarefa.titulo}</p>
           {/* Meta row */}
           <div className="flex items-center gap-2 flex-wrap">
-            <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded", prio.badge)}>{prio.label}</span>
+            <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full", prio.badge)}>{prio.label}</span>
             {tarefa.prazo && (
-              <span className={cn("text-[10px] flex items-center gap-0.5", vencido ? "text-red-500 font-bold" : "text-muted-foreground")}>
+              <span className={cn("text-[10px] flex items-center gap-0.5 font-medium", vencido ? "text-red-500 font-bold" : "text-muted-foreground")}>
                 <Calendar className="w-2.5 h-2.5" />
                 {format(new Date(tarefa.prazo), "dd MMM", { locale: ptBR })}
                 {vencido && " · vencida"}
@@ -385,7 +397,7 @@ function KanbanCard({ tarefa, blocos, isDragging, dragListeners, onClick, onEdit
         {/* Edit button on hover */}
         {onEdit && (
           <button onClick={(e) => { e.stopPropagation(); onEdit() }}
-            className="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-muted text-muted-foreground transition-all">
+            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-900/20 text-[#F26E1D] transition-all">
             <Edit2 className="w-3 h-3" />
           </button>
         )}
