@@ -102,11 +102,9 @@ export function MobileNav({ prefix = "", plano = "gratuito", empresas = [], empr
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
               transition={{ duration: 0.15 }}
-              className="md:hidden fixed bottom-[100px] left-3 right-3 z-50 rounded-2xl overflow-hidden shadow-xl"
-              style={{ backgroundColor: "#ffffff", border: "1px solid #e5e7eb" }}
+              className="md:hidden fixed bottom-[100px] left-3 right-3 z-50 rounded-2xl overflow-hidden shadow-xl bg-white dark:bg-[#1a1a2e] border border-gray-200 dark:border-[#2d3148]"
             >
-              <div className="dark:hidden grid grid-cols-3 gap-px bg-gray-100 p-1"
-                style={{ backgroundColor: "#f9fafb" }}>
+              <div className="dark:hidden grid grid-cols-3 gap-px bg-gray-50 p-1">
                 {navExtras.map((item) => {
                   const href = `${prefix}${item.href}`
                   const isActive = pathname === href || pathname.startsWith(href + "/")
@@ -141,8 +139,7 @@ export function MobileNav({ prefix = "", plano = "gratuito", empresas = [], empr
                   <span className="text-center leading-tight">Sair</span>
                 </button>
               </div>
-              <div className="hidden dark:grid grid-cols-3 gap-px p-1"
-                style={{ backgroundColor: "#1a1a2e", border: "none" }}>
+              <div className="hidden dark:grid grid-cols-3 gap-px p-1 bg-[#1a1a2e]">
                 {navExtras.map((item) => {
                   const href = `${prefix}${item.href}`
                   const isActive = pathname === href || pathname.startsWith(href + "/")
@@ -184,17 +181,8 @@ export function MobileNav({ prefix = "", plano = "gratuito", empresas = [], empr
 
       {/* Barra de navegação inferior — sempre fixed, nunca se move */}
       <nav
-        style={{
-          position: "fixed",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 40,
-          backgroundColor: "#ffffff",
-          borderTop: "1px solid #e5e7eb",
-          paddingBottom: "env(safe-area-inset-bottom)",
-        }}
-        className="md:hidden"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-[#0f1118] border-t border-gray-200 dark:border-[#2d3148]"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <div className="flex items-start h-24 pt-3">
           {navPrincipalFiltrado.map((item) => {
@@ -204,8 +192,10 @@ export function MobileNav({ prefix = "", plano = "gratuito", empresas = [], empr
             return (
               <Link key={href} href={href}
                 prefetch={true}
-                className="flex-1 flex flex-col items-center justify-start gap-1 text-[10px] font-semibold transition-colors"
-                style={{ color: isActive ? "#F26E1D" : "#9ca3af" }}
+                className={cn(
+                  "flex-1 flex flex-col items-center justify-start gap-1 text-[10px] font-semibold transition-colors",
+                  isActive ? "text-[#F26E1D]" : "text-gray-400 dark:text-gray-500"
+                )}
               >
                 <Icon className="w-6 h-6" strokeWidth={isActive ? 2.5 : 1.8} />
                 <span>{item.label}</span>
@@ -217,8 +207,10 @@ export function MobileNav({ prefix = "", plano = "gratuito", empresas = [], empr
           {!(isPlanoAgenda || isPlanoGestao) && (
             <button
               onClick={() => setMenuAberto(!menuAberto)}
-              className="flex-1 flex flex-col items-center justify-start gap-1 text-[10px] font-semibold transition-colors"
-              style={{ color: (menuAberto || algumExtraAtivo) ? "#F26E1D" : "#9ca3af" }}
+              className={cn(
+                "flex-1 flex flex-col items-center justify-start gap-1 text-[10px] font-semibold transition-colors",
+                (menuAberto || algumExtraAtivo) ? "text-[#F26E1D]" : "text-gray-400 dark:text-gray-500"
+              )}
             >
               {menuAberto
                 ? <X className="w-6 h-6" strokeWidth={2.5} />
@@ -232,8 +224,10 @@ export function MobileNav({ prefix = "", plano = "gratuito", empresas = [], empr
           {isPlanoGestao && (
             <button
               onClick={() => setEmpresasAberto(!empresasAberto)}
-              className="flex-1 flex flex-col items-center justify-start gap-1 text-[10px] font-semibold transition-colors"
-              style={{ color: empresasAberto ? "#F26E1D" : "#9ca3af" }}
+              className={cn(
+                "flex-1 flex flex-col items-center justify-start gap-1 text-[10px] font-semibold transition-colors",
+                empresasAberto ? "text-[#F26E1D]" : "text-gray-400 dark:text-gray-500"
+              )}
             >
               <Building2 className="w-6 h-6" strokeWidth={1.8} />
               <span>Empresas</span>
@@ -258,12 +252,11 @@ export function MobileNav({ prefix = "", plano = "gratuito", empresas = [], empr
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
               transition={{ duration: 0.15 }}
-              className="md:hidden fixed bottom-[100px] left-3 right-3 z-50 rounded-2xl overflow-hidden shadow-xl"
-              style={{ backgroundColor: "#ffffff", border: "1px solid #e5e7eb" }}
+              className="md:hidden fixed bottom-[100px] left-3 right-3 z-50 rounded-2xl overflow-hidden shadow-xl bg-white dark:bg-[#1a1a2e] border border-gray-200 dark:border-[#2d3148]"
             >
-              <div className="px-4 py-3 border-b border-gray-100">
-                <p className="text-xs font-bold text-gray-700">Selecionar empresa</p>
-                <p className="text-[10px] text-gray-400">{empresas.length} empresa(s)</p>
+              <div className="px-4 py-3 border-b border-gray-100 dark:border-[#2d3148]">
+                <p className="text-xs font-bold text-gray-700 dark:text-gray-200">Selecionar empresa</p>
+                <p className="text-[10px] text-gray-400 dark:text-gray-500">{empresas.length} empresa(s)</p>
               </div>
               <div className="p-2 space-y-1 max-h-60 overflow-y-auto">
                 {empresas.map((emp) => (

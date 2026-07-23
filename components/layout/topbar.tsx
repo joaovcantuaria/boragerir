@@ -100,12 +100,8 @@ function Dropdown({
             initial={{ opacity: 0, y: -4, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.12 }}
-            className="rounded-lg border shadow-2xl overflow-hidden"
-            style={{
-              ...style,
-              backgroundColor: "var(--dropdown-bg, #ffffff)",
-              borderColor: "var(--dropdown-border, #e5e7eb)",
-            }}
+            className="rounded-lg border shadow-2xl overflow-hidden bg-white border-gray-200 dark:bg-[#1e2030] dark:border-[#2d3148]"
+            style={style}
           >
             {children}
           </motion.div>
@@ -245,8 +241,8 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl, plano, empr
               </div>
             )}
           >
-            <div className="px-3 py-2.5" style={{ borderBottom: "1px solid #e5e7eb" }}>
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+            <div className="px-3 py-2.5 border-b border-gray-200 dark:border-[#2d3148]">
+              <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                 Suas empresas ({empresas.length})
               </p>
             </div>
@@ -259,13 +255,12 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl, plano, empr
                     setEmpresasAberto(false)
                     window.location.reload()
                   }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-colors text-left"
-                  style={{
-                    color: emp.id === empresaAtualId ? "#F26E1D" : "#374151",
-                    background: emp.id === empresaAtualId ? "rgba(242,110,29,0.08)" : "transparent",
-                  }}
-                  onMouseEnter={(e) => { if (emp.id !== empresaAtualId) e.currentTarget.style.background = "#f3f4f6" }}
-                  onMouseLeave={(e) => { if (emp.id !== empresaAtualId) e.currentTarget.style.background = "transparent" }}
+                  className={cn(
+                    "w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-colors text-left",
+                    emp.id === empresaAtualId
+                      ? "text-[#F26E1D] bg-[rgba(242,110,29,0.08)]"
+                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+                  )}
                 >
                   <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
                     {emp.logo_url
@@ -280,13 +275,10 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl, plano, empr
                 </button>
               ))}
             </div>
-            <div style={{ borderTop: "1px solid #e5e7eb", padding: "6px" }}>
+            <div className="border-t border-gray-200 dark:border-[#2d3148] p-1.5">
               <button
                 onClick={() => { setEmpresasAberto(false); router.push("/empresas") }}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md text-xs font-bold transition-colors"
-                style={{ color: "#F26E1D" }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(242,110,29,0.08)" }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md text-xs font-bold text-[#F26E1D] hover:bg-[rgba(242,110,29,0.08)] transition-colors"
               >
                 <Settings className="w-3.5 h-3.5" />
                 Gerenciar empresas
@@ -330,17 +322,12 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl, plano, empr
                   key={item.path}
                   href={item.path}
                   onClick={() => setMaisAberto(false)}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-colors"
-                  style={{
-                    color: isActive ? "#F26E1D" : "#374151",
-                    background: isActive ? "rgba(242,110,29,0.08)" : "transparent",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isActive) e.currentTarget.style.background = "#f3f4f6"
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive) e.currentTarget.style.background = "transparent"
-                  }}
+                  className={cn(
+                    "flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-colors",
+                    isActive
+                      ? "text-[#F26E1D] bg-[rgba(242,110,29,0.08)]"
+                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+                  )}
                 >
                   <div
                     className="w-6 h-6 rounded-md flex items-center justify-center shrink-0"
@@ -421,8 +408,8 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl, plano, empr
             </div>
           )}
         >
-          <div className="px-3 py-2.5" style={{ borderBottom: "1px solid #e5e7eb" }}>
-            <p className="text-xs font-semibold truncate" style={{ color: "#111827" }}>{empresaNome}</p>
+          <div className="px-3 py-2.5 border-b border-gray-200 dark:border-[#2d3148]">
+            <p className="text-xs font-semibold truncate text-gray-900 dark:text-gray-100">{empresaNome}</p>
             {typeof window !== "undefined" && (() => {
               try {
                 const colab = JSON.parse(sessionStorage.getItem("boragerir_colaborador_ativo") || "null")
@@ -434,43 +421,31 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl, plano, empr
           <div className="p-1.5 space-y-0.5">
             <button
               onClick={() => { router.push("/configuracoes"); setUserAberto(false) }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-colors"
-              style={{ color: "#374151" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "#f3f4f6" }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-colors text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
             >
-              <Settings className="w-3.5 h-3.5" style={{ color: "#9ca3af" }} />
+              <Settings className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
               Configurações
             </button>
             {!isPlanoGestao && (
             <button
               onClick={() => { router.push("/planos"); setUserAberto(false) }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-colors"
-              style={{ color: "#374151" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "#f3f4f6" }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-colors text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
             >
-              <CreditCard className="w-3.5 h-3.5" style={{ color: "#9ca3af" }} />
+              <CreditCard className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
               Meu plano
             </button>
             )}
-            <div style={{ borderTop: "1px solid #e5e7eb", margin: "4px 0" }} />
+            <div className="border-t border-gray-200 dark:border-[#2d3148] my-1" />
             <button
               onClick={() => { sessionStorage.removeItem("boragerir_colaborador_ativo"); window.location.reload() }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-colors"
-              style={{ color: "#374151" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "#f3f4f6" }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-colors text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
             >
-              <Users className="w-3.5 h-3.5" style={{ color: "#9ca3af" }} />
+              <Users className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
               Trocar usuário
             </button>
             <button
               onClick={handleLogout}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-colors"
-              style={{ color: "#ef4444" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(239,68,68,0.08)" }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-colors text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
             >
               <LogOut className="w-3.5 h-3.5" />
               Sair

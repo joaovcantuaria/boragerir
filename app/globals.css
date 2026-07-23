@@ -1,8 +1,14 @@
 @import "tailwindcss";
 
+/* Tailwind v4: dark mode via classe .dark (controlado pelo botão interno, não pelo OS) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* Impede force dark mode de browsers (Opera, Chrome flags, etc) */
 :root {
   color-scheme: light;
+}
+.dark {
+  color-scheme: dark;
 }
 
 /* ============================================================
@@ -150,6 +156,20 @@
 }
 .shadow-sidebar {
   box-shadow: 2px 0 8px rgba(0,0,0,0.15);
+}
+
+/* Força legibilidade em conteúdo HTML injetado (termos, política, etc.) */
+.prose * {
+  color: inherit !important;
+}
+.prose a {
+  color: hsl(var(--primary)) !important;
+}
+.dark .prose * {
+  color: hsl(var(--foreground)) !important;
+}
+.dark .prose a {
+  color: hsl(var(--primary)) !important;
 }
 
 /* ============================================================

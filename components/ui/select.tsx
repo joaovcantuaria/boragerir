@@ -56,22 +56,11 @@ const SelectContent = React.forwardRef<
 >(({ className, children, position = "popper", ...props }, ref) => (
   <SelectPrimitive.Portal>
     <SelectPrimitive.Content ref={ref}
-      style={{
-        /* CSS inline — nunca transparente, sempre sobrepõe o conteúdo */
-        backgroundColor: "var(--select-bg, #ffffff)",
-        color: "var(--select-fg, #111827)",
-        border: "1px solid var(--select-border, #e5e7eb)",
-        borderRadius: "0.75rem",
-        boxShadow: "0 10px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08)",
-        zIndex: 9999,
-        maxHeight: "380px",
-        overflowY: "auto",
-        minWidth: "var(--radix-select-trigger-width)",
-      }}
       className={cn(
-        "relative z-[9999] overflow-hidden",
-        // Suporte a dark mode via classe CSS
-        "dark:[--select-bg:#1e2030] dark:[--select-fg:#e8eaf0] dark:[--select-border:#2d3148]",
+        "relative z-[9999] overflow-hidden rounded-xl shadow-2xl",
+        "bg-white text-gray-900 border border-gray-200",
+        "dark:bg-[#1e2030] dark:text-gray-100 dark:border-[#2d3148]",
+        "max-h-[380px] overflow-y-auto",
         "data-[state=open]:animate-in data-[state=closed]:animate-out",
         "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
         "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
