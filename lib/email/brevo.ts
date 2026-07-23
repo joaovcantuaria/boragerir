@@ -222,3 +222,26 @@ export function templateAssinaturaConfirmada(params: {
     <p style="color:#888;font-size:12px;">Obrigado por confiar no Bora Gerir! 🙏</p>
   `)
 }
+
+export function templateBoasVindasCadastro(params: { nome: string }): string {
+  return templateBase(`
+    <h2 style="color:#1a1a1a;font-size:18px;margin:0 0 16px;">Bem-vindo(a) ao Bora Gerir! 🎉</h2>
+    <p>Olá, <strong>${params.nome}</strong>!</p>
+    <p>Sua conta foi criada com sucesso. Estamos felizes em ter você por aqui!</p>
+    <div style="background:#f0fdf4;border:2px solid #22c55e;border-radius:12px;padding:20px;margin:20px 0;text-align:center;">
+      <p style="margin:0;color:#16a34a;font-size:14px;font-weight:700;">✅ Conta criada!</p>
+      <p style="margin:8px 0 0;color:#333;font-size:13px;">Agora configure seu negócio e comece a usar.</p>
+    </div>
+    <p>Com o Bora Gerir você pode:</p>
+    <ul style="color:#333;font-size:13px;line-height:1.8;">
+      <li>Controlar vendas e caixa em tempo real</li>
+      <li>Gerenciar clientes e agenda</li>
+      <li>Acompanhar o financeiro completo</li>
+      <li>Usar no celular como app</li>
+    </ul>
+    <div style="text-align:center;margin:24px 0;">
+      <a href="https://app.boragerir.com/dashboard" class="btn">Acessar meu painel →</a>
+    </div>
+    <p style="color:#888;font-size:12px;">Qualquer dúvida, estamos aqui para ajudar. Boas vendas! 🚀</p>
+  `)
+}

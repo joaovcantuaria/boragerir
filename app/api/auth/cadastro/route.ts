@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createServerClient } from "@supabase/ssr"
+import { enviarEmail, templateBoasVindasCadastro } from "@/lib/email/brevo"
 
 /**
  * API Route de cadastro que cria o usuário via admin client (service role).
@@ -61,6 +62,13 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       )
     }
+
+    // Enviar email de boas-vindas via Brevo (não bloqueia o fluxo se falhar)
+    enviarEmail({
+      para: { email, nome },
+      assunto: "Bem-vindo(a) ao Bora Gerir! 🎉",
+      html: templateBoasVindasCadastro({ nome }),
+    }).catch((err) => console.warn("[api/auth/cadastro] Falha ao enviar email de boas-vindas:", err))
 
     // Fazer login automático para estabelecer sessão
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
