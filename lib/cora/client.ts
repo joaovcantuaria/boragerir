@@ -76,11 +76,42 @@ export class CoraClient {
 
   /**
    * Emite uma nova cobrança (boleto/Pix) na Cora.
+   * Converte os campos de camelCase (interno) para snake_case (API Cora v2).
    */
   async createInvoice(data: CoraInvoiceRequest): Promise<CoraInvoiceResponse> {
+    // Transform to Cora's expected snake_case format
+    const coraBody = {
+      code: data.code,
+      customer: {
+        name: data.customer.name,
+        email: data.customer.email || undefined,
+        document: {
+          identity: data.customer.document,
+          type: data.customer.document.length === 14 ? "CNPJ" : "CPF"
+        },
+        address: {
+          street: data.customer.address.street,
+          number: data.customer.address.number,
+          complement: data.customer.address.complement || undefined,
+          district: data.customer.address.district,
+          city: data.customer.address.city,
+          state: data.customer.address.state,
+          zip_code: data.customer.address.zipCode
+        }
+      },
+      services: data.services.map(s => ({
+        name: s.name,
+        amount: s.amount
+      })),
+      payment_terms: {
+        due_date: data.paymentTerms.dueDate
+      },
+      ...(data.notification ? { notification: { emails: data.notification.emails } } : {})
+    };
+
     return this.request<CoraInvoiceResponse>('/invoices', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify(coraBody),
     });
   }
 
