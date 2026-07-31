@@ -1,18 +1,17 @@
 import { createClient } from "@/lib/supabase/server"
 import { FinanceiroClient } from "@/components/financeiro/financeiro-client"
 import { redirect } from "next/navigation"
+import { getEmpresaAtiva } from "@/lib/get-empresa-ativa"
 
 export const dynamic = "force-dynamic"
 export const metadata = { title: "Financeiro" }
 
 export default async function FinanceiroPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user, empresa } = await getEmpresaAtiva()
   if (!user) redirect("/login")
-
-  const { data: empresa } = await supabase
-    .from("empresas").select("*").eq("user_id", user.id).single()
   if (!empresa) redirect("/onboarding")
+
+  const supabase = await createClient()
 
   const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
   const fimMes = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59).toISOString()
@@ -49,8 +48,7 @@ export default async function FinanceiroPage() {
     supabase.from("caixas")
       .select("id, valor_abertura, status, data_abertura")
       .eq("empresa_id", empresa.id)
-      .eq("status", "aberto")
-      .maybeSingle(),
+      .eq("status", "aberto"),
   ])
 
   // Contas a pagar — tolerante se tabela ainda não existir
@@ -80,16 +78,22 @@ export default async function FinanceiroPage() {
     agendamentosFuturos = ag ?? []
   } catch { /* erro silencioso */ }
 
-  // Calcular saldo atual do caixa aberto
+  // Calcular saldo atual dos caixas abertos
   let saldoCaixa = 0
-  if (caixaAtivo) {
+  const caixasAbertosArr = Array.isArray(caixaAtivo) ? caixaAtivo : (caixaAtivo ? [caixaAtivo] : [])
+  for (const cx of caixasAbertosArr) {
     const { data: movsAtuais } = await supabase
       .from("movimentacoes_caixa")
-      .select("tipo, valor")
-      .eq("caixa_id", caixaAtivo.id)
-    const entradas = (movsAtuais ?? []).filter((m) => m.tipo === "entrada").reduce((s, m) => s + m.valor, 0)
-    const saidas = (movsAtuais ?? []).filter((m) => m.tipo === "saida").reduce((s, m) => s + m.valor, 0)
-    saldoCaixa = (caixaAtivo.valor_abertura ?? 0) + entradas - saidas
+      .select("tipo, valor, venda_id, vendas!movimentacoes_caixa_venda_id_fkey(status)")
+      .eq("caixa_id", cx.id)
+    const movsValidas = (movsAtuais ?? []).filter((m: any) => {
+      if (!m.venda_id) return true
+      if (m.vendas && m.vendas.status === "cancelada") return false
+      return true
+    })
+    const entradas = movsValidas.filter((m: any) => m.tipo === "entrada").reduce((s: number, m: any) => s + m.valor, 0)
+    const saidas = movsValidas.filter((m: any) => m.tipo === "saida").reduce((s: number, m: any) => s + m.valor, 0)
+    saldoCaixa += (cx.valor_abertura ?? 0) + entradas - saidas
   }
 
   return (
@@ -101,9 +105,11 @@ export default async function FinanceiroPage() {
       funcionarios={funcionarios ?? []}
       debitos={debitos ?? []}
       saldoCaixa={saldoCaixa}
-      caixaAberto={!!caixaAtivo}
+      caixaAberto={caixasAbertosArr.length > 0}
       contasPagar={contasPagar ?? []}
       agendamentosFuturos={(agendamentosFuturos ?? []) as any[]}
+      pinGerente={empresa.pin_gerente ?? null}
+      restricoesAcesso={empresa.restricoes_acesso ?? null}
     />
   )
 }

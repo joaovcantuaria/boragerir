@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Plus, Search, UserPlus, Loader2, Cake, Phone, Mail, Edit, Star, User, Building2, AlertTriangle, CreditCard, CheckCircle } from "lucide-react"
+import { Plus, Search, UserPlus, Loader2, Cake, Phone, Mail, Edit, Star, User, Building2, AlertTriangle, CreditCard, CheckCircle, Gift, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,6 +22,9 @@ import {
   eAniversarianteHoje, eAniversarianteEstaSemana, formatarData, formatarMoeda
 } from "@/lib/utils"
 import type { Cliente } from "@/types"
+import { HistoricoResgates } from "@/components/clientes/historico-resgates"
+import { PinProtected } from "@/components/ui/pin-protected"
+import { PinModal } from "@/components/ui/pin-modal"
 
 // ── Formatação de CNPJ ────────────────────────────────────────────────────────
 function formatarCNPJ(v: string) {
@@ -50,7 +53,7 @@ const schemaCliente = z.discriminatedUnion("tipo_pessoa", [
   z.object({
     tipo_pessoa: z.literal("pf"),
     nome_completo: z.string().min(2, "Nome obrigatório"),
-    cpf: z.string().refine((v) => validarCPF(v), "CPF inválido"),
+    cpf: z.string().optional().or(z.literal("")),
     telefone: z.string().min(10, "Telefone inválido"),
     email: z.string().email("E-mail inválido").optional().or(z.literal("")),
     data_nascimento: z.string().optional(),
@@ -62,7 +65,7 @@ const schemaCliente = z.discriminatedUnion("tipo_pessoa", [
     tipo_pessoa: z.literal("pj"),
     nome_completo: z.string().min(2, "Nome do contato obrigatório"),
     razao_social: z.string().min(2, "Razão social obrigatória"),
-    cnpj: z.string().refine((v) => validarCNPJ(v), "CNPJ inválido"),
+    cnpj: z.string().optional().or(z.literal("")),
     telefone: z.string().min(10, "Telefone inválido"),
     email: z.string().email("E-mail inválido").optional().or(z.literal("")),
     data_nascimento: z.string().optional(),
@@ -78,11 +81,15 @@ export function ClientesClient({
   plano,
   clientes: clientesIniciais,
   debitos: debitosIniciais,
+  pinGerente,
+  restricoesAcesso,
 }: {
   empresaId: string
   plano: string
   clientes: Cliente[]
   debitos: { id: string; cliente_id: string; valor_aberto: number; status: string }[]
+  pinGerente?: string | null
+  restricoesAcesso?: { areas_protegidas?: string[]; limite_desconto_sem_pin?: number } | null
 }) {
   const [clientes, setClientes] = useState(clientesIniciais)
   const [debitos, setDebitos] = useState(debitosIniciais)
@@ -101,8 +108,27 @@ export function ClientesClient({
   const [formaPagQuite, setFormaPagQuite] = useState("")
   const [loadingQuite, setLoadingQuite] = useState(false)
   const [loadingDebitosCliente, setLoadingDebitosCliente] = useState(false)
+  // Modal histórico de resgates
+  const [modalResgatesAberto, setModalResgatesAberto] = useState(false)
+  const [clienteResgatesId, setClienteResgatesId] = useState<string>("")
+  const [clienteResgatesPontos, setClienteResgatesPontos] = useState(0)
   const supabase = createClient()
   const router = useRouter()
+
+  // ── PIN Protection ──
+  const [pinModalOpen, setPinModalOpen] = useState(false)
+  const [pinAcaoPendente, setPinAcaoPendente] = useState<(() => void) | null>(null)
+  const areasProtegidas = restricoesAcesso?.areas_protegidas || []
+  const pinConf = !!pinGerente
+
+  function executarComPin(restricaoId: string, acao: () => void) {
+    if (pinConf && areasProtegidas.includes(restricaoId)) {
+      const chave = `pin_acao_${empresaId}_${restricaoId}`
+      if (sessionStorage.getItem(chave) === "true") { acao(); return }
+      setPinAcaoPendente(() => () => { sessionStorage.setItem(chave, "true"); acao() })
+      setPinModalOpen(true)
+    } else { acao() }
+  }
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<FormCliente>({
     resolver: zodResolver(schemaCliente),
@@ -153,8 +179,8 @@ export function ClientesClient({
   async function onSubmit(data: FormCliente) {
     setLoading(true)
     const isPJ = data.tipo_pessoa === "pj"
-    const cpfLimpo = isPJ ? null : data.cpf?.replace(/\D/g, "") ?? null
-    const cnpjLimpo = isPJ ? data.cnpj?.replace(/\D/g, "") ?? null : null
+    const cpfLimpo = isPJ ? null : (data.cpf?.replace(/\D/g, "") || null)
+    const cnpjLimpo = isPJ ? (data.cnpj?.replace(/\D/g, "") || null) : null
 
     const payload = {
       nome_completo: data.nome_completo,
@@ -196,6 +222,16 @@ export function ClientesClient({
     setLoading(false)
   }
 
+  async function excluirCliente(id: string) {
+    if (!confirm("Tem certeza que deseja excluir este cliente?")) return
+    // Cancelar débitos em aberto antes de desativar
+    await supabase.from("debitos_clientes").delete().eq("cliente_id", id).in("status", ["aberto", "parcial"])
+    const { error } = await supabase.from("clientes").update({ ativo: false }).eq("id", id)
+    if (error) { toast.error("Erro ao excluir cliente."); return }
+    setClientes((prev) => prev.filter((c) => c.id !== id))
+    toast.success("Cliente excluído!")
+  }
+
   // ── Funções de débito ────────────────────────────────────────────────────────
   function debitosPorCliente(clienteId: string) {
     return debitos.filter((d) => d.cliente_id === clienteId)
@@ -231,6 +267,18 @@ export function ClientesClient({
     if (!formaPagQuite) { toast.error("Selecione a forma de pagamento."); return }
     if (selectedDebitos.size === 0) { toast.error("Selecione ao menos um débito."); return }
     setLoadingQuite(true)
+
+    // Buscar caixa aberto para registrar a entrada
+    const { data: caixaAberto } = await supabase
+      .from("caixas")
+      .select("id")
+      .eq("empresa_id", empresaId)
+      .eq("status", "aberto")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle()
+
+    let totalQuitado = 0
     for (const debitoId of selectedDebitos) {
       const debito = debitosDoCliente.find((d) => d.id === debitoId)
       if (!debito) continue
@@ -240,9 +288,24 @@ export function ClientesClient({
         status: "pago",
         updated_at: new Date().toISOString(),
       }).eq("id", debitoId)
+      totalQuitado += debito.valor_aberto
     }
+
+    // Registrar entrada no caixa
+    if (caixaAberto && totalQuitado > 0) {
+      const clienteNome = clientes.find((c) => c.id === clienteQuitarId)?.nome_completo ?? "Cliente"
+      await supabase.from("movimentacoes_caixa").insert({
+        empresa_id: empresaId,
+        caixa_id: caixaAberto.id,
+        tipo: "entrada",
+        categoria: "venda",
+        descricao: `Quitação débito: ${clienteNome} [${formaPagQuite}]`,
+        valor: totalQuitado,
+      })
+    }
+
     setDebitos((prev) => prev.filter((d) => !selectedDebitos.has(d.id)))
-    toast.success(`${selectedDebitos.size} débito(s) quitado(s)!`)
+    toast.success(`${selectedDebitos.size} débito(s) quitado(s)${caixaAberto ? " e registrado(s) no caixa!" : "! (Abra o caixa para registrar)"}`)
     setModalQuitarAberto(false)
     setLoadingQuite(false)
   }
@@ -251,18 +314,18 @@ export function ClientesClient({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Clientes</h1>
-          <p className="text-muted-foreground">{clientes.length} cliente{clientes.length !== 1 ? "s" : ""} cadastrado{clientes.length !== 1 ? "s" : ""}</p>
+          <h1 className="text-lg font-semibold text-foreground">Clientes</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">{clientes.length} cliente{clientes.length !== 1 ? "s" : ""} cadastrado{clientes.length !== 1 ? "s" : ""}</p>
         </div>
         <div className="flex items-center gap-2">
           {temDebito && debitos.length > 0 && (
-            <Button variant="outline" onClick={() => abrirQuitarDebito()} className="gap-2 border-amber-400 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10">
+            <Button variant="outline" onClick={() => executarComPin("clientes_ver_debitos", () => abrirQuitarDebito())} className="gap-2 border-amber-400 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10">
               <AlertTriangle className="w-4 h-4" />
-              <span className="hidden sm:inline">Quitar Débitos</span>
+              <span className="hidden sm:inline">Débitos</span>
               <span className="bg-amber-500 text-white text-xs font-black px-1.5 py-0.5 rounded-full">{debitos.length}</span>
             </Button>
           )}
-          <Button onClick={abrirModalNovo} className="gap-2">
+          <Button onClick={() => executarComPin("clientes_cadastrar", abrirModalNovo)} className="gap-2">
             <UserPlus className="w-4 h-4" />
             <span className="hidden sm:inline">Novo Cliente</span>
           </Button>
@@ -317,7 +380,13 @@ export function ClientesClient({
                           {aniversarioHoje && <Badge variant="warning" className="text-xs">🎂 Aniversário hoje!</Badge>}
                           {aniversarioSemana && <Badge variant="info" className="text-xs">🎂 Aniversário essa semana</Badge>}
                           {cliente.pontos_fidelidade > 0 && (
-                            <Badge variant="secondary" className="text-xs gap-1">
+                            <Badge variant="secondary" className="text-xs gap-1 cursor-pointer hover:bg-secondary/80"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setClienteResgatesId(cliente.id)
+                                setClienteResgatesPontos(cliente.pontos_fidelidade)
+                                setModalResgatesAberto(true)
+                              }}>
                               <Star className="w-2.5 h-2.5" />{cliente.pontos_fidelidade} pts
                             </Badge>
                           )}
@@ -339,9 +408,14 @@ export function ClientesClient({
                         </div>
                       </div>
                     </div>
-                    <Button variant="ghost" size="icon" onClick={() => abrirModalEditar(cliente)}>
-                      <Edit className="w-4 h-4" />
-                    </Button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button variant="ghost" size="icon" onClick={() => executarComPin("clientes_editar", () => abrirModalEditar(cliente))}>
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => executarComPin("clientes_editar", () => excluirCliente(cliente.id))} className="text-muted-foreground hover:text-red-500">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -563,7 +637,7 @@ export function ClientesClient({
               <div className="space-y-2">
                 {tipoPessoa === "pj" ? (
                   <>
-                    <Label>CNPJ *</Label>
+                    <Label>CNPJ</Label>
                     <Input placeholder="00.000.000/0001-00" maxLength={18}
                       {...register("cnpj")}
                       onChange={(e) => { const f = formatarCNPJ(e.target.value); e.target.value = f; setValue("cnpj", f) }} />
@@ -573,7 +647,7 @@ export function ClientesClient({
                   </>
                 ) : (
                   <>
-                    <Label>CPF *</Label>
+                    <Label>CPF</Label>
                     <Input placeholder="000.000.000-00" maxLength={14}
                       {...register("cpf")}
                       onChange={(e) => { const f = formatarCPF(e.target.value); e.target.value = f; setValue("cpf", f) }} />
@@ -618,6 +692,27 @@ export function ClientesClient({
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Modal histórico de resgates */}
+      <Dialog open={modalResgatesAberto} onOpenChange={setModalResgatesAberto}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Gift className="w-5 h-5 text-purple-600" />
+              Fidelidade &amp; Resgates
+            </DialogTitle>
+          </DialogHeader>
+          {clienteResgatesId && (
+            <HistoricoResgates
+              clienteId={clienteResgatesId}
+              empresaId={empresaId}
+              pontosAtuais={clienteResgatesPontos}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <PinModal aberto={pinModalOpen} onClose={() => { setPinModalOpen(false); setPinAcaoPendente(null) }} onSuccess={() => { setPinModalOpen(false); if (pinAcaoPendente) { pinAcaoPendente(); setPinAcaoPendente(null) } }} empresaId={empresaId} titulo="Ação Restrita" descricao="Digite o PIN de gerente para executar esta ação" />
     </div>
   )
 }

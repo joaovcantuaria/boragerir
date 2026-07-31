@@ -162,6 +162,7 @@ export const labelsStatus: Record<string, string> = {
 export const labelsFormaPagamento: Record<string, string> = {
   dinheiro: "Dinheiro", cartao_credito: "Cartão de Crédito",
   cartao_debito: "Cartão de Débito", pix: "Pix", outro: "Outro",
+  boleto_cora: "Boleto Cora", pix_cora: "Pix Cora",
 }
 
 // Áreas de atuação — Beleza, Serviços, Comércio, Tecnologia e mais

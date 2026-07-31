@@ -6,7 +6,7 @@ import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import {
   Loader2, Store, CreditCard, Tag, Star, Lock,
-  Plus, Trash2, Check, Upload, Camera, FileText, Database
+  Plus, Trash2, Check, Upload, Camera, FileText, Database, Gift, Landmark
 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -26,6 +26,9 @@ import { AreaAtuacaoSelect } from "@/components/ui/area-atuacao-select"
 import { planosInfo } from "@/types"
 import type { Empresa, Categoria } from "@/types"
 import { BackupClient } from "@/components/configuracoes/backup-client"
+import { RecompensasFidelidade } from "@/components/configuracoes/recompensas-fidelidade"
+import { ConfigAcessos } from "@/components/configuracoes/config-acessos"
+import { CoraConfig } from "@/components/cora/cora-config"
 
 const schemaNegocio = z.object({
   nome: z.string().min(2),
@@ -107,12 +110,20 @@ export function ConfiguracoesClient({
 
     setUploadingLogo(true)
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) { setUploadingLogo(false); return }
 
-    const ext = file.name.split(".").pop()
-    const path = `${user.id}/logo.${ext}`
+    const ext = file.name.split(".").pop() || "png"
+    const path = `${user.id}/logo-${Date.now()}.${ext}`
+
+    // Deletar logos anteriores do mesmo usuário para evitar conflito
+    const { data: arquivos } = await supabase.storage.from("logos").list(user.id)
+    if (arquivos && arquivos.length > 0) {
+      const pathsAntigos = arquivos.map((f) => `${user.id}/${f.name}`)
+      await supabase.storage.from("logos").remove(pathsAntigos)
+    }
+
     const { error: uploadError } = await supabase.storage
-      .from("logos").upload(path, file, { upsert: true })
+      .from("logos").upload(path, file, { upsert: true, contentType: file.type })
 
     if (uploadError) { toast.error("Erro ao enviar logo."); setUploadingLogo(false); return }
 
@@ -216,14 +227,17 @@ export function ConfiguracoesClient({
   return (
     <div className="space-y-6 max-w-3xl">
       <div>
-        <h1 className="text-2xl font-black">Configurações</h1>
-        <p className="text-muted-foreground text-sm">Gerencie todos os dados do seu estabelecimento</p>
+        <h1 className="text-lg font-semibold text-foreground">Configurações</h1>
+        <p className="text-xs text-muted-foreground mt-0.5">Gerencie todos os dados do seu estabelecimento</p>
       </div>
 
       <Tabs defaultValue="negocio">
-        <TabsList className="grid grid-cols-6 w-full">
+        <TabsList className="grid grid-cols-9 w-full">
           <TabsTrigger value="negocio" className="gap-1.5 text-xs font-semibold">
             <Store className="w-3.5 h-3.5" /><span className="hidden sm:inline">Negócio</span>
+          </TabsTrigger>
+          <TabsTrigger value="fidelidade" className="gap-1.5 text-xs font-semibold">
+            <Gift className="w-3.5 h-3.5" /><span className="hidden sm:inline">Fidelidade</span>
           </TabsTrigger>
           <TabsTrigger value="plano" className="gap-1.5 text-xs font-semibold">
             <CreditCard className="w-3.5 h-3.5" /><span className="hidden sm:inline">Plano</span>
@@ -234,11 +248,17 @@ export function ConfiguracoesClient({
           <TabsTrigger value="documentos" className="gap-1.5 text-xs font-semibold">
             <FileText className="w-3.5 h-3.5" /><span className="hidden sm:inline">Documentos</span>
           </TabsTrigger>
+          <TabsTrigger value="acessos" className="gap-1.5 text-xs font-semibold">
+            <Star className="w-3.5 h-3.5" /><span className="hidden sm:inline">Acessos</span>
+          </TabsTrigger>
           <TabsTrigger value="conta" className="gap-1.5 text-xs font-semibold">
             <Lock className="w-3.5 h-3.5" /><span className="hidden sm:inline">Conta</span>
           </TabsTrigger>
           <TabsTrigger value="backup" className="gap-1.5 text-xs font-semibold">
             <Database className="w-3.5 h-3.5" /><span className="hidden sm:inline">Backup</span>
+          </TabsTrigger>
+          <TabsTrigger value="cora" className="gap-1.5 text-xs font-semibold">
+            <Landmark className="w-3.5 h-3.5" /><span className="hidden sm:inline">Cora</span>
           </TabsTrigger>
         </TabsList>
 
@@ -373,28 +393,53 @@ export function ConfiguracoesClient({
                   </div>
                 </div>
 
-                <Separator />
-                <div className="flex items-center gap-2">
-                  <Star className="w-4 h-4 text-primary" />
-                  <span className="font-bold text-sm">Programa de Fidelidade</span>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label>Pontos por R$ 1 gasto</Label>
-                    <Input type="number" step="0.1" min="0" {...register("pontos_por_real")} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Pontos para R$ 1 de desconto</Label>
-                    <Input type="number" step="1" min="1" {...register("pontos_para_desconto")} />
-                  </div>
-                </div>
-
                 <Button type="submit" disabled={loading} className="font-bold">
                   {loading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Salvando...</> : "Salvar alterações"}
                 </Button>
               </form>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ── ABA FIDELIDADE (Configuração + Brindes/Recompensas) ── */}
+        <TabsContent value="fidelidade" className="mt-4 space-y-5">
+          <Card>
+            <CardContent className="p-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <Star className="w-4 h-4 text-primary" />
+                <span className="font-bold text-sm">Programa de Fidelidade</span>
+              </div>
+              <p className="text-xs text-muted-foreground -mt-2">
+                Configure como seus clientes acumulam e utilizam pontos de fidelidade.
+              </p>
+              <form onSubmit={handleSubmit(salvarNegocio)} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>Pontos ganhos por R$ 1 gasto</Label>
+                    <Input type="number" step="0.1" min="0" {...register("pontos_por_real")} />
+                    <p className="text-[10px] text-muted-foreground">Ex: 1 = cliente ganha 1 ponto por real gasto</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Pontos necessários para R$ 1 de desconto</Label>
+                    <Input type="number" step="1" min="1" {...register("pontos_para_desconto")} />
+                    <p className="text-[10px] text-muted-foreground">Ex: 100 = a cada 100 pontos, R$ 1 de desconto</p>
+                  </div>
+                </div>
+                <div className="rounded-lg bg-muted/60 border border-border p-4 space-y-2">
+                  <p className="text-xs font-semibold text-foreground">Como funciona na prática:</p>
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <p>• Cliente compra R$ 100 → ganha <strong className="text-foreground">{watch("pontos_por_real") ? Math.floor(100 * parseFloat(watch("pontos_por_real") || "1")) : 100} pontos</strong></p>
+                    <p>• Ao usar {watch("pontos_para_desconto") || 100} pontos → ganha <strong className="text-foreground">R$ 1,00 de desconto</strong></p>
+                    <p>• Desconto é aplicado automaticamente na tela de Nova Venda quando o cliente é selecionado</p>
+                  </div>
+                </div>
+                <Button type="submit" disabled={loading} className="font-bold">
+                  {loading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Salvando...</> : "Salvar configuração"}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+          <RecompensasFidelidade empresa={empresa} />
         </TabsContent>
 
         {/* ── ABA PLANO ── */}
@@ -679,6 +724,11 @@ export function ConfiguracoesClient({
           </Card>
         </TabsContent>
 
+        {/* ── ABA ACESSOS ── */}
+        <TabsContent value="acessos" className="mt-4">
+          <ConfigAcessos empresa={{ id: empresa.id, pin_gerente: (empresa as any).pin_gerente ?? null, restricoes_acesso: (empresa as any).restricoes_acesso ?? null }} />
+        </TabsContent>
+
         {/* ── ABA CONTA ── */}
         <TabsContent value="conta" className="mt-4 space-y-4">
           {/* Dados de cadastro */}
@@ -802,6 +852,11 @@ export function ConfiguracoesClient({
         {/* ── ABA BACKUP ── */}
         <TabsContent value="backup" className="mt-4">
           <BackupClient empresaNome={empresa.nome} />
+        </TabsContent>
+
+        {/* ── ABA CORA PAGAMENTOS ── */}
+        <TabsContent value="cora" className="mt-4">
+          <CoraConfig empresa={empresa} />
         </TabsContent>
       </Tabs>
     </div>

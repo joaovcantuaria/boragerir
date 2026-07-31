@@ -91,8 +91,8 @@ export function SuporteClient({ empresaId, tickets: init }: {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black">Suporte</h1>
-          <p className="text-muted-foreground text-sm">
+          <h1 className="text-lg font-semibold text-foreground">Suporte</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
             {abertos > 0 ? `${abertos} ticket(s) em aberto` : "Nenhum ticket em aberto"}
           </p>
         </div>

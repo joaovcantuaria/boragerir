@@ -83,7 +83,7 @@ export function AdminAtendimentosIAClient({ atendimentos: init }: { atendimentos
         {["todos", "aberto", "resolvido", "encaminhado"].map((f) => (
           <button key={f} onClick={() => setFiltro(f)}
             className={`px-3 py-2 rounded-xl text-xs font-bold transition-all capitalize shrink-0 ${
-              filtro === f ? "bg-primary text-white" : t.filterInativo
+              filtro === f ? "bg-primary text-white" : "bg-white border border-gray-300 text-gray-700 hover:border-primary hover:text-primary"
             }`}>
             {f === "todos" ? "Todos" : corStatus[f]?.label ?? f}
           </button>

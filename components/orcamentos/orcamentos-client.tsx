@@ -146,8 +146,8 @@ export function OrcamentosClient({ empresa, orcamentos: orcInit, clientes, produ
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Orçamentos</h1>
-          <p className="text-muted-foreground">{orcamentos.length} orçamento(s)</p>
+          <h1 className="text-lg font-semibold text-foreground">Orçamentos</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">{orcamentos.length} orçamento(s)</p>
         </div>
         <Button onClick={() => { setItens([]); reset(); setModalAberto(true) }} className="gap-2">
           <Plus className="w-4 h-4" /><span className="hidden sm:inline">Novo Orçamento</span>

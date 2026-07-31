@@ -116,8 +116,8 @@ export function AgendamentosClient({
       funcionario_id: data.funcionario_id || null,
       servico_id: data.servico_id || null,
       duracao_minutos: parseInt(data.duracao_minutos || "60") || 60,
-      status: "agendado" as const,
-      origem: "manual" as const,
+      status: editando ? editando.status : "agendado" as const,
+      origem: editando ? editando.origem : "manual" as const,
       observacoes: data.observacoes || null,
     }
     if (editando) {
@@ -194,8 +194,8 @@ export function AgendamentosClient({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Agendamentos</h1>
-          <p className="text-muted-foreground text-sm">{agendamentos.length} agendamento(s)</p>
+          <h1 className="text-lg font-semibold text-foreground">Agendamentos</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">{agendamentos.length} agendamento(s)</p>
         </div>
         <Button onClick={abrirModalNovo} className="gap-2 font-bold">
           <Plus className="w-4 h-4" />
@@ -281,15 +281,15 @@ export function AgendamentosClient({
 
       {/* Calendário + Lista */}
       <Tabs defaultValue="calendario">
-        <TabsList>
-          <TabsTrigger value="calendario">Calendário</TabsTrigger>
-          <TabsTrigger value="lista">Lista do dia</TabsTrigger>
-          <TabsTrigger value="configuracao">Configuração</TabsTrigger>
+        <TabsList className="w-full">
+          <TabsTrigger value="calendario" className="flex-1">Calendário</TabsTrigger>
+          <TabsTrigger value="lista" className="flex-1">Lista do dia</TabsTrigger>
+          <TabsTrigger value="configuracao" className="flex-1">Configuração</TabsTrigger>
         </TabsList>
 
         <TabsContent value="calendario" className="mt-4 space-y-4">
           {/* Calendário premium */}
-          <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-card">
             {/* Header do mês */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <button onClick={() => setMesAtual(subMonths(mesAtual, 1))}
@@ -372,7 +372,7 @@ export function AgendamentosClient({
           </div>
 
           {/* Dia selecionado */}
-          <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-card">
             {/* Header do dia */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <div>

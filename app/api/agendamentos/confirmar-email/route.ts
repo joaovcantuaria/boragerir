@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { enviarEmail, templateAgendamentoConfirmado } from "@/lib/email/brevo"
+import { enviarWhatsAppTemplate } from "@/lib/whatsapp/boragerir-chat"
 import { format, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
@@ -47,6 +48,22 @@ export async function POST(req: NextRequest) {
         protocolo,
       }),
     })
+
+    // ── WhatsApp via BoraGerir Chat ───
+    const telefoneWhats = agendamento.telefone_cliente_avulso ?? agendamento.clientes?.telefone ?? ""
+    if (telefoneWhats) {
+      const dataWhats = format(parseISO(agendamento.data_hora), "d 'de' MMMM 'de' yyyy", { locale: ptBR })
+      enviarWhatsAppTemplate({
+        telefone: telefoneWhats,
+        template: "confirmacao_agendamento",
+        nomeCliente: nomeCliente ?? "Cliente",
+        data: dataWhats,
+        horario,
+        nomeEmpresa: empresa?.nome ?? "",
+        servico: agendamento.produtos_servicos?.nome ?? "Serviço",
+      })
+    }
+    // ──────────────────────────────────
 
     return NextResponse.json({
       sucesso,

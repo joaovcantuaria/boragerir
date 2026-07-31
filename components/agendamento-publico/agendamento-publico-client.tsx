@@ -134,21 +134,20 @@ export function AgendamentoPublicoClient({ empresa, servicos, funcionarios }: {
       }),
     }).catch(() => {}) // silencioso — nunca bloqueia o fluxo
 
-    // Disparar e-mail de confirmação de solicitação para o cliente
-    if (dados.email) {
-      fetch("/api/agendamentos/notificar-solicitacao", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          nomeCliente: dados.nome,
-          emailCliente: dados.email,
-          nomeEmpresa: empresa.nome,
-          telefoneEmpresa: empresa.telefone,
-          servico: servicoSel.nome,
-          dataHora: dataHora.toISOString(),
-        }),
-      }).catch(() => {}) // silencioso — não bloqueia o fluxo
-    }
+    // Disparar notificação (email + WhatsApp) para o cliente
+    fetch("/api/agendamentos/notificar-solicitacao", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nomeCliente: dados.nome,
+        emailCliente: dados.email || null,
+        telefoneCliente: dados.telefone || null,
+        nomeEmpresa: empresa.nome,
+        telefoneEmpresa: empresa.telefone,
+        servico: servicoSel.nome,
+        dataHora: dataHora.toISOString(),
+      }),
+    }).catch(() => {}) // silencioso — não bloqueia o fluxo
 
     setEmailConfirmacao(dados.email || null)
     setEtapa("sucesso")

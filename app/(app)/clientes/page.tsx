@@ -10,8 +10,9 @@ export default async function ClientesPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const { data: empresa } = await supabase
-    .from("empresas").select("*").eq("user_id", user.id).single()
+  const { data: empresas } = await supabase
+    .from("empresas").select("*").eq("user_id", user.id).order("created_at", { ascending: true })
+  const empresa = empresas?.[0] ?? null
   if (!empresa) redirect("/onboarding")
 
   const [{ data: clientes }, { data: debitos }] = await Promise.all([
@@ -28,5 +29,5 @@ export default async function ClientesPage() {
       .in("status", ["aberto", "parcial"]),
   ])
 
-  return <ClientesClient empresaId={empresa.id} plano={empresa.plano} clientes={clientes ?? []} debitos={debitos ?? []} />
+  return <ClientesClient empresaId={empresa.id} plano={empresa.plano} clientes={clientes ?? []} debitos={debitos ?? []} pinGerente={empresa.pin_gerente ?? null} restricoesAcesso={empresa.restricoes_acesso ?? null} />
 }

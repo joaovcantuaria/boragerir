@@ -8,11 +8,13 @@ import { z } from "zod"
 import {
   Wallet, Plus, Minus, ArrowDownCircle, ArrowUpCircle,
   DollarSign, Loader2, X, TrendingUp, TrendingDown,
-  History, Search, ChevronDown, ChevronUp, RefreshCw, Clock
+  History, Search, ChevronDown, ChevronUp, RefreshCw, Clock, Edit2, Trash2
 } from "lucide-react"
 import { toast } from "sonner"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
+import { PinProtected } from "@/components/ui/pin-protected"
+import { PinModal } from "@/components/ui/pin-modal"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,6 +26,7 @@ import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { createClient } from "@/lib/supabase/client"
 import { formatarMoeda, formatarDataHora } from "@/lib/utils"
+import { useColaborador } from "@/contexts/colaborador-context"
 
 type CaixaAnterior = {
   id: string
@@ -46,14 +49,21 @@ interface CaixaClientProps {
   userId: string
   plano?: string
   caixaAberto: {
-    id: string; valor_abertura: number; data_abertura: string; observacoes_abertura?: string | null
+    id: string; valor_abertura: number; data_abertura: string; observacoes_abertura?: string | null; tipo_conta?: string; nome_caixa?: string
   } | null
+  caixasAbertos?: {
+    id: string; valor_abertura: number; data_abertura: string; observacoes_abertura?: string | null; tipo_conta?: string; nome_caixa?: string
+  }[]
   movimentacoes: Movimentacao[]
   caixasAnteriores: CaixaAnterior[]
+  vendasCaixa?: { total: number; forma_pagamento: string }[]
+  pinGerente?: string | null
+  restricoesAcesso?: { areas_protegidas?: string[]; limite_desconto_sem_pin?: number } | null
 }
 
-export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto: caixaInicial, movimentacoes: movsIniciais, caixasAnteriores: caixasAntInit }: CaixaClientProps) {
+export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto: caixaInicial, caixasAbertos: caixasAbertosInit = [], movimentacoes: movsIniciais, caixasAnteriores: caixasAntInit, vendasCaixa: vendasCaixaInit = [], pinGerente, restricoesAcesso }: CaixaClientProps) {
   const [caixa, setCaixa] = useState(caixaInicial)
+  const [caixasAbertos, setCaixasAbertos] = useState(caixasAbertosInit)
   const [movimentacoes, setMovimentacoes] = useState(movsIniciais)
   const [caixasAnteriores, setCaixasAnteriores] = useState<CaixaAnterior[]>(caixasAntInit)
   const [caixaDetalhe, setCaixaDetalhe] = useState<{ caixa: CaixaAnterior; movs: Movimentacao[] } | null>(null)
@@ -62,28 +72,67 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
   const [modalAbrirCaixa, setModalAbrirCaixa] = useState(false)
   const [modalFecharCaixa, setModalFecharCaixa] = useState(false)
   const [modalMovimentacao, setModalMovimentacao] = useState<"sangria" | "suprimento" | "despesa" | null>(null)
+  const [caixaIdMovimentacao, setCaixaIdMovimentacao] = useState<string>("")
+  const [formaPagMovimentacao, setFormaPagMovimentacao] = useState<string>("")
+  const [editandoMov, setEditandoMov] = useState<Movimentacao | null>(null)
   const [loading, setLoading] = useState(false)
   const [valorFechamento, setValorFechamento] = useState("")
+  const [pinModalCaixa, setPinModalCaixa] = useState(false)
+  const [pinAcaoPendente, setPinAcaoPendente] = useState<(() => void) | null>(null)
+  const { colaborador } = useColaborador()
   const router = useRouter()
   const supabase = createClient()
+
+  const areasProtegidas = restricoesAcesso?.areas_protegidas || []
+  const pinConf = !!pinGerente
+
+  // Verificar se ação precisa de PIN antes de executar
+  function executarComPin(restricaoId: string, acao: () => void) {
+    if (pinConf && areasProtegidas.includes(restricaoId)) {
+      // Verificar se já desbloqueou na sessão
+      const chave = `pin_acao_${empresaId}_${restricaoId}`
+      if (sessionStorage.getItem(chave) === "true") {
+        acao()
+        return
+      }
+      setPinAcaoPendente(() => () => {
+        sessionStorage.setItem(chave, "true")
+        acao()
+      })
+      setPinModalCaixa(true)
+    } else {
+      acao()
+    }
+  }
 
   // Calcular totais
   const totalEntradas = movimentacoes.filter((m) => m.tipo === "entrada").reduce((s, m) => s + m.valor, 0)
   const totalSaidas = movimentacoes.filter((m) => m.tipo === "saida").reduce((s, m) => s + m.valor, 0)
-  const saldoAtual = (caixa?.valor_abertura ?? 0) + totalEntradas - totalSaidas
+  const totalAberturas = caixasAbertos.length > 1
+    ? caixasAbertos.reduce((s, c) => s + (c.valor_abertura ?? 0), 0)
+    : (caixa?.valor_abertura ?? 0)
+  const saldoAtual = totalAberturas + totalEntradas - totalSaidas
   const valorEsperado = saldoAtual
 
   // Formulário abrir caixa
+  const isGestaoPlano = plano === "gestao"
+  const mesAtual = new Date().toLocaleString("pt-BR", { month: "long", year: "numeric" }).replace(/^\w/, (c) => c.toUpperCase())
   const formAbrirCaixa = useForm({
-    defaultValues: { valor_abertura: "0", observacoes: "" },
+    defaultValues: {
+      valor_abertura: "0",
+      observacoes: "",
+      tipo_caixa: isGestaoPlano ? "mensal" : "diario",
+      nome_caixa: isGestaoPlano ? mesAtual : "",
+      tipo_conta: "especie",
+    },
   })
 
   // Formulário movimentação
   const formMovimentacao = useForm({
-    defaultValues: { valor: "", descricao: "" },
+    defaultValues: { valor: "", descricao: "", data: "" },
   })
 
-  async function abrirCaixa(data: { valor_abertura: string; observacoes: string }) {
+  async function abrirCaixa(data: { valor_abertura: string; observacoes: string; tipo_caixa: string; nome_caixa: string; tipo_conta: string }) {
     setLoading(true)
     const { data: novoCaixa, error } = await supabase
       .from("caixas")
@@ -92,11 +141,24 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
         valor_abertura: parseFloat(data.valor_abertura) || 0,
         status: "aberto",
         aberto_por: userId,
+        colaborador_id: colaborador?.id !== "owner" ? colaborador?.id : null,
         observacoes_abertura: data.observacoes || null,
         data_abertura: new Date().toISOString(),
-      })
+      } as any)
       .select()
       .single()
+
+    if (error) { toast.error("Erro ao abrir caixa."); setLoading(false); return }
+
+    // Atualizar tipo, nome e tipo_conta separadamente (campos novos)
+    await supabase
+      .from("caixas")
+      .update({
+        tipo_caixa: data.tipo_caixa || "diario",
+        nome_caixa: data.nome_caixa.trim() || null,
+        tipo_conta: data.tipo_conta || "especie",
+      } as any)
+      .eq("id", novoCaixa.id)
 
     if (error) { toast.error("Erro ao abrir caixa."); setLoading(false); return }
 
@@ -148,6 +210,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
         valor_esperado: valorEsperado,
         diferenca,
         fechado_por: userId,
+        colaborador_fechou_id: colaborador?.id !== "owner" ? colaborador?.id : null,
       })
       .eq("id", caixa.id)
 
@@ -157,12 +220,22 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
     setMovimentacoes([])
     setModalFecharCaixa(false)
     toast.success("Caixa fechado com sucesso!")
-    router.refresh()
     setLoading(false)
+    window.location.reload()
   }
 
-  async function registrarMovimentacao(data: { valor: string; descricao: string }) {
-    if (!caixa || !modalMovimentacao) return
+  async function registrarMovimentacao(data: { valor: string; descricao: string; data?: string }) {
+    if (!modalMovimentacao) return
+    // Determinar qual caixa usar
+    const isMultiCaixa = plano === "gestao" && caixasAbertos.length > 1
+    if (isMultiCaixa && !caixaIdMovimentacao) {
+      toast.error("Selecione em qual caixa registrar.")
+      return
+    }
+    const caixaAlvo = isMultiCaixa
+      ? caixasAbertos.find((c) => c.id === caixaIdMovimentacao) ?? caixa
+      : caixa
+    if (!caixaAlvo) { toast.error("Selecione um caixa."); return }
     setLoading(true)
 
     const tipoMap: Record<string, "entrada" | "saida"> = {
@@ -171,16 +244,31 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
       despesa: "saida",
     }
 
+    const payload: Record<string, unknown> = {
+      empresa_id: empresaId,
+      caixa_id: caixaAlvo.id,
+      tipo: tipoMap[modalMovimentacao],
+      categoria: modalMovimentacao,
+      descricao: (() => {
+        if (formaPagMovimentacao) return `${data.descricao} [${formaPagMovimentacao}]`
+        if (plano === "gestao") {
+          const cxAlvo = caixasAbertos.find((c) => c.id === caixaAlvo.id) ?? caixaAlvo
+          return (cxAlvo as any)?.tipo_conta === "banco" ? `${data.descricao} [pix]` : `${data.descricao} [dinheiro]`
+        }
+        return data.descricao
+      })(),
+      valor: parseFloat(data.valor),
+      colaborador_id: colaborador?.id !== "owner" ? colaborador?.id : null,
+    }
+
+    // Data retroativa (plano gestão)
+    if (data.data && plano === "gestao") {
+      payload.created_at = new Date(`${data.data}T12:00:00`).toISOString()
+    }
+
     const { data: mov, error } = await supabase
       .from("movimentacoes_caixa")
-      .insert({
-        empresa_id: empresaId,
-        caixa_id: caixa.id,
-        tipo: tipoMap[modalMovimentacao],
-        categoria: modalMovimentacao,
-        descricao: data.descricao,
-        valor: parseFloat(data.valor),
-      })
+      .insert(payload)
       .select()
       .single()
 
@@ -188,18 +276,129 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
 
     setMovimentacoes((prev) => [...prev, mov])
     setModalMovimentacao(null)
+    setCaixaIdMovimentacao("")
+    setFormaPagMovimentacao("")
     formMovimentacao.reset()
     toast.success("Movimentação registrada!")
     setLoading(false)
   }
 
-  const temCaixasAnteriores = ["basico", "profissional"].includes(plano)
+  async function excluirMovimentacao(id: string) {
+    const mov = movimentacoes.find((m) => m.id === id)
+    if (!mov) return
+    if (!confirm("Excluir esta movimentação?")) return
+
+    await supabase.from("movimentacoes_caixa").delete().eq("id", id)
+    setMovimentacoes((prev) => prev.filter((m) => m.id !== id))
+
+    // Se for um pagamento de conta a pagar, reverter o status para "pendente"
+    if (mov.descricao.startsWith("Pagamento:")) {
+      const descConta = mov.descricao
+        .replace(/^Pagamento:\s*/, "")
+        .replace(/\s*\[.*?\]\s*$/, "")
+        .trim()
+      // Buscar a conta correspondente e reverter
+      const { data: contaEncontrada } = await supabase
+        .from("contas_pagar")
+        .select("id")
+        .eq("empresa_id", empresaId)
+        .eq("status", "pago")
+        .ilike("descricao", descConta)
+        .limit(1)
+        .maybeSingle()
+
+      if (contaEncontrada) {
+        await supabase.from("contas_pagar")
+          .update({ status: "pendente", data_pagamento: null })
+          .eq("id", contaEncontrada.id)
+        toast.success("Movimentação excluída e conta revertida para pendente!")
+      } else {
+        toast.success("Movimentação excluída!")
+      }
+    } else {
+      toast.success("Movimentação excluída!")
+    }
+  }
+
+  function iniciarEdicaoMov(mov: Movimentacao) {
+    setEditandoMov(mov)
+    formMovimentacao.setValue("valor", String(mov.valor))
+    formMovimentacao.setValue("descricao", mov.descricao.replace(/\s*\[.*?\]\s*$/, ""))
+    formMovimentacao.setValue("data", mov.created_at ? mov.created_at.slice(0, 10) : "")
+    setModalMovimentacao(mov.categoria as any)
+  }
+
+  async function salvarEdicaoMov(data: { valor: string; descricao: string; data?: string }) {
+    if (!editandoMov) return
+    setLoading(true)
+
+    // Determinar descrição com forma de pagamento
+    let descFinal = data.descricao
+    if (formaPagMovimentacao) {
+      descFinal = `${data.descricao} [${formaPagMovimentacao}]`
+    } else if (plano === "gestao") {
+      const cxAlvo = caixaIdMovimentacao ? caixasAbertos.find((c) => c.id === caixaIdMovimentacao) : null
+      if (cxAlvo) {
+        descFinal = (cxAlvo as any).tipo_conta === "banco" ? `${data.descricao} [pix]` : `${data.descricao} [dinheiro]`
+      } else {
+        descFinal = `${data.descricao} [dinheiro]`
+      }
+    }
+
+    // Atualizar incluindo caixa_id se foi alterado
+    const updateData: any = { descricao: descFinal, valor: parseFloat(data.valor) }
+    if (caixaIdMovimentacao && caixaIdMovimentacao !== (editandoMov as any).caixa_id) {
+      updateData.caixa_id = caixaIdMovimentacao
+    }
+    // Data retroativa (plano gestão)
+    if (data.data && plano === "gestao") {
+      updateData.created_at = new Date(`${data.data}T12:00:00`).toISOString()
+    }
+
+    await supabase.from("movimentacoes_caixa").update(updateData).eq("id", editandoMov.id)
+    setMovimentacoes((prev) => prev.map((m) => m.id === editandoMov.id
+      ? { ...m, ...updateData }
+      : m))
+    setEditandoMov(null)
+    setModalMovimentacao(null)
+    setCaixaIdMovimentacao("")
+    setFormaPagMovimentacao("")
+    formMovimentacao.reset()
+    toast.success("Movimentação atualizada!")
+    setLoading(false)
+    window.location.reload()
+  }
+
+  const temCaixasAnteriores = ["basico", "profissional", "gestao"].includes(plano)
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Caixa</h1>
-        <p className="text-muted-foreground">Controle de abertura, fechamento e movimentações</p>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-semibold text-foreground">Caixa</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">Controle de abertura, fechamento e movimentações</p>
+        </div>
+      </div>
+
+      {/* KPIs — mesmo estilo da dashboard */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: "Saldo", valor: formatarMoeda(saldoAtual), icon: Wallet, color: saldoAtual < 0 ? "#ef4444" : "#10b981", bg: saldoAtual < 0 ? "#ef444415" : "#10b98115" },
+          { label: "Entradas", valor: formatarMoeda(totalEntradas), icon: ArrowDownCircle, color: "#10b981", bg: "#10b98115" },
+          { label: "Saídas", valor: formatarMoeda(totalSaidas), icon: ArrowUpCircle, color: "#ef4444", bg: "#ef444415" },
+          { label: "Status", valor: caixa ? "Aberto" : "Fechado", icon: Clock, color: caixa ? "#10b981" : "#6b7280", bg: caixa ? "#10b98115" : "#6b728015" },
+        ].map((kpi) => (
+          <div key={kpi.label} className="kpi-card">
+            <div className="flex items-center justify-between mb-2">
+              <span className="kpi-label">{kpi.label}</span>
+              <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ background: kpi.bg }}>
+                <kpi.icon className="w-3.5 h-3.5" style={{ color: kpi.color }} />
+              </div>
+            </div>
+            <div className="kpi-value" style={{ color: kpi.color }}>{kpi.valor}</div>
+          </div>
+        ))}
       </div>
 
       <Tabs defaultValue="atual">
@@ -223,8 +422,163 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
 
         {/* ── ABA ATUAL ── */}
         <TabsContent value="atual" className="mt-4">
-      {!caixa ? (
-        // Caixa fechado
+      {/* Plano gestão: sempre mostrar os 2 espaços */}
+      {plano === "gestao" ? (
+        <div className="space-y-4">
+          {/* Nome/tipo */}
+          {caixa && ((caixa as any).nome_caixa || (caixa as any).tipo_caixa) && (
+            <div className="flex items-center gap-2">
+              {(caixa as any).tipo_caixa && (
+                <Badge variant="outline" className="text-xs capitalize">
+                  {{ diario: "Diário", semanal: "Semanal", mensal: "Mensal" }[(caixa as any).tipo_caixa] ?? (caixa as any).tipo_caixa}
+                </Badge>
+              )}
+              {(caixa as any).nome_caixa && (
+                <span className="text-sm font-semibold text-muted-foreground">{(caixa as any).nome_caixa}</span>
+              )}
+            </div>
+          )}
+
+          {/* Sempre 2 slots: Banco e Dinheiro */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {["banco", "especie"].map((tipoConta) => {
+              const cxAberto = caixasAbertos.find((c: any) => c.tipo_conta === tipoConta)
+              const label = tipoConta === "banco" ? "Banco" : "Dinheiro"
+              const emoji = tipoConta === "banco" ? "🏦" : "💵"
+              const bgHeader = tipoConta === "banco" ? "bg-blue-50 dark:bg-blue-900/10" : "bg-emerald-50 dark:bg-emerald-900/10"
+
+              if (cxAberto) {
+                const movsDosCaixa = movimentacoes.filter((m: any) => m.caixa_id === cxAberto.id)
+                const entradas = movsDosCaixa.filter((m) => m.tipo === "entrada").reduce((s, m) => s + m.valor, 0)
+                const saidas = movsDosCaixa.filter((m) => m.tipo === "saida").reduce((s, m) => s + m.valor, 0)
+                const saldo = cxAberto.valor_abertura + entradas - saidas
+                return (
+                  <Card key={tipoConta} className={`overflow-hidden ${saldo < 0 ? "border-red-200" : "border-border"}`}>
+                    <div className={`px-4 py-2 flex items-center justify-between ${bgHeader}`}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{emoji}</span>
+                        <span className="text-sm font-bold">{label}</span>
+                        {(cxAberto as any).nome_caixa && <span className="text-xs text-muted-foreground">· {(cxAberto as any).nome_caixa}</span>}
+                      </div>
+                      <Button variant="destructive" size="sm" className="text-xs h-7 px-3"
+                        onClick={() => executarComPin("caixa_fechar", () => { setCaixa(cxAberto as any); setModalFecharCaixa(true) })}>
+                        Fechar Caixa
+                      </Button>
+                    </div>
+                    <CardContent className="p-4">
+                      <p className={`text-2xl font-black ${saldo < 0 ? "text-red-500" : "text-foreground"}`}>{formatarMoeda(saldo)}</p>
+                      <div className="flex gap-4 mt-2 text-xs">
+                        <span className="text-emerald-500">↑ {formatarMoeda(entradas)}</span>
+                        <span className="text-red-500">↓ {formatarMoeda(saidas)}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              } else {
+                return (
+                  <Card key={tipoConta} className="overflow-hidden border-dashed">
+                    <div className={`px-4 py-2 flex items-center justify-between ${bgHeader} opacity-60`}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{emoji}</span>
+                        <span className="text-sm font-bold">{label}</span>
+                      </div>
+                      <Badge variant="secondary" className="text-[10px]">Fechado</Badge>
+                    </div>
+                    <CardContent className="p-4 flex flex-col items-center gap-3">
+                      <p className="text-sm text-muted-foreground">Caixa fechado</p>
+                      <Button size="sm" onClick={() => setModalAbrirCaixa(true)} className="gap-2">
+                        <Plus className="w-4 h-4" />
+                        Abrir {label}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )
+              }
+            })}
+          </div>
+
+          {/* Saldo Geral — só mostra quando tem pelo menos 1 aberto */}
+          {caixasAbertos.length > 0 && (
+            <Card className="border-primary/20 bg-primary/5">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground font-semibold">Saldo Geral</p>
+                    <p className="text-2xl font-black text-primary">{formatarMoeda(saldoAtual)}</p>
+                  </div>
+                  <div className="text-right text-xs space-y-0.5">
+                    <p className="text-emerald-500 font-semibold">Entradas: {formatarMoeda(totalEntradas)}</p>
+                    <p className="text-red-500 font-semibold">Saídas: {formatarMoeda(totalSaidas)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Ações rápidas */}
+          {caixasAbertos.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => executarComPin("caixa_suprimento", () => setModalMovimentacao("suprimento"))} className="gap-2">
+                <ArrowDownCircle className="w-4 h-4 text-emerald-500" />
+                Suprimento
+              </Button>
+              <Button variant="outline" onClick={() => executarComPin("caixa_sangria", () => setModalMovimentacao("sangria"))} className="gap-2">
+                <ArrowUpCircle className="w-4 h-4 text-orange-500" />
+                Sangria
+              </Button>
+              <Button variant="outline" onClick={() => executarComPin("caixa_despesa", () => setModalMovimentacao("despesa"))} className="gap-2">
+                <Minus className="w-4 h-4 text-red-500" />
+                Despesa
+              </Button>
+            </div>
+          )}
+
+          {/* Lista de movimentações */}
+          {caixasAbertos.length > 0 && movimentacoes.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Movimentações do caixa</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-1">
+                  {movimentacoes.map((mov) => (
+                    <div key={mov.id} className="flex items-center justify-between py-2.5 border-b border-border last:border-0">
+                      <div className="flex items-center gap-3">
+                        {mov.tipo === "entrada" ? (
+                          <TrendingUp className="w-4 h-4 text-emerald-500" />
+                        ) : (
+                          <TrendingDown className="w-4 h-4 text-red-500" />
+                        )}
+                        <div>
+                          <p className="text-sm font-medium">{mov.descricao.replace(/\s*\[.*?\]\s*$/, "")}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(mov.created_at), "HH:mm")} • {mov.categoria}
+                            {mov.descricao.match(/\[(.*?)\]/) && <span className="ml-1 text-primary">• {mov.descricao.match(/\[(.*?)\]/)?.[1]?.replace("_", " ")}</span>}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`font-semibold ${mov.tipo === "entrada" ? "text-emerald-500" : "text-red-500"}`}>
+                          {mov.tipo === "entrada" ? "+" : "-"}{formatarMoeda(mov.valor)}
+                        </span>
+                        <div className="flex items-center gap-0.5 ml-2">
+                          <button onClick={() => iniciarEdicaoMov(mov)} className="p-1 rounded hover:bg-muted" title="Editar">
+                            <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
+                          </button>
+                          <button onClick={() => excluirMovimentacao(mov.id)} className="p-1 rounded hover:bg-red-50" title="Excluir">
+                            <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      ) : !caixa ? (
+        // Caixa fechado (outros planos)
         <Card className="border-border">
           <CardContent className="py-16 flex flex-col items-center gap-6">
             <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
@@ -243,7 +597,81 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
       ) : (
         // Caixa aberto
         <div className="space-y-4">
-          {/* Resumo */}
+          {/* Nome/tipo do caixa */}
+          {((caixa as any).nome_caixa || (caixa as any).tipo_caixa) && (
+            <div className="flex items-center gap-2">
+              {(caixa as any).tipo_caixa && (
+                <Badge variant="outline" className="text-xs capitalize">
+                  {{ diario: "Diário", semanal: "Semanal", mensal: "Mensal" }[(caixa as any).tipo_caixa] ?? (caixa as any).tipo_caixa}
+                </Badge>
+              )}
+              {(caixa as any).nome_caixa && (
+                <span className="text-sm font-semibold text-muted-foreground">{(caixa as any).nome_caixa}</span>
+              )}
+            </div>
+          )}
+
+          {/* Multi-caixa gestão: mostrar caixas abertos lado a lado */}
+          {plano === "gestao" && caixasAbertos.length > 1 && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {caixasAbertos.map((cx) => {
+                const movsDosCaixa = movimentacoes.filter((m: any) => m.caixa_id === cx.id)
+                const entradas = movsDosCaixa.filter((m) => m.tipo === "entrada").reduce((s, m) => s + m.valor, 0)
+                const saidas = movsDosCaixa.filter((m) => m.tipo === "saida").reduce((s, m) => s + m.valor, 0)
+                const saldo = cx.valor_abertura + entradas - saidas
+                const tipoConta = (cx as any).tipo_conta
+                return (
+                  <Card key={cx.id} className={`overflow-hidden ${saldo < 0 ? "border-red-200" : "border-border"}`}>
+                    <div className={`px-4 py-2 flex items-center justify-between ${tipoConta === "banco" ? "bg-blue-50 dark:bg-blue-900/10" : "bg-emerald-50 dark:bg-emerald-900/10"}`}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{tipoConta === "banco" ? "🏦" : "💵"}</span>
+                        <span className="text-sm font-bold">{tipoConta === "banco" ? "Banco" : "Dinheiro"}</span>
+                        {(cx as any).nome_caixa && <span className="text-xs text-muted-foreground">· {(cx as any).nome_caixa}</span>}
+                      </div>
+                      <Button variant="destructive" size="sm" className="text-xs h-7 px-3"
+                        onClick={() => { setCaixa(cx as any); setModalFecharCaixa(true) }}>
+                        Fechar Caixa
+                      </Button>
+                    </div>
+                    <CardContent className="p-4">
+                      <p className={`text-2xl font-black ${saldo < 0 ? "text-red-500" : "text-foreground"}`}>{formatarMoeda(saldo)}</p>
+                      <div className="flex gap-4 mt-2 text-xs">
+                        <span className="text-emerald-500">↑ {formatarMoeda(entradas)}</span>
+                        <span className="text-red-500">↓ {formatarMoeda(saidas)}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Botão abrir segundo caixa — plano gestão */}
+          {plano === "gestao" && caixasAbertos.length === 1 && (
+            <Button onClick={() => setModalAbrirCaixa(true)} className="gap-2">
+              <Plus className="w-4 h-4" />
+              Abrir caixa {(caixa as any).tipo_conta === "banco" ? "Dinheiro" : "Banco"}
+            </Button>
+          )}
+
+          {/* Resumo — gestão multi-caixa: só geral compacto */}
+          {plano === "gestao" && caixasAbertos.length > 1 ? (
+            <Card className="border-primary/20 bg-primary/5">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground font-semibold">📊 Saldo Geral</p>
+                    <p className="text-2xl font-black text-primary">{formatarMoeda(saldoAtual)}</p>
+                  </div>
+                  <div className="text-right text-xs space-y-0.5">
+                    <p className="text-emerald-500 font-semibold">Entradas: {formatarMoeda(totalEntradas)}</p>
+                    <p className="text-red-500 font-semibold">Saídas: {formatarMoeda(totalSaidas)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+          /* Resumo padrão (caixa único) */
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { label: "Valor de abertura", valor: caixa.valor_abertura, cor: "text-foreground" },
@@ -259,25 +687,28 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
               </Card>
             ))}
           </div>
+          )}
 
           {/* Ações rápidas */}
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => setModalMovimentacao("suprimento")} className="gap-2">
+            <Button variant="outline" onClick={() => executarComPin("caixa_suprimento", () => setModalMovimentacao("suprimento"))} className="gap-2">
               <ArrowDownCircle className="w-4 h-4 text-emerald-500" />
               Suprimento
             </Button>
-            <Button variant="outline" onClick={() => setModalMovimentacao("sangria")} className="gap-2">
+            <Button variant="outline" onClick={() => executarComPin("caixa_sangria", () => setModalMovimentacao("sangria"))} className="gap-2">
               <ArrowUpCircle className="w-4 h-4 text-orange-500" />
               Sangria
             </Button>
-            <Button variant="outline" onClick={() => setModalMovimentacao("despesa")} className="gap-2">
+            <Button variant="outline" onClick={() => executarComPin("caixa_despesa", () => setModalMovimentacao("despesa"))} className="gap-2">
               <Minus className="w-4 h-4 text-red-500" />
               Despesa
             </Button>
-            <Button variant="destructive" onClick={() => setModalFecharCaixa(true)} className="ml-auto gap-2">
-              <X className="w-4 h-4" />
-              Fechar Caixa
-            </Button>
+            {plano !== "gestao" && (
+              <Button variant="destructive" onClick={() => executarComPin("caixa_fechar", () => setModalFecharCaixa(true))} className="ml-auto gap-2">
+                <X className="w-4 h-4" />
+                Fechar Caixa
+              </Button>
+            )}
           </div>
 
           {/* Lista de movimentações */}
@@ -297,15 +728,28 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
                           <TrendingDown className="w-4 h-4 text-red-500" />
                         )}
                         <div>
-                          <p className="text-sm font-medium">{mov.descricao}</p>
+                          <p className="text-sm font-medium">{mov.descricao.replace(/\s*\[.*?\]\s*$/, "")}</p>
                           <p className="text-xs text-muted-foreground">
                             {format(new Date(mov.created_at), "HH:mm")} • {mov.categoria}
+                            {mov.descricao.match(/\[(.*?)\]/) && <span className="ml-1 text-primary">• {mov.descricao.match(/\[(.*?)\]/)?.[1]?.replace("_", " ")}</span>}
                           </p>
                         </div>
                       </div>
-                      <span className={`font-semibold ${mov.tipo === "entrada" ? "text-emerald-500" : "text-red-500"}`}>
-                        {mov.tipo === "entrada" ? "+" : "-"}{formatarMoeda(mov.valor)}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`font-semibold ${mov.tipo === "entrada" ? "text-emerald-500" : "text-red-500"}`}>
+                          {mov.tipo === "entrada" ? "+" : "-"}{formatarMoeda(mov.valor)}
+                        </span>
+                        {plano === "gestao" && (
+                          <div className="flex items-center gap-0.5 ml-2">
+                            <button onClick={() => iniciarEdicaoMov(mov)} className="p-1 rounded hover:bg-muted" title="Editar">
+                              <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
+                            </button>
+                            <button onClick={() => excluirMovimentacao(mov.id)} className="p-1 rounded hover:bg-red-50" title="Excluir">
+                              <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -323,13 +767,21 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
         {/* ── ABA CAIXAS ANTERIORES ── */}
         {temCaixasAnteriores && (
           <TabsContent value="anteriores" className="mt-4">
-            <CaixasAnterioresTab
-              caixas={caixasAnteriores}
-              busca={buscaAnt}
-              setBusca={setBuscaAnt}
-              onVerDetalhe={verDetalheCaixa}
-              loadingDetalhe={loadingDetalhe}
-            />
+            <PinProtected
+              empresaId={empresaId}
+              pinConfigurado={!!pinGerente}
+              areasProtegidas={restricoesAcesso?.areas_protegidas || []}
+              restricaoId="caixa_ver_anteriores"
+              nomeRestricao="Caixas Anteriores"
+            >
+              <CaixasAnterioresTab
+                caixas={caixasAnteriores}
+                busca={buscaAnt}
+                setBusca={setBuscaAnt}
+                onVerDetalhe={verDetalheCaixa}
+                loadingDetalhe={loadingDetalhe}
+              />
+            </PinProtected>
           </TabsContent>
         )}
       </Tabs>
@@ -439,14 +891,70 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
           </DialogHeader>
           <form onSubmit={formAbrirCaixa.handleSubmit(abrirCaixa)} className="space-y-4">
             <div className="space-y-2">
+              <Label>Tipo de caixa</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {(["diario", "semanal", "mensal"] as const).map((tipo) => {
+                  const labels = { diario: "Diário", semanal: "Semanal", mensal: "Mensal" }
+                  const selected = formAbrirCaixa.watch("tipo_caixa") === tipo
+                  return (
+                    <button
+                      key={tipo}
+                      type="button"
+                      onClick={() => formAbrirCaixa.setValue("tipo_caixa", tipo)}
+                      className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all ${
+                        selected
+                          ? "border-[#F26E1D] bg-[#F26E1D]/10 text-[#F26E1D]"
+                          : "border-border text-muted-foreground hover:border-primary/50"
+                      }`}
+                    >
+                      {labels[tipo]}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Nome do caixa (opcional)</Label>
+              <Input
+                placeholder="Ex: Julho 2026, Semana 1..."
+                {...formAbrirCaixa.register("nome_caixa")}
+              />
+              <p className="text-[10px] text-muted-foreground">Deixe em branco para usar o nome automático</p>
+            </div>
+            {plano === "gestao" && (
+              <div className="space-y-2">
+                <Label>Tipo de conta</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["especie", "banco"] as const).map((tc) => {
+                    const labels = { especie: "💵 Dinheiro", banco: "🏦 Banco" }
+                    const selected = formAbrirCaixa.watch("tipo_conta") === tc
+                    return (
+                      <button
+                        key={tc}
+                        type="button"
+                        onClick={() => formAbrirCaixa.setValue("tipo_conta", tc)}
+                        className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all ${
+                          selected
+                            ? "border-[#F26E1D] bg-[#F26E1D]/10 text-[#F26E1D]"
+                            : "border-border text-muted-foreground hover:border-primary/50"
+                        }`}
+                      >
+                        {labels[tc]}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+            <div className="space-y-2">
               <Label>Valor de abertura (R$)</Label>
               <Input
                 type="number"
                 step="0.01"
-                min="0"
                 placeholder="0,00"
                 {...formAbrirCaixa.register("valor_abertura")}
               />
+              <p className="text-[10px] text-muted-foreground">Pode ser negativo para iniciar com saldo devedor</p>
             </div>
             <div className="space-y-2">
               <Label>Observações (opcional)</Label>
@@ -521,12 +1029,77 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
         <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>
-              {modalMovimentacao === "sangria" ? "Registrar Sangria"
+              {editandoMov ? "Editar Movimentação" :
+                modalMovimentacao === "sangria" ? "Registrar Sangria"
                 : modalMovimentacao === "suprimento" ? "Registrar Suprimento"
                 : "Registrar Despesa"}
             </DialogTitle>
           </DialogHeader>
-          <form onSubmit={formMovimentacao.handleSubmit(registrarMovimentacao)} className="space-y-4">
+          <form onSubmit={formMovimentacao.handleSubmit(editandoMov ? salvarEdicaoMov : registrarMovimentacao)} className="space-y-4">
+            {/* Seletor de caixa — plano gestão com múltiplos caixas */}
+            {plano === "gestao" && caixasAbertos.length > 1 && (
+              <div className="space-y-2">
+                <Label>Em qual caixa?</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {caixasAbertos.map((cx) => {
+                    const label = (cx as any).tipo_conta === "banco" ? "🏦 Banco" : "💵 Dinheiro"
+                    const nome = (cx as any).nome_caixa ? ` — ${(cx as any).nome_caixa}` : ""
+                    const selected = caixaIdMovimentacao === cx.id
+                    return (
+                      <button
+                        key={cx.id}
+                        type="button"
+                        onClick={() => setCaixaIdMovimentacao(cx.id)}
+                        className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all ${
+                          selected
+                            ? "border-[#F26E1D] bg-[#F26E1D]/10 text-[#F26E1D]"
+                            : "border-border text-muted-foreground hover:border-primary/50"
+                        }`}
+                      >
+                        {label}{nome}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+            {/* Forma de pagamento — quando Banco é selecionado */}
+            {plano === "gestao" && (() => {
+              // Determinar se o caixa alvo é banco
+              if (caixasAbertos.length > 1 && caixaIdMovimentacao) {
+                const caixaSel = caixasAbertos.find((c) => c.id === caixaIdMovimentacao)
+                return (caixaSel as any)?.tipo_conta === "banco"
+              }
+              if (caixasAbertos.length === 1) {
+                return (caixasAbertos[0] as any)?.tipo_conta === "banco"
+              }
+              return false
+            })() && (
+              <div className="space-y-2">
+                <Label>Forma de pagamento</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: "pix", label: "Pix" },
+                    { id: "cartao_credito", label: "Cartão Crédito" },
+                    { id: "cartao_debito", label: "Cartão Débito" },
+                    { id: "transferencia", label: "Transferência" },
+                  ].map((fp) => (
+                    <button
+                      key={fp.id}
+                      type="button"
+                      onClick={() => setFormaPagMovimentacao(fp.id)}
+                      className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
+                        formaPagMovimentacao === fp.id
+                          ? "border-[#F26E1D] bg-[#F26E1D]/10 text-[#F26E1D]"
+                          : "border-border text-muted-foreground hover:border-primary/50"
+                      }`}
+                    >
+                      {fp.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Valor (R$)</Label>
               <Input
@@ -542,15 +1115,43 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
               <Label>Descrição</Label>
               <Input placeholder="Ex: Pagamento fornecedor" required {...formMovimentacao.register("descricao")} />
             </div>
+            {/* Data retroativa — apenas plano gestão */}
+            {plano === "gestao" && (
+              <div className="space-y-2">
+                <Label>Data da movimentação</Label>
+                <Input
+                  type="date"
+                  max={new Date().toISOString().slice(0, 10)}
+                  {...formMovimentacao.register("data")}
+                />
+                <p className="text-[10px] text-muted-foreground">Deixe vazio para usar a data de hoje.</p>
+              </div>
+            )}
             <DialogFooter>
-              <Button variant="outline" type="button" onClick={() => setModalMovimentacao(null)}>Cancelar</Button>
+              <Button variant="outline" type="button" onClick={() => { setModalMovimentacao(null); setEditandoMov(null); setFormaPagMovimentacao("") }}>Cancelar</Button>
               <Button type="submit" disabled={loading}>
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Registrar"}
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : editandoMov ? "Salvar" : "Registrar"}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* PIN Modal para ações protegidas do caixa */}
+      <PinModal
+        aberto={pinModalCaixa}
+        onClose={() => { setPinModalCaixa(false); setPinAcaoPendente(null) }}
+        onSuccess={() => {
+          setPinModalCaixa(false)
+          if (pinAcaoPendente) {
+            pinAcaoPendente()
+            setPinAcaoPendente(null)
+          }
+        }}
+        empresaId={empresaId}
+        titulo="Ação Restrita"
+        descricao="Digite o PIN de gerente para executar esta ação"
+      />
     </div>
   )
 }
@@ -577,7 +1178,10 @@ function CaixasAnterioresTab({
     const dataFc = cx.data_fechamento
       ? format(new Date(cx.data_fechamento), "dd/MM/yyyy", { locale: ptBR })
       : ""
-    return dataAb.includes(t) || dataFc.includes(t)
+    const nome = ((cx as any).nome_caixa ?? "").toLowerCase()
+    const tipo = ((cx as any).tipo_caixa ?? "").toLowerCase()
+    const tipoConta = ((cx as any).tipo_conta ?? "").toLowerCase()
+    return dataAb.includes(t) || dataFc.includes(t) || nome.includes(t) || tipo.includes(t) || tipoConta.includes(t)
   })
 
   if (caixas.length === 0) {
@@ -594,7 +1198,7 @@ function CaixasAnterioresTab({
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
-          placeholder="Buscar por data..."
+          placeholder="Buscar por nome, data ou tipo..."
           className="pl-9"
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
@@ -604,49 +1208,47 @@ function CaixasAnterioresTab({
       {filtrados.length === 0 ? (
         <p className="text-center text-muted-foreground text-sm py-8">Nenhum resultado para a busca</p>
       ) : (
-        <div className="border border-border rounded-xl overflow-hidden">
-          <div className="grid grid-cols-5 gap-2 px-4 py-2 bg-muted text-xs font-medium text-muted-foreground">
-            <span>Abertura</span>
-            <span>Fechamento</span>
-            <span className="text-right">Abertura (R$)</span>
-            <span className="text-right">Fechamento (R$)</span>
-            <span className="text-right">Ações</span>
-          </div>
+        <div className="space-y-2">
           {filtrados.map((cx) => {
             const diferenca = cx.diferenca ?? 0
+            const nomeCaixa = (cx as any).nome_caixa
+            const tipoConta = (cx as any).tipo_conta
             return (
-              <div key={cx.id} className="grid grid-cols-5 gap-2 px-4 py-3 border-t border-border text-sm items-center">
-                <span className="text-xs">
-                  {format(new Date(cx.data_abertura), "dd/MM/yyyy HH:mm", { locale: ptBR })}
-                </span>
-                <span className="text-xs">
-                  {cx.data_fechamento
-                    ? format(new Date(cx.data_fechamento), "dd/MM/yyyy HH:mm", { locale: ptBR })
-                    : "—"}
-                </span>
-                <span className="text-right text-xs">{formatarMoeda(cx.valor_abertura)}</span>
-                <div className="text-right">
-                  <span className="text-xs font-semibold">
-                    {cx.valor_fechamento != null ? formatarMoeda(cx.valor_fechamento) : "—"}
-                  </span>
-                  {cx.diferenca != null && (
-                    <p className={`text-[10px] font-bold ${diferenca >= 0 ? "text-emerald-500" : "text-red-500"}`}>
-                      {diferenca >= 0 ? "+" : ""}{formatarMoeda(diferenca)}
-                    </p>
-                  )}
-                </div>
-                <div className="flex justify-end">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-xs h-7 px-3"
-                    onClick={() => onVerDetalhe(cx)}
-                    disabled={loadingDetalhe}
-                  >
-                    {loadingDetalhe ? <Loader2 className="w-3 h-3 animate-spin" /> : "Ver detalhes"}
-                  </Button>
-                </div>
-              </div>
+              <Card key={cx.id} className="hover:border-primary/30 transition-colors">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                        <span className="text-sm">{tipoConta === "banco" ? "🏦" : "💵"}</span>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold truncate">
+                          {nomeCaixa ?? format(new Date(cx.data_abertura), "dd/MM/yyyy")}
+                        </p>
+                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
+                          <span>{format(new Date(cx.data_abertura), "dd/MM HH:mm")}</span>
+                          <span>→</span>
+                          <span>{cx.data_fechamento ? format(new Date(cx.data_fechamento), "dd/MM HH:mm") : "—"}</span>
+                          {tipoConta && <Badge variant="outline" className="text-[9px] px-1 py-0">{tipoConta === "banco" ? "Banco" : "Espécie"}</Badge>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="text-right">
+                        <p className="text-sm font-bold">{cx.valor_fechamento != null ? formatarMoeda(cx.valor_fechamento) : "—"}</p>
+                        {cx.diferenca != null && (
+                          <p className={`text-[10px] font-bold ${diferenca >= 0 ? "text-emerald-500" : "text-red-500"}`}>
+                            {diferenca >= 0 ? "+" : ""}{formatarMoeda(diferenca)}
+                          </p>
+                        )}
+                      </div>
+                      <Button variant="outline" size="sm" className="text-xs h-8" onClick={() => onVerDetalhe(cx)} disabled={loadingDetalhe}>
+                        Ver detalhes
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             )
           })}
         </div>

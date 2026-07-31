@@ -157,8 +157,9 @@ export async function POST(req: NextRequest) {
     const { mensagem, conversa_id, acao } = body
 
     // Buscar empresa com plano
-    const { data: empresa } = await supabase
-      .from("empresas").select("id, nome, plano").eq("user_id", user.id).single()
+    const { data: empresas } = await supabase
+      .from("empresas").select("id, nome, plano").eq("user_id", user.id).order("created_at", { ascending: true })
+    const empresa = empresas?.[0] ?? null
     if (!empresa) return NextResponse.json({ erro: "Empresa não encontrada" }, { status: 404 })
 
     const nomeUsuario = user.user_metadata?.nome_completo

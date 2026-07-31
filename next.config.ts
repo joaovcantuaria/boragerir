@@ -1,5 +1,6 @@
 import type { NextConfig } from "next"
 
+// redesign-v2 build — força invalidação de cache
 const nextConfig: NextConfig = {
   typescript: { ignoreBuildErrors: true },
   experimental: {

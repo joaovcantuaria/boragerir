@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
@@ -24,6 +25,11 @@ import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { formatarMoeda, labelsFormaPagamento, coresStatus, labelsStatus } from "@/lib/utils"
+import { RelatoriosGestaoTab } from "@/components/financeiro/relatorios-gestao"
+import { CoraCobrancasTab } from "@/components/cora/cora-cobrancas-tab"
+import { GerarBoletoModal } from "@/components/financeiro/gerar-boleto-modal"
+import { PinProtected } from "@/components/ui/pin-protected"
+import { PinModal } from "@/components/ui/pin-modal"
 
 const CORES = ["#10B981", "#3B82F6", "#F59E0B", "#8B5CF6", "#EF4444"]
 
@@ -65,7 +71,7 @@ const CATEGORIAS_CONTA = [
   { value: "outros", label: "Outros", emoji: "📋" },
 ]
 
-export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, movimentacoes, funcionarios, debitos, saldoCaixa = 0, caixaAberto = false, contasPagar: contasPagarIniciais = [], agendamentosFuturos = [] }: {
+export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, movimentacoes: movimentacoesIniciais, funcionarios, debitos, saldoCaixa = 0, caixaAberto = false, contasPagar: contasPagarIniciais = [], agendamentosFuturos = [], pinGerente, restricoesAcesso }: {
   empresaId: string; plano: string
   vendas: Venda[]
   movimentacoes: { id: string; tipo: string; categoria: string; descricao: string; valor: number; created_at: string }[]
@@ -75,28 +81,336 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   caixaAberto?: boolean
   contasPagar?: ContaPagar[]
   agendamentosFuturos?: { id: string; data_hora: string; status: string; produtos_servicos?: { preco: number; nome: string } | null }[]
+  pinGerente?: string | null
+  restricoesAcesso?: { areas_protegidas?: string[]; limite_desconto_sem_pin?: number } | null
 }) {
   const [vendas, setVendas] = useState(vendasIniciais)
+  const vendasOrigRef = useRef(vendasIniciais)
+  const [movimentacoes, setMovimentacoes] = useState(movimentacoesIniciais)
   const [contasPagar, setContasPagar] = useState<ContaPagar[]>(contasPagarIniciais)
   const [busca, setBusca] = useState("")
+  const [filtroVendas, setFiltroVendas] = useState<"todas" | "concluidas" | "canceladas" | "colaborador">("todas")
   const [modalEditar, setModalEditar] = useState<Venda | null>(null)
   const [editFormaPagamento, setEditFormaPagamento] = useState("")
   const [editDesconto, setEditDesconto] = useState("")
   const [editObservacoes, setEditObservacoes] = useState("")
   const [loadingEdit, setLoadingEdit] = useState(false)
   const [loadingCancel, setLoadingCancel] = useState<string | null>(null)
+  const [mesSelecionado, setMesSelecionado] = useState(format(new Date(), "yyyy-MM"))
+  // Valores a receber manual (plano gestão)
+  const [valoresReceber, setValoresReceber] = useState<{ id: string; devedor: string; valor: number; data_vencimento: string; observacoes: string | null; status: string }[]>([])
+  const [modalNovoReceber, setModalNovoReceber] = useState(false)
+  const [editandoReceberId, setEditandoReceberId] = useState<string | null>(null)
+  const [formReceber, setFormReceber] = useState({ devedor: "", valor: "", data_vencimento: "", observacoes: "" })
+  const [buscaReceber, setBuscaReceber] = useState("")
+  const [ordenacaoReceber, setOrdenacaoReceber] = useState<"vencimento" | "alfabetica">("vencimento")
+  const [clientesLista, setClientesLista] = useState<{ id: string; nome_completo: string }[]>([])
+  const [clienteSelecionado, setClienteSelecionado] = useState("")
+  const [loadingReceber, setLoadingReceber] = useState(false)
+  // Baixa modal — pergunta de qual caixa
+  const [modalBaixa, setModalBaixa] = useState<{ tipo: "receber" | "pagar"; id: string; valor: number; descricao: string } | null>(null)
+  const [baixaCaixaTipo, setBaixaCaixaTipo] = useState<"especie" | "banco">("especie")
+  const [baixaFormaPag, setBaixaFormaPag] = useState<string>("")
+  const [baixaDataRetroativa, setBaixaDataRetroativa] = useState<string>("")
   const supabase = createClient()
+  const router = useRouter()
+  const isGestao = plano === "gestao"
+
+  // ── PIN Protection ──
+  const [pinModalOpen, setPinModalOpen] = useState(false)
+  const [pinAcaoPendente, setPinAcaoPendente] = useState<(() => void) | null>(null)
+  const areasProtegidas = restricoesAcesso?.areas_protegidas || []
+  const pinConf = !!pinGerente
+
+  // ── Cora Cobranças: verificar se empresa tem conta ativa ──
+  const [coraAtiva, setCoraAtiva] = useState(false)
+  useEffect(() => {
+    if (plano !== "profissional") return
+    async function checkCora() {
+      const { data } = await supabase
+        .from("cora_contas")
+        .select("id, status")
+        .eq("empresa_id", empresaId)
+        .eq("status", "ativo")
+        .maybeSingle()
+      if (data) setCoraAtiva(true)
+    }
+    checkCora()
+  }, [empresaId, plano])
+
+  // ── Cora: conta ativa para Valores a Receber (botão Gerar Boleto) ──
+  const [coraAtivaFinanceiro, setCoraAtivaFinanceiro] = useState(false)
+  const [modalGerarBoleto, setModalGerarBoleto] = useState<{
+    valorReceberId: string
+    valor: number
+    descricao: string
+    dataVencimento: string
+    clienteNome?: string
+  } | null>(null)
+  useEffect(() => {
+    if (plano !== "profissional") return
+    supabase
+      .from("cora_contas")
+      .select("id, status")
+      .eq("empresa_id", empresaId)
+      .eq("status", "ativo")
+      .maybeSingle()
+      .then(({ data }) => { if (data) setCoraAtivaFinanceiro(true) })
+  }, [empresaId, plano])
+
+  function executarComPin(restricaoId: string, acao: () => void) {
+    if (pinConf && areasProtegidas.includes(restricaoId)) {
+      const chave = `pin_acao_${empresaId}_${restricaoId}`
+      if (sessionStorage.getItem(chave) === "true") { acao(); return }
+      setPinAcaoPendente(() => () => { sessionStorage.setItem(chave, "true"); acao() })
+      setPinModalOpen(true)
+    } else { acao() }
+  }
+
+  // Carregar valores a receber na montagem
+  useEffect(() => {
+    supabase
+      .from("valores_receber")
+      .select("*")
+      .eq("empresa_id", empresaId)
+      .order("data_vencimento", { ascending: true })
+      .then(({ data }) => setValoresReceber(data ?? []))
+    // Carregar lista de clientes para o modal de A Receber
+    supabase
+      .from("clientes")
+      .select("id, nome_completo")
+      .eq("empresa_id", empresaId)
+      .eq("ativo", true)
+      .order("nome_completo")
+      .then(({ data }) => setClientesLista(data ?? []))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function cancelarVenda(venda: Venda) {
     if (!confirm(`Cancelar a venda #${String(venda.numero_venda).padStart(4,"0")} de ${formatarMoeda(venda.total)}?`)) return
     setLoadingCancel(venda.id)
+
+    // 1. Marcar venda como cancelada
     const { error } = await supabase.from("vendas").update({ status: "cancelada" }).eq("id", venda.id)
     if (error) { toast.error("Erro ao cancelar venda."); setLoadingCancel(null); return }
-    // Reverter movimentação de caixa
-    await supabase.from("movimentacoes_caixa").delete().eq("venda_id", venda.id)
+
+    // 2. Buscar a movimentação original para saber o caixa_id e valor
+    const { data: movOriginal } = await supabase
+      .from("movimentacoes_caixa")
+      .select("id, caixa_id, valor, empresa_id")
+      .eq("venda_id", venda.id)
+      .maybeSingle()
+
+    if (movOriginal) {
+      // 3. Deletar a movimentação original de entrada (o dinheiro nunca entrou de fato pois a venda foi cancelada)
+      await supabase.from("movimentacoes_caixa").delete().eq("id", movOriginal.id)
+    }
+
+    // 5. Cancelar débitos associados a esta venda
+    await supabase.from("debitos_clientes").delete().eq("venda_id", venda.id)
+
+    // 6. Atualizar estado local
     setVendas((prev) => prev.map((v) => v.id === venda.id ? { ...v, status: "cancelada" } : v))
-    toast.success(`Venda #${String(venda.numero_venda).padStart(4,"0")} cancelada.`)
+    toast.success(`Venda #${String(venda.numero_venda).padStart(4,"0")} cancelada, estornada e débitos removidos.`)
     setLoadingCancel(null)
+
+    // 7. Forçar refresh
+    router.refresh()
+  }
+
+  // ── Valores a receber (manual — plano gestão) ──
+  async function adicionarValorReceber() {
+    const { devedor, valor, data_vencimento, observacoes } = formReceber
+    if (!devedor.trim() || !valor || !data_vencimento) {
+      toast.error("Preencha devedor, valor e data de vencimento.")
+      return
+    }
+    setLoadingReceber(true)
+    const { data, error } = await supabase.from("valores_receber").insert({
+      empresa_id: empresaId,
+      devedor: devedor.trim(),
+      valor: parseFloat(valor),
+      data_vencimento,
+      observacoes: observacoes.trim() || null,
+      status: "pendente",
+    }).select().single()
+
+    if (error) { toast.error("Erro ao adicionar."); setLoadingReceber(false); return }
+
+    // Se vinculou a um cliente, criar débito
+    if (clienteSelecionado) {
+      await supabase.from("debitos_clientes").insert({
+        empresa_id: empresaId,
+        cliente_id: clienteSelecionado,
+        valor_total: parseFloat(valor),
+        valor_pago: 0,
+        valor_aberto: parseFloat(valor),
+        status: "aberto",
+        descricao: observacoes.trim() || devedor.trim(),
+      })
+    }
+
+    setValoresReceber((prev) => [...prev, data])
+    setFormReceber({ devedor: "", valor: "", data_vencimento: "", observacoes: "" })
+    setClienteSelecionado("")
+    setModalNovoReceber(false)
+    setLoadingReceber(false)
+    toast.success("Valor a receber adicionado!")
+  }
+
+  async function marcarRecebido(id: string) {
+    const item = valoresReceber.find((v) => v.id === id)
+    if (!item) return
+    if (isGestao) {
+      // Abrir modal para selecionar caixa destino
+      setModalBaixa({ tipo: "receber", id, valor: item.valor, descricao: `Recebimento: ${item.devedor}` })
+    } else {
+      // Planos não-gestão: registrar no caixa automaticamente (primeiro caixa aberto)
+      const { data: caixaAberto } = await supabase
+        .from("caixas")
+        .select("id")
+        .eq("empresa_id", empresaId)
+        .eq("status", "aberto")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle()
+
+      await supabase.from("valores_receber").update({ status: "recebido" }).eq("id", id)
+
+      if (caixaAberto) {
+        await supabase.from("movimentacoes_caixa").insert({
+          empresa_id: empresaId,
+          caixa_id: caixaAberto.id,
+          tipo: "entrada",
+          categoria: "suprimento",
+          descricao: `Recebimento: ${item.devedor}`,
+          valor: item.valor,
+        })
+      }
+
+      setValoresReceber((prev) => prev.map((v) => v.id === id ? { ...v, status: "recebido" } : v))
+      toast.success(caixaAberto ? "Recebido e registrado no caixa!" : "Marcado como recebido! (Abra o caixa para registrar a movimentação)")
+    }
+  }
+
+  async function confirmarBaixa() {
+    if (!modalBaixa) return
+    setLoadingReceber(true)
+
+    // Buscar caixa aberto do tipo selecionado
+    const { data: caixaAlvo } = await supabase
+      .from("caixas")
+      .select("id")
+      .eq("empresa_id", empresaId)
+      .eq("status", "aberto")
+      .order("created_at", { ascending: true })
+
+    // Filtrar pelo tipo_conta
+    let caixaId: string | null = null
+    if (caixaAlvo && caixaAlvo.length > 0) {
+      // Buscar o caixa certo por tipo_conta
+      const { data: caixasComTipo } = await supabase
+        .from("caixas")
+        .select("id, tipo_conta")
+        .eq("empresa_id", empresaId)
+        .eq("status", "aberto")
+
+      const caixaFiltrado = (caixasComTipo ?? []).find((c: any) => {
+        if (baixaCaixaTipo === "banco") return c.tipo_conta === "banco"
+        return c.tipo_conta !== "banco"
+      })
+      caixaId = caixaFiltrado?.id ?? caixaAlvo[0]?.id ?? null
+    }
+
+    if (!caixaId) {
+      toast.error("Nenhum caixa aberto. Abra o caixa primeiro.")
+      setLoadingReceber(false)
+      return
+    }
+
+    const descComPag = baixaCaixaTipo === "banco" && baixaFormaPag
+      ? `${modalBaixa.descricao} [${baixaFormaPag}]`
+      : baixaCaixaTipo === "especie"
+        ? `${modalBaixa.descricao} [dinheiro]`
+        : modalBaixa.descricao
+
+    if (modalBaixa.tipo === "receber") {
+      // Marcar como recebido + registrar entrada no caixa
+      await supabase.from("valores_receber").update({ status: "recebido" }).eq("id", modalBaixa.id)
+      const insertData: any = {
+        empresa_id: empresaId,
+        caixa_id: caixaId,
+        tipo: "entrada",
+        categoria: "suprimento",
+        descricao: descComPag,
+        valor: modalBaixa.valor,
+      }
+      if (baixaDataRetroativa) insertData.created_at = new Date(baixaDataRetroativa + "T12:00:00").toISOString()
+      await supabase.from("movimentacoes_caixa").insert(insertData)
+      setValoresReceber((prev) => prev.map((v) => v.id === modalBaixa.id ? { ...v, status: "recebido" } : v))
+      toast.success("Recebimento registrado no caixa!")
+    } else {
+      // Conta a pagar — registrar saída no caixa + marcar como paga
+      const insertData: any = {
+        empresa_id: empresaId,
+        caixa_id: caixaId,
+        tipo: "saida",
+        categoria: "despesa",
+        descricao: descComPag,
+        valor: modalBaixa.valor,
+      }
+      if (baixaDataRetroativa) insertData.created_at = new Date(baixaDataRetroativa + "T12:00:00").toISOString()
+      await supabase.from("movimentacoes_caixa").insert(insertData)
+      // Marcar a conta como paga na API (skipMovimentacao pois já inseriu acima)
+      await fetch("/api/financeiro/contas-pagar", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ _acao: "pagar", id: modalBaixa.id, skipMovimentacao: true }),
+      })
+      setContasPagar((prev) => prev.map((c) => c.id === modalBaixa.id ? { ...c, status: "pago", data_pagamento: new Date().toISOString() } : c))
+      toast.success("Pagamento registrado no caixa!")
+    }
+
+    setModalBaixa(null)
+    setBaixaFormaPag("")
+    setBaixaDataRetroativa("")
+    setLoadingReceber(false)
+  }
+
+  function editarValorReceber(v: { id: string; devedor: string; valor: number; data_vencimento: string; observacoes: string | null }) {
+    setFormReceber({ devedor: v.devedor, valor: String(v.valor), data_vencimento: v.data_vencimento, observacoes: v.observacoes ?? "" })
+    setEditandoReceberId(v.id)
+    setModalNovoReceber(true)
+  }
+
+  async function salvarEdicaoReceber() {
+    if (!editandoReceberId) return
+    const { devedor, valor, data_vencimento, observacoes } = formReceber
+    if (!devedor.trim() || !valor || !data_vencimento) {
+      toast.error("Preencha devedor, valor e data.")
+      return
+    }
+    setLoadingReceber(true)
+    await supabase.from("valores_receber").update({
+      devedor: devedor.trim(),
+      valor: parseFloat(valor),
+      data_vencimento,
+      observacoes: observacoes.trim() || null,
+    }).eq("id", editandoReceberId)
+    setValoresReceber((prev) => prev.map((v) => v.id === editandoReceberId
+      ? { ...v, devedor: devedor.trim(), valor: parseFloat(valor), data_vencimento, observacoes: observacoes.trim() || null }
+      : v))
+    setFormReceber({ devedor: "", valor: "", data_vencimento: "", observacoes: "" })
+    setEditandoReceberId(null)
+    setModalNovoReceber(false)
+    setLoadingReceber(false)
+    toast.success("Atualizado!")
+  }
+
+  async function excluirValorReceber(id: string) {
+    if (!confirm("Excluir este valor a receber?")) return
+    await supabase.from("valores_receber").delete().eq("id", id)
+    setValoresReceber((prev) => prev.filter((v) => v.id !== id))
+    toast.success("Removido!")
   }
 
   function abrirEditar(venda: Venda) {
@@ -128,13 +442,28 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   }
 
   const vendasConcluidas = vendas.filter((v) => v.status === "concluida")
-  // Apenas o que efetivamente entrou no caixa (descontar débitos em aberto)
-  const totalRecebido = movimentacoes.filter((m) => m.tipo === "entrada" && m.categoria === "venda").reduce((s, m) => s + m.valor, 0)
+  // Recebido = soma das vendas concluídas do mês (valor efetivamente vendido, não movimentações que incluem suprimentos)
+  const totalRecebido = vendasConcluidas.reduce((s, v) => s + v.total, 0)
   const totalAReceber = debitos.reduce((s, d) => s + d.valor_aberto, 0)
-  const totalReceitas = totalRecebido // apenas o que entrou
-  const totalDespesas = movimentacoes.filter((m) => m.tipo === "saida" && m.categoria === "despesa").reduce((s, m) => s + m.valor, 0)
+
+  // Para plano gestão: calcular com base nas movimentações e valores_receber
+  const totalReceitasGestao = movimentacoes.filter((m) => m.tipo === "entrada").reduce((s, m) => s + m.valor, 0)
+  const totalDespesasGestao = movimentacoes.filter((m) => m.tipo === "saida").reduce((s, m) => s + m.valor, 0)
+  const totalAReceberGestao = valoresReceber.filter((v) => v.status === "pendente").reduce((s, v) => s + v.valor, 0)
+
+  const totalReceitas = isGestao ? totalReceitasGestao : totalRecebido
+  const totalDespesas = isGestao
+    ? totalDespesasGestao
+    : movimentacoes.filter((m) => m.tipo === "saida" && m.categoria === "despesa").reduce((s, m) => s + m.valor, 0)
   const lucroLiquido = totalReceitas - totalDespesas
-  const ticketMedio = vendasConcluidas.length > 0 ? totalReceitas / vendasConcluidas.length : 0
+  const ticketMedio = isGestao ? 0 : (vendasConcluidas.length > 0 ? totalRecebido / vendasConcluidas.length : 0)
+
+  // Saldo em caixa atualizado
+  const vendasCanceladasNovamente = vendas.filter((v) => v.status === "cancelada").reduce((s, v) => s + v.total, 0)
+  const vendasJaCanceladasOriginal = vendasOrigRef.current.filter((v) => v.status === "cancelada").reduce((s, v) => s + v.total, 0)
+  const saldoCaixaLocal = isGestao
+    ? saldoCaixa
+    : saldoCaixa - (vendasCanceladasNovamente - vendasJaCanceladasOriginal)
 
   // Faturamento por dia (mês atual)
   const faturamentoDia: Record<string, number> = {}
@@ -156,6 +485,10 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   const dadosPagamento = Object.entries(porPagamento).map(([name, value]) => ({ name, value }))
 
   const vendasFiltradas = vendas.filter((v) => {
+    // Filtro de status
+    if (filtroVendas === "concluidas" && v.status !== "concluida") return false
+    if (filtroVendas === "canceladas" && v.status !== "cancelada") return false
+    // Filtro de busca
     const t = busca.toLowerCase()
     return (
       String(v.numero_venda).includes(t) ||
@@ -166,20 +499,32 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Financeiro</h1>
-        <p className="text-muted-foreground">Resumo do mês de {format(new Date(), "MMMM yyyy", { locale: ptBR })}</p>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-lg font-semibold text-foreground">Financeiro</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">Resumo do mês de {format(new Date(), "MMMM yyyy", { locale: ptBR })}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Label className="text-xs text-muted-foreground whitespace-nowrap">Mês:</Label>
+          <Input
+            type="month"
+            value={mesSelecionado}
+            onChange={(e) => setMesSelecionado(e.target.value)}
+            className="h-9 w-40 text-sm"
+          />
+        </div>
       </div>
 
       {/* Cards */}
+      <PinProtected empresaId={empresaId} pinConfigurado={pinConf} areasProtegidas={areasProtegidas} restricaoId="financeiro_ver_resumo" nomeRestricao="Resumo Financeiro">
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {[
-          { label: "Recebido", valor: totalReceitas, cor: "text-emerald-500", bg: "bg-emerald-500/10", Icon: TrendingUp },
-          { label: "A receber", valor: totalAReceber, cor: "text-amber-500", bg: "bg-amber-500/10", Icon: Clock },
-          { label: "Despesas", valor: totalDespesas, cor: "text-red-500", bg: "bg-red-500/10", Icon: TrendingDown },
+          { label: isGestao ? "Entradas" : "Recebido", valor: totalReceitas, cor: "text-emerald-500", bg: "bg-emerald-500/10", Icon: TrendingUp },
+          { label: "A receber", valor: isGestao ? totalAReceberGestao : totalAReceber, cor: "text-amber-500", bg: "bg-amber-500/10", Icon: Clock },
+          { label: isGestao ? "Saídas" : "Despesas", valor: totalDespesas, cor: "text-red-500", bg: "bg-red-500/10", Icon: TrendingDown },
           { label: "Lucro líquido", valor: lucroLiquido, cor: lucroLiquido >= 0 ? "text-primary" : "text-red-500", bg: "bg-primary/10", Icon: DollarSign },
-          { label: "Ticket médio", valor: ticketMedio, cor: "text-blue-500", bg: "bg-blue-500/10", Icon: BarChart3 },
-          { label: "Saldo em caixa", valor: saldoCaixa, cor: caixaAberto ? "text-violet-500" : "text-muted-foreground", bg: caixaAberto ? "bg-violet-500/10" : "bg-muted", Icon: Wallet },
+          ...(!isGestao ? [{ label: "Ticket médio", valor: ticketMedio, cor: "text-blue-500", bg: "bg-blue-500/10", Icon: BarChart3 }] : []),
+          { label: "Saldo em caixa", valor: saldoCaixaLocal, cor: saldoCaixaLocal >= 0 ? "text-violet-500" : "text-red-500", bg: "bg-violet-500/10", Icon: Wallet },
         ].map(({ label, valor, cor, bg, Icon }) => (
           <Card key={label}>
             <CardContent className="p-4 flex items-center gap-3">
@@ -194,31 +539,72 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
           </Card>
         ))}
       </div>
+      </PinProtected>
 
-      <Tabs defaultValue="faturamento">
-        <TabsList>
-          <TabsTrigger value="faturamento">Faturamento</TabsTrigger>
-          <TabsTrigger value="vendas">Vendas</TabsTrigger>
-          {plano !== "gratuito" && (
-            <TabsTrigger value="areceber" className="gap-2">
-              A Receber
-              {totalAReceber > 0 && <span className="bg-amber-500 text-white text-xs font-black px-1.5 py-0.5 rounded-full">{debitos.length}</span>}
-            </TabsTrigger>
-          )}
-          <TabsTrigger value="formas">Formas de pagamento</TabsTrigger>
-          <TabsTrigger value="contaspagar" className="gap-2">
-            Contas a Pagar
-            {contasPagar.filter((c) => c.status === "atrasado").length > 0 && (
-              <span className="bg-red-500 text-white text-xs font-black px-1.5 py-0.5 rounded-full">
-                {contasPagar.filter((c) => c.status === "atrasado").length}
-              </span>
+      <Tabs defaultValue={isGestao ? "areceber" : "faturamento"}>
+        {/* Mobile: grid 2 colunas. Desktop: scroll horizontal */}
+        <div className="block sm:hidden">
+          <TabsList className="w-full grid grid-cols-2 h-auto gap-1 p-1">
+            {!isGestao && <TabsTrigger value="faturamento" className="text-xs py-2">Faturamento</TabsTrigger>}
+            {!isGestao && <TabsTrigger value="vendas" className="text-xs py-2">Vendas</TabsTrigger>}
+            {plano !== "gratuito" && (
+              <TabsTrigger value="areceber" className="text-xs py-2 gap-1">
+                A Receber
+                {totalAReceber > 0 && <span className="bg-amber-500 text-white text-[10px] font-black px-1 py-0.5 rounded-full">{debitos.length}</span>}
+              </TabsTrigger>
             )}
-          </TabsTrigger>
-          <TabsTrigger value="fluxo">Fluxo de Caixa</TabsTrigger>
-          {plano !== "gratuito" && (
-            <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
-          )}
-        </TabsList>
+            {!isGestao && <TabsTrigger value="formas" className="text-xs py-2">Pagamentos</TabsTrigger>}
+            <TabsTrigger value="contaspagar" className="text-xs py-2 gap-1">
+              Contas
+              {contasPagar.filter((c) => c.status === "atrasado").length > 0 && (
+                <span className="bg-red-500 text-white text-[10px] font-black px-1 py-0.5 rounded-full">
+                  {contasPagar.filter((c) => c.status === "atrasado").length}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="fluxo" className="text-xs py-2">Fluxo</TabsTrigger>
+            {plano !== "gratuito" && (
+              <TabsTrigger value="relatorios" className="text-xs py-2">Relatórios</TabsTrigger>
+            )}
+            {coraAtiva && (
+              <TabsTrigger value="cobrancas" className="text-xs py-2 gap-1">
+                <Receipt className="w-3.5 h-3.5" /><span>Cobranças</span>
+              </TabsTrigger>
+            )}
+          </TabsList>
+        </div>
+
+        {/* Desktop: scroll horizontal */}
+        <div className="hidden sm:block overflow-x-auto">
+          <TabsList className="inline-flex min-w-max">
+            {!isGestao && <TabsTrigger value="faturamento">Faturamento</TabsTrigger>}
+            {!isGestao && <TabsTrigger value="vendas">Vendas</TabsTrigger>}
+            {plano !== "gratuito" && (
+              <TabsTrigger value="areceber" className="gap-2">
+                A Receber
+                {totalAReceber > 0 && <span className="bg-amber-500 text-white text-xs font-black px-1.5 py-0.5 rounded-full">{debitos.length}</span>}
+              </TabsTrigger>
+            )}
+            {!isGestao && <TabsTrigger value="formas">Formas de pagamento</TabsTrigger>}
+            <TabsTrigger value="contaspagar" className="gap-2">
+              Contas a Pagar
+              {contasPagar.filter((c) => c.status === "atrasado").length > 0 && (
+                <span className="bg-red-500 text-white text-xs font-black px-1.5 py-0.5 rounded-full">
+                  {contasPagar.filter((c) => c.status === "atrasado").length}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="fluxo">Fluxo de Caixa</TabsTrigger>
+            {plano !== "gratuito" && (
+              <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
+            )}
+            {coraAtiva && (
+              <TabsTrigger value="cobrancas" className="gap-1.5 text-xs font-semibold">
+                <Receipt className="w-3.5 h-3.5" /><span className="hidden sm:inline">Cobranças</span>
+              </TabsTrigger>
+            )}
+          </TabsList>
+        </div>
 
         <TabsContent value="faturamento" className="mt-4">
           <Card>
@@ -241,68 +627,247 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
         </TabsContent>
 
         <TabsContent value="vendas" className="mt-4 space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Buscar por nº, cliente ou pagamento..." className="pl-9" value={busca} onChange={(e) => setBusca(e.target.value)} />
+          {/* Sub-filtros */}
+          <div className="flex flex-wrap gap-2">
+            {([
+              { id: "todas",        label: "Todas" },
+              { id: "concluidas",   label: "Concluídas" },
+              { id: "canceladas",   label: "Canceladas" },
+              { id: "colaborador",  label: "Por Colaborador" },
+            ] as const).map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setFiltroVendas(f.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
+                  filtroVendas === f.id
+                    ? "bg-primary text-white border-primary"
+                    : "bg-white border-gray-300 text-gray-700 hover:border-primary hover:text-primary"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
           </div>
-          {vendasFiltradas.length > 0 ? (
-            <div className="border border-border rounded-xl overflow-hidden">
-              <div className="grid grid-cols-6 gap-2 px-4 py-2 bg-muted text-xs font-medium text-muted-foreground">
-                <span>#</span><span>Cliente</span><span>Pagamento</span><span>Status</span><span className="text-right">Total / Pago</span><span className="text-right">Ações</span>
-              </div>
-              {vendasFiltradas.map((v) => (
-                <div key={v.id} className={`grid grid-cols-6 gap-2 px-4 py-3 border-t border-border text-sm items-center ${v.status === "cancelada" ? "opacity-50" : ""}`}>
-                  <span className="text-muted-foreground">{String(v.numero_venda).padStart(4, "0")}</span>
-                  <span className="truncate">{v.clientes?.nome_completo ?? "—"}</span>
-                  <span className="truncate text-xs">{labelsFormaPagamento[v.forma_pagamento] ?? v.forma_pagamento}</span>
-                  <span>
-                    <Badge className={`text-xs ${v.status === "cancelada" ? "bg-red-500/10 text-red-500 border-red-500/20" : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"}`}>
-                      {v.status === "cancelada" ? "Cancelada" : "Concluída"}
-                    </Badge>
-                  </span>
-                  <div className="text-right">
-                    <span className={`font-semibold ${v.status === "cancelada" ? "line-through text-muted-foreground" : "text-primary"}`}>{formatarMoeda(v.total)}</span>
-                    {/* Verificar se tem débito em aberto para essa venda */}
-                    {debitos.filter((d) => d.descricao?.includes(String(v.numero_venda).padStart(4,"0"))).map((d) => (
-                      <div key={d.id} className="text-xs text-amber-500 font-bold">
-                        {formatarMoeda(d.valor_aberto)} em aberto
-                      </div>
-                    ))}
+
+          {/* View por colaborador */}
+          {filtroVendas === "colaborador" ? (
+            <div className="space-y-3">
+              {funcionarios.length === 0 ? (
+                <p className="text-center text-muted-foreground py-12 text-sm">Nenhum colaborador cadastrado</p>
+              ) : (
+                <>
+                  {/* Cards de comissão por colaborador */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {funcionarios.map((func) => {
+                      const vendasFunc = vendasConcluidas.filter((v) =>
+                        (v as any).itens_venda?.some((i: any) => i.funcionario_id === func.id)
+                      )
+                      const totalVendas = vendasFunc.reduce((s, v) => s + v.total, 0)
+                      const totalComissao = vendasFunc.reduce((s, v) => {
+                        const itensFunc = ((v as any).itens_venda ?? []).filter((i: any) => i.funcionario_id === func.id)
+                        return s + itensFunc.reduce((si: number, i: any) => si + (i.comissao_valor ?? 0), 0)
+                      }, 0)
+                      const qtdVendas = vendasFunc.length
+
+                      return (
+                        <div key={func.id} className="border border-border rounded-xl p-4 bg-card shadow-card space-y-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                              <span className="text-sm font-bold text-primary">{func.nome.charAt(0)}</span>
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-foreground">{func.nome}</p>
+                              <p className="text-xs text-muted-foreground">{qtdVendas} venda{qtdVendas !== 1 ? "s" : ""} no período</p>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border">
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Vendas</p>
+                              <p className="text-base font-bold text-foreground mt-0.5">{formatarMoeda(totalVendas)}</p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Comissão</p>
+                              <p className="text-base font-bold text-emerald-600 mt-0.5">{formatarMoeda(totalComissao)}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-                  <div className="flex gap-1 justify-end">
-                    {v.status === "concluida" && (
-                      <>
-                        <Button variant="ghost" size="xs" onClick={() => abrirEditar(v)} title="Editar">
-                          <Edit className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="xs" className="text-red-500 hover:text-red-600"
-                          onClick={() => cancelarVenda(v)} disabled={loadingCancel === v.id} title="Cancelar">
-                          {loadingCancel === v.id
-                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            : <XCircle className="w-3.5 h-3.5" />
-                          }
-                        </Button>
-                      </>
+
+                  {/* Tabela detalhada */}
+                  <div className="border border-border rounded-xl overflow-hidden">
+                    <div className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-3 px-4 py-2 bg-muted text-xs font-medium text-muted-foreground">
+                      <span>#</span><span>Cliente</span><span>Colaborador</span><span className="text-right">Total</span><span className="text-right">Comissão</span>
+                    </div>
+                    {vendasConcluidas.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-8 text-sm">Nenhuma venda concluída no período</p>
+                    ) : (
+                      vendasConcluidas.map((v) => {
+                        const itensVenda = (v as any).itens_venda ?? []
+                        const comissaoTotal = itensVenda.reduce((s: number, i: any) => s + (i.comissao_valor ?? 0), 0)
+                        const funcNome = itensVenda.find((i: any) => i.funcionario_id)
+                          ? funcionarios.find((f) => f.id === itensVenda.find((i: any) => i.funcionario_id)?.funcionario_id)?.nome
+                          : null
+                        return (
+                          <div key={v.id} className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-3 px-4 py-2.5 border-t border-border text-sm items-center">
+                            <span className="text-muted-foreground text-xs">{String(v.numero_venda).padStart(4, "0")}</span>
+                            <span className="truncate text-xs">{v.clientes?.nome_completo ?? "—"}</span>
+                            <span className="text-xs text-muted-foreground truncate max-w-[100px]">{funcNome ?? "—"}</span>
+                            <span className="text-right text-xs font-semibold text-primary">{formatarMoeda(v.total)}</span>
+                            <span className="text-right text-xs font-bold text-emerald-600">{formatarMoeda(comissaoTotal)}</span>
+                          </div>
+                        )
+                      })
                     )}
                   </div>
-                </div>
-              ))}
+                </>
+              )}
             </div>
           ) : (
-            <p className="text-center text-muted-foreground py-12 text-sm">Nenhuma venda encontrada</p>
+            /* View padrão — lista de vendas com filtro */
+            <div className="space-y-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input placeholder="Buscar por nº, cliente ou pagamento..." className="pl-9" value={busca} onChange={(e) => setBusca(e.target.value)} />
+              </div>
+              {vendasFiltradas.length > 0 ? (
+                <div className="border border-border rounded-xl overflow-hidden">
+                  <div className="grid grid-cols-6 gap-2 px-4 py-2 bg-muted text-xs font-medium text-muted-foreground">
+                    <span>#</span><span>Cliente</span><span>Pagamento</span><span>Status</span><span className="text-right">Total</span><span className="text-right">Ações</span>
+                  </div>
+                  {vendasFiltradas.map((v) => (
+                    <div key={v.id} className={`grid grid-cols-6 gap-2 px-4 py-3 border-t border-border text-sm items-center ${v.status === "cancelada" ? "opacity-50" : ""}`}>
+                      <span className="text-muted-foreground">{String(v.numero_venda).padStart(4, "0")}</span>
+                      <span className="truncate">{v.clientes?.nome_completo ?? "—"}</span>
+                      <span className="truncate text-xs">{labelsFormaPagamento[v.forma_pagamento] ?? v.forma_pagamento}</span>
+                      <span>
+                        <Badge className={`text-xs ${v.status === "cancelada" ? "bg-red-500/10 text-red-500 border-red-500/20" : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"}`}>
+                          {v.status === "cancelada" ? "Cancelada" : "Concluída"}
+                        </Badge>
+                      </span>
+                      <div className="text-right">
+                        <span className={`font-semibold ${v.status === "cancelada" ? "line-through text-muted-foreground" : "text-primary"}`}>{formatarMoeda(v.total)}</span>
+                        {debitos.filter((d) => d.descricao?.includes(String(v.numero_venda).padStart(4,"0"))).map((d) => (
+                          <div key={d.id} className="text-xs text-amber-500 font-bold">{formatarMoeda(d.valor_aberto)} em aberto</div>
+                        ))}
+                      </div>
+                      <div className="flex gap-1 justify-end">
+                        {v.status === "concluida" && (
+                          <>
+                            <Button variant="ghost" size="xs" onClick={() => abrirEditar(v)} title="Editar">
+                              <Edit className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="xs" className="text-red-500 hover:text-red-600"
+                              onClick={() => cancelarVenda(v)} disabled={loadingCancel === v.id} title="Cancelar">
+                              {loadingCancel === v.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-muted-foreground py-12 text-sm">Nenhuma venda encontrada</p>
+              )}
+            </div>
           )}
         </TabsContent>
 
         <TabsContent value="areceber" className="mt-4 space-y-3">
-          {debitos.length === 0 ? (
-            <div className="py-12 text-center text-muted-foreground">
-              <Clock className="w-10 h-10 mx-auto mb-2 opacity-30" />
-              <p className="text-sm">Nenhum valor a receber</p>
+          {/* Botão adicionar — todos os planos */}
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold">Valores a receber</p>
+            <Button size="sm" onClick={() => setModalNovoReceber(true)} className="gap-1.5">
+              <Plus className="w-4 h-4" /> Adicionar
+            </Button>
+          </div>
+
+          {/* Busca e ordenação */}
+          {valoresReceber.filter((v) => v.status !== "recebido").length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <div className="relative flex-1 min-w-[180px] max-w-xs">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar devedor..."
+                  value={buscaReceber}
+                  onChange={(e) => setBuscaReceber(e.target.value)}
+                  className="pl-9 h-8 text-xs"
+                />
+              </div>
+              <button
+                onClick={() => setOrdenacaoReceber((prev) => prev === "vencimento" ? "alfabetica" : "vencimento")}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-muted text-muted-foreground hover:text-foreground transition-all"
+                title={ordenacaoReceber === "vencimento" ? "Ordenar por nome (A-Z)" : "Ordenar por vencimento"}
+              >
+                {ordenacaoReceber === "vencimento" ? "📅 Vencimento" : "🔤 A-Z"}
+              </button>
             </div>
-          ) : (
+          )}
+
+          {/* Lista manual de valores a receber */}
+          {valoresReceber.filter((v) => v.status !== "recebido").length > 0 && (
+            <div className="border border-border rounded-xl overflow-hidden">
+              <div className="grid grid-cols-5 gap-2 px-4 py-2 bg-muted text-xs font-medium text-muted-foreground">
+                <span>Devedor</span><span>Valor</span><span>Vencimento</span><span>Obs</span><span className="text-right">Ações</span>
+              </div>
+              {valoresReceber
+                .filter((v) => v.status !== "recebido")
+                .filter((v) => !buscaReceber || v.devedor.toLowerCase().includes(buscaReceber.toLowerCase()))
+                .sort((a, b) => {
+                  if (ordenacaoReceber === "alfabetica") return a.devedor.localeCompare(b.devedor)
+                  return a.data_vencimento.localeCompare(b.data_vencimento)
+                })
+                .map((v) => {
+                const vencido = new Date(v.data_vencimento) < new Date() && v.status === "pendente"
+                return (
+                  <div key={v.id} className="grid grid-cols-5 gap-2 px-4 py-3 border-t border-border text-sm items-center">
+                    <span className="truncate font-medium">{v.devedor}</span>
+                    <span className="font-bold text-amber-500">{formatarMoeda(v.valor)}</span>
+                    <span className={`text-xs ${vencido ? "text-red-500 font-bold" : "text-muted-foreground"}`}>
+                      {format(parseISO(v.data_vencimento), "dd/MM/yyyy")}
+                      {vencido && " ⚠️"}
+                    </span>
+                    <span className="text-xs text-muted-foreground truncate">{v.observacoes ?? "—"}</span>
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={() => editarValorReceber(v)} className="p-1.5 rounded-md hover:bg-blue-50 text-blue-500" title="Editar">
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => marcarRecebido(v.id)} className="p-1.5 rounded-md hover:bg-emerald-50 text-emerald-500" title="Dar baixa">
+                        <CheckCircle2 className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => excluirValorReceber(v.id)} className="p-1.5 rounded-md hover:bg-red-50 text-red-400" title="Excluir">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                      {coraAtivaFinanceiro && v.status === "pendente" && (
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          className="text-[10px] font-bold px-2 py-0.5 h-auto border-teal-400 text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/20"
+                          onClick={() => setModalGerarBoleto({
+                            valorReceberId: v.id,
+                            valor: v.valor,
+                            descricao: v.observacoes || v.devedor,
+                            dataVencimento: v.data_vencimento,
+                            clienteNome: v.devedor,
+                          })}
+                        >
+                          🏦 Boleto
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Débitos de vendas (planos normais) */}
+          {!isGestao && debitos.length > 0 && (
             <>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-muted-foreground">{debitos.length} débito(s) em aberto</p>
+              <div className="flex items-center justify-between mb-2 mt-4">
+                <p className="text-sm font-semibold">Débitos de vendas</p>
                 <p className="font-black text-amber-500">{formatarMoeda(totalAReceber)}</p>
               </div>
               <div className="border border-border rounded-xl overflow-hidden">
@@ -319,6 +884,15 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
                 ))}
               </div>
             </>
+          )}
+
+          {/* Mensagem vazia */}
+          {valoresReceber.filter((v) => v.status !== "recebido").length === 0 && (!isGestao ? debitos.length === 0 : true) && (
+            <div className="py-12 text-center text-muted-foreground">
+              <Clock className="w-10 h-10 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">Nenhum valor a receber</p>
+              <p className="text-xs mt-1">Clique em "Adicionar" para registrar valores pendentes.</p>
+            </div>
           )}
         </TabsContent>
 
@@ -361,6 +935,8 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
             empresaId={empresaId}
             contas={contasPagar}
             setContas={setContasPagar}
+            isGestao={isGestao}
+            onBaixaGestao={(id, valor, descricao) => setModalBaixa({ tipo: "pagar", id, valor, descricao })}
           />
         </TabsContent>
 
@@ -370,13 +946,25 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
             vendas={vendas}
             contasPagar={contasPagar}
             agendamentosFuturos={agendamentosFuturos}
+            valoresReceber={valoresReceber}
           />
         </TabsContent>
 
         {/* ── ABA RELATÓRIOS — disponível apenas nos planos pagos ── */}
         {plano !== "gratuito" && (
           <TabsContent value="relatorios" className="mt-4">
-            <RelatoriosTab vendas={vendas} movimentacoes={movimentacoes} funcionarios={funcionarios} debitos={debitos} empresaId={empresaId} />
+            <PinProtected empresaId={empresaId} pinConfigurado={pinConf} areasProtegidas={areasProtegidas} restricaoId="financeiro_relatorio_vendas" nomeRestricao="Relatórios Financeiros">
+            {isGestao
+              ? <RelatoriosGestaoTab empresaId={empresaId} />
+              : <RelatoriosTab vendas={vendas} movimentacoes={movimentacoes} funcionarios={funcionarios} debitos={debitos} empresaId={empresaId} />
+            }
+            </PinProtected>
+          </TabsContent>
+        )}
+
+        {coraAtiva && (
+          <TabsContent value="cobrancas" className="mt-4">
+            <CoraCobrancasTab empresaId={empresaId} />
           </TabsContent>
         )}
       </Tabs>
@@ -430,11 +1018,205 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal adicionar/editar valor a receber */}
+      <Dialog open={modalNovoReceber} onOpenChange={(open) => { if (!open) { setModalNovoReceber(false); setEditandoReceberId(null); setFormReceber({ devedor: "", valor: "", data_vencimento: "", observacoes: "" }); setClienteSelecionado("") } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editandoReceberId ? "Editar Valor a Receber" : "Adicionar Valor a Receber"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Seletor de cliente (opcional) */}
+            {!editandoReceberId && clientesLista.length > 0 && (
+              <div className="space-y-2">
+                <Label>Vincular a cliente (opcional)</Label>
+                <select
+                  value={clienteSelecionado}
+                  onChange={(e) => {
+                    setClienteSelecionado(e.target.value)
+                    if (e.target.value) {
+                      const cl = clientesLista.find((c) => c.id === e.target.value)
+                      if (cl) setFormReceber((f) => ({ ...f, devedor: cl.nome_completo }))
+                    }
+                  }}
+                  className="w-full h-10 rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                >
+                  <option value="">Sem cliente (manual)</option>
+                  {clientesLista.map((c) => (
+                    <option key={c.id} value={c.id}>{c.nome_completo}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Nome do devedor *</Label>
+              <Input
+                placeholder="Ex: João da Silva"
+                value={formReceber.devedor}
+                onChange={(e) => setFormReceber((f) => ({ ...f, devedor: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Valor (R$) *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  placeholder="0,00"
+                  value={formReceber.valor}
+                  onChange={(e) => setFormReceber((f) => ({ ...f, valor: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Data de vencimento *</Label>
+                <Input
+                  type="date"
+                  value={formReceber.data_vencimento}
+                  onChange={(e) => setFormReceber((f) => ({ ...f, data_vencimento: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Observação (opcional)</Label>
+              <Textarea
+                placeholder="Detalhes sobre o valor..."
+                value={formReceber.observacoes}
+                onChange={(e) => setFormReceber((f) => ({ ...f, observacoes: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setModalNovoReceber(false); setEditandoReceberId(null) }}>Cancelar</Button>
+            <Button onClick={editandoReceberId ? salvarEdicaoReceber : adicionarValorReceber} disabled={loadingReceber} className="gap-2">
+              {loadingReceber ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              {editandoReceberId ? "Salvar" : "Adicionar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de baixa — selecionar caixa destino/origem */}
+      <Dialog open={!!modalBaixa} onOpenChange={(open) => { if (!open) setModalBaixa(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {modalBaixa?.tipo === "receber" ? "Registrar Recebimento" : "Registrar Pagamento"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-lg bg-muted/50 p-3">
+              <p className="text-xs text-muted-foreground">{modalBaixa?.descricao}</p>
+              <p className="text-lg font-bold text-primary mt-1">{formatarMoeda(modalBaixa?.valor ?? 0)}</p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">
+                {modalBaixa?.tipo === "receber"
+                  ? "Como vai receber?"
+                  : "De onde sai o pagamento?"
+                }
+              </Label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setBaixaCaixaTipo("especie")}
+                  className={`p-4 rounded-xl border-2 text-center transition-all ${
+                    baixaCaixaTipo === "especie"
+                      ? "border-[#F26E1D] bg-[#F26E1D]/10"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                >
+                  <span className="text-2xl block mb-1">💵</span>
+                  <span className={`text-xs font-bold ${baixaCaixaTipo === "especie" ? "text-[#F26E1D]" : "text-muted-foreground"}`}>
+                    Dinheiro
+                  </span>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Caixa espécie</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBaixaCaixaTipo("banco")}
+                  className={`p-4 rounded-xl border-2 text-center transition-all ${
+                    baixaCaixaTipo === "banco"
+                      ? "border-[#F26E1D] bg-[#F26E1D]/10"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                >
+                  <span className="text-2xl block mb-1">🏦</span>
+                  <span className={`text-xs font-bold ${baixaCaixaTipo === "banco" ? "text-[#F26E1D]" : "text-muted-foreground"}`}>
+                    Banco / Pix
+                  </span>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Conta digital</p>
+                </button>
+              </div>
+            </div>
+            {/* Forma de pagamento — quando Banco selecionado */}
+            {baixaCaixaTipo === "banco" && (
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Meio de pagamento</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: "pix", label: "Pix" },
+                    { id: "cartao_credito", label: "Cartão Crédito" },
+                    { id: "cartao_debito", label: "Cartão Débito" },
+                    { id: "transferencia", label: "Transferência" },
+                  ].map((fp) => (
+                    <button
+                      key={fp.id}
+                      type="button"
+                      onClick={() => setBaixaFormaPag(fp.id)}
+                      className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
+                        baixaFormaPag === fp.id
+                          ? "border-[#F26E1D] bg-[#F26E1D]/10 text-[#F26E1D]"
+                          : "border-border text-muted-foreground hover:border-primary/50"
+                      }`}
+                    >
+                      {fp.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* Data retroativa — plano gestão */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Data da transação</Label>
+              <Input
+                type="date"
+                value={baixaDataRetroativa}
+                onChange={(e) => setBaixaDataRetroativa(e.target.value)}
+              />
+              <p className="text-[10px] text-muted-foreground">Deixe vazio para usar a data de hoje.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setModalBaixa(null); setBaixaFormaPag(""); setBaixaDataRetroativa("") }}>Cancelar</Button>
+            <Button onClick={confirmarBaixa} disabled={loadingReceber || (baixaCaixaTipo === "banco" && !baixaFormaPag)} className="gap-2">
+              {loadingReceber ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <PinModal aberto={pinModalOpen} onClose={() => { setPinModalOpen(false); setPinAcaoPendente(null) }} onSuccess={() => { setPinModalOpen(false); if (pinAcaoPendente) { pinAcaoPendente(); setPinAcaoPendente(null) } }} empresaId={empresaId} titulo="Ação Restrita" descricao="Digite o PIN de gerente para executar esta ação" />
+
+      {modalGerarBoleto && (
+        <GerarBoletoModal
+          open={!!modalGerarBoleto}
+          onOpenChange={(open) => { if (!open) setModalGerarBoleto(null) }}
+          onSuccess={() => {
+            setModalGerarBoleto(null)
+            toast.success("Boleto gerado com sucesso!")
+          }}
+          valorReceberId={modalGerarBoleto.valorReceberId}
+          valor={modalGerarBoleto.valor}
+          descricao={modalGerarBoleto.descricao}
+          dataVencimento={modalGerarBoleto.dataVencimento}
+          clienteNome={modalGerarBoleto.clienteNome}
+        />
+      )}
     </div>
   )
 }
-
-// ─── Componente de Relatórios ───────────────────────────────────────────────
 
 type RelatoriosProps = {
   empresaId: string
@@ -771,7 +1553,7 @@ function RelatoriosTab({ vendas, movimentacoes, funcionarios, debitos, empresaId
       </div>
 
       {/* Preview e download */}
-      <div className="rounded-xl border border-border p-5 bg-muted/30 space-y-4">
+      <div className="rounded-xl border border-border p-5 bg-card shadow-card space-y-4">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="font-semibold text-sm">
@@ -811,10 +1593,14 @@ function ContasPagarTab({
   empresaId,
   contas,
   setContas,
+  isGestao = false,
+  onBaixaGestao,
 }: {
   empresaId: string
   contas: ContaPagar[]
   setContas: React.Dispatch<React.SetStateAction<ContaPagar[]>>
+  isGestao?: boolean
+  onBaixaGestao?: (id: string, valor: number, descricao: string) => void
 }) {
   const hoje = new Date()
   hoje.setHours(0, 0, 0, 0)
@@ -823,9 +1609,14 @@ function ContasPagarTab({
   const [loading, setLoading] = useState(false)
   const [filtroStatus, setFiltroStatus] = useState<"todos" | "pendente" | "atrasado" | "pago">("todos")
   const [filtroPeriodo, setFiltroPeriodo] = useState<"todos" | "hoje" | "semana" | "mes">("mes")
+  const [busca, setBusca] = useState("")
+  const [ordenacao, setOrdenacao] = useState<"vencimento" | "alfabetica">("vencimento")
+  const [modalJuros, setModalJuros] = useState<{ id: string; valorOriginal: number; descricao: string } | null>(null)
+  const [valorComJuros, setValorComJuros] = useState("")
+  const [formaPagBaixa, setFormaPagBaixa] = useState<string>("dinheiro")
   const [form, setForm] = useState({
     descricao: "", valor: "", data_vencimento: format(new Date(), "yyyy-MM-dd"),
-    categoria: "outros", recorrencia: "avulso", observacoes: "",
+    categoria: "outros", recorrencia: "avulso", observacoes: "", qtd_parcelas: "12",
   })
 
   // Calcular status real (atrasado se pendente e vencida)
@@ -838,6 +1629,7 @@ function ContasPagarTab({
 
   const contasFiltradas = contasComStatus.filter((c) => {
     if (filtroStatus !== "todos" && c.status !== filtroStatus) return false
+    if (busca && !c.descricao.toLowerCase().includes(busca.toLowerCase())) return false
     if (filtroPeriodo === "hoje") return c.data_vencimento === format(hoje, "yyyy-MM-dd")
     if (filtroPeriodo === "semana") {
       const ini = format(startOfWeek(hoje, { locale: ptBR }), "yyyy-MM-dd")
@@ -850,6 +1642,9 @@ function ContasPagarTab({
       return c.data_vencimento >= ini && c.data_vencimento <= fim
     }
     return true
+  }).sort((a, b) => {
+    if (ordenacao === "alfabetica") return a.descricao.localeCompare(b.descricao)
+    return a.data_vencimento.localeCompare(b.data_vencimento)
   })
 
   const totalPendente = contasFiltradas.filter((c) => c.status === "pendente" || c.status === "atrasado").reduce((s, c) => s + c.valor, 0)
@@ -870,19 +1665,51 @@ function ContasPagarTab({
     toast.success(form.recorrencia === "avulso" ? "Conta cadastrada!" : `Conta recorrente criada!`)
     setContas((prev) => [...(data.data ?? []), ...prev].sort((a, b) => a.data_vencimento.localeCompare(b.data_vencimento)))
     setModalAberto(false)
-    setForm({ descricao: "", valor: "", data_vencimento: format(new Date(), "yyyy-MM-dd"), categoria: "outros", recorrencia: "avulso", observacoes: "" })
+    setForm({ descricao: "", valor: "", data_vencimento: format(new Date(), "yyyy-MM-dd"), categoria: "outros", recorrencia: "avulso", observacoes: "", qtd_parcelas: "12" })
     setLoading(false)
   }
 
   async function pagar(id: string) {
+    const conta = contas.find((c) => c.id === id)
+    if (!conta) return
+
+    // Sempre abrir modal para escolher forma de pagamento
+    setModalJuros({ id, valorOriginal: conta.valor, descricao: conta.descricao })
+    setValorComJuros("")
+    setFormaPagBaixa("dinheiro")
+  }
+
+  async function confirmarPagamentoComJuros() {
+    if (!modalJuros) return
+    const valorFinal = valorComJuros ? parseFloat(valorComJuros) : modalJuros.valorOriginal
+
+    // Atualizar o valor da conta se houve juros
+    if (valorComJuros && valorFinal !== modalJuros.valorOriginal) {
+      const supabase = (await import("@/lib/supabase/client")).createClient()
+      await supabase.from("contas_pagar").update({ valor: valorFinal }).eq("id", modalJuros.id)
+      setContas((prev) => prev.map((c) => c.id === modalJuros.id ? { ...c, valor: valorFinal } : c))
+    }
+
+    // Para plano gestão: abrir modal para selecionar caixa
+    if (isGestao && onBaixaGestao) {
+      onBaixaGestao(modalJuros.id, valorFinal, `Pagamento: ${modalJuros.descricao}`)
+      setModalJuros(null)
+      setValorComJuros("")
+      setFormaPagBaixa("dinheiro")
+      return
+    }
+
     const res = await fetch("/api/financeiro/contas-pagar", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ _acao: "pagar", id }),
+      body: JSON.stringify({ _acao: "pagar", id: modalJuros.id, forma_pagamento: formaPagBaixa }),
     })
     if (res.ok) {
-      setContas((prev) => prev.map((c) => c.id === id ? { ...c, status: "pago", data_pagamento: new Date().toISOString() } : c))
-      toast.success("Conta marcada como paga!")
+      setContas((prev) => prev.map((c) => c.id === modalJuros.id ? { ...c, status: "pago", valor: valorFinal, data_pagamento: new Date().toISOString() } : c))
+      toast.success(`Conta paga via ${formaPagBaixa === "dinheiro" ? "espécie" : "banco"}!`)
     }
+    setModalJuros(null)
+    setValorComJuros("")
+    setFormaPagBaixa("dinheiro")
   }
 
   async function excluir(conta: ContaPagar) {
@@ -937,6 +1764,26 @@ function ContasPagarTab({
       </div>
 
       {/* Filtros */}
+      <div className="flex flex-wrap gap-2">
+        {/* Busca */}
+        <div className="relative flex-1 min-w-[180px] max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar conta..."
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            className="pl-9 h-8 text-xs"
+          />
+        </div>
+        {/* Ordenação */}
+        <button
+          onClick={() => setOrdenacao((prev) => prev === "vencimento" ? "alfabetica" : "vencimento")}
+          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-muted text-muted-foreground hover:text-foreground transition-all"
+          title={ordenacao === "vencimento" ? "Ordenar por nome (A-Z)" : "Ordenar por vencimento"}
+        >
+          {ordenacao === "vencimento" ? "📅 Vencimento" : "🔤 A-Z"}
+        </button>
+      </div>
       <div className="flex flex-wrap gap-2">
         <div className="flex gap-1">
           {(["todos", "hoje", "semana", "mes"] as const).map((p) => (
@@ -1049,19 +1896,32 @@ function ContasPagarTab({
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="avulso">Avulso (uma vez)</SelectItem>
-                    <SelectItem value="mensal">Mensal (12 meses)</SelectItem>
-                    <SelectItem value="semanal">Semanal (52 semanas)</SelectItem>
+                    <SelectItem value="mensal">Mensal</SelectItem>
+                    <SelectItem value="semanal">Semanal</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
+            {form.recorrencia !== "avulso" && (
+              <div className="space-y-1.5">
+                <Label>Quantidade de {form.recorrencia === "mensal" ? "meses" : "semanas"}</Label>
+                <Input
+                  type="number"
+                  min="2"
+                  max="120"
+                  placeholder={form.recorrencia === "mensal" ? "Ex: 12" : "Ex: 4"}
+                  value={form.qtd_parcelas}
+                  onChange={(e) => setForm((p) => ({ ...p, qtd_parcelas: e.target.value }))}
+                />
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label>Observações</Label>
               <Textarea placeholder="Opcional..." rows={2} value={form.observacoes} onChange={(e) => setForm((p) => ({ ...p, observacoes: e.target.value }))} />
             </div>
             {form.recorrencia !== "avulso" && (
               <p className="text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2">
-                📅 Serão criadas {form.recorrencia === "mensal" ? "12 parcelas mensais" : "52 parcelas semanais"} a partir de {format(new Date(form.data_vencimento + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}.
+                📅 Serão criadas {form.qtd_parcelas || "0"} parcelas {form.recorrencia === "mensal" ? "mensais" : "semanais"} a partir de {format(new Date(form.data_vencimento + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}.
               </p>
             )}
           </div>
@@ -1071,6 +1931,48 @@ function ContasPagarTab({
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Cadastrar conta
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de juros (contas atrasadas) */}
+      <Dialog open={!!modalJuros} onOpenChange={(o) => { if (!o) { setModalJuros(null); setValorComJuros(""); setFormaPagBaixa("dinheiro") } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Confirmar pagamento</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Conta: <strong>{modalJuros?.descricao}</strong> — Valor: <strong>{formatarMoeda(modalJuros?.valorOriginal ?? 0)}</strong>
+            </p>
+            <div className="space-y-1.5">
+              <Label>Valor pago (altere se houve juros/multa)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0.01"
+                placeholder={String(modalJuros?.valorOriginal ?? "")}
+                value={valorComJuros}
+                onChange={(e) => setValorComJuros(e.target.value)}
+              />
+              <p className="text-[11px] text-muted-foreground">Deixe vazio para usar o valor original (sem juros).</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Forma de pagamento</Label>
+              <select value={formaPagBaixa} onChange={(e) => setFormaPagBaixa(e.target.value)}
+                className="w-full h-10 rounded-xl border border-input bg-background px-3 text-sm">
+                <option value="dinheiro">Dinheiro (espécie)</option>
+                <option value="pix">Pix</option>
+                <option value="cartao_debito">Cartão de débito</option>
+                <option value="cartao_credito">Cartão de crédito</option>
+                <option value="transferencia">Transferência bancária</option>
+              </select>
+              <p className="text-[11px] text-muted-foreground">
+                {formaPagBaixa === "dinheiro" ? "Sai do caixa em espécie" : "Sai do banco"}
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setModalJuros(null); setValorComJuros(""); setFormaPagBaixa("dinheiro") }}>Cancelar</Button>
+            <Button onClick={confirmarPagamentoComJuros}>Confirmar pagamento</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1084,18 +1986,22 @@ function FluxoCaixaTab({
   vendas,
   contasPagar,
   agendamentosFuturos,
+  valoresReceber = [],
 }: {
   vendas: Venda[]
   contasPagar: ContaPagar[]
   agendamentosFuturos: { id: string; data_hora: string; status: string; produtos_servicos?: { preco: number; nome: string } | null }[]
+  valoresReceber?: { id: string; devedor: string; valor: number; data_vencimento: string; status: string }[]
 }) {
-  const [periodo, setPeriodo] = useState<"hoje" | "semana" | "mes">("mes")
+  const [periodo, setPeriodo] = useState<"hoje" | "semana" | "mes" | "custom">("mes")
+  const [dataCustom, setDataCustom] = useState("")
   const hoje = new Date()
   hoje.setHours(0, 0, 0, 0)
 
   const { inicio, fim } = (() => {
     if (periodo === "hoje") return { inicio: hoje, fim: new Date(hoje.getTime() + 86399999) }
     if (periodo === "semana") return { inicio: startOfWeek(hoje, { locale: ptBR }), fim: endOfWeek(hoje, { locale: ptBR }) }
+    if (periodo === "custom" && dataCustom) return { inicio: hoje, fim: new Date(dataCustom + "T23:59:59") }
     return { inicio: startOfMonth(hoje), fim: endOfMonth(hoje) }
   })()
 
@@ -1106,14 +2012,23 @@ function FluxoCaixaTab({
     .filter((v) => v.status === "concluida" && new Date(v.created_at) >= inicio && new Date(v.created_at) <= fim)
     .reduce((s, v) => s + v.total, 0)
 
-  // Receitas previstas (agendamentos futuros no período com preço)
-  const receitasPrevistas = agendamentosFuturos
+  // Receitas previstas (agendamentos futuros no período com preço + valores a receber pendentes)
+  const receitasAgendamentos = agendamentosFuturos
     .filter((a) => {
       const d = new Date(a.data_hora)
       return d >= inicio && d <= fim && a.produtos_servicos?.preco
     })
     .reduce((s, a) => s + (a.produtos_servicos?.preco ?? 0), 0)
 
+  const receitasValoresReceber = valoresReceber
+    .filter((v) => {
+      if (v.status !== "pendente") return false
+      const dv = v.data_vencimento
+      return dv >= fmtDate(inicio) && dv <= fmtDate(fim)
+    })
+    .reduce((s, v) => s + v.valor, 0)
+
+  const receitasPrevistas = receitasAgendamentos + receitasValoresReceber
   const totalReceitas = receitasConfirmadas + receitasPrevistas
 
   // Despesas previstas (contas a pagar pendentes/atrasadas no período)
@@ -1138,8 +2053,10 @@ function FluxoCaixaTab({
       const desp = contasPagar.filter((c) => c.data_vencimento === diaStr && (c.status === "pendente" || c.status === "atrasado")).reduce((s, c) => s + c.valor, 0)
       dadosGrafico.push({ label: format(dia, "EEE", { locale: ptBR }), receita: rec, despesa: desp })
     }
-  } else if (periodo === "mes") {
-    for (let semana = 0; semana < 5; semana++) {
+  } else if (periodo === "mes" || periodo === "custom") {
+    const totalDias = Math.ceil((fim.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24))
+    const numSemanas = Math.min(Math.ceil(totalDias / 7), 6)
+    for (let semana = 0; semana < numSemanas; semana++) {
       const iniSem = addDays(inicio, semana * 7)
       const fimSem = addDays(iniSem, 6)
       if (iniSem > fim) break
@@ -1166,13 +2083,31 @@ function FluxoCaixaTab({
           <ArrowRightLeft className="w-4 h-4 text-primary" />
           Fluxo de Caixa Projetado
         </h2>
-        <div className="flex gap-1">
+        <div className="flex items-center gap-2 flex-wrap">
           {(["hoje", "semana", "mes"] as const).map((p) => (
-            <button key={p} onClick={() => setPeriodo(p)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${periodo === p ? "bg-primary text-white" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
+            <button key={p} onClick={() => { setPeriodo(p); setDataCustom("") }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border-2 ${
+                periodo === p
+                  ? "border-[#F26E1D] bg-[#F26E1D]/10 text-[#F26E1D]"
+                  : "border-transparent bg-muted text-muted-foreground hover:text-foreground"
+              }`}>
               {p === "hoje" ? "Hoje" : p === "semana" ? "Esta semana" : "Este mês"}
             </button>
           ))}
+          <div className="flex items-center gap-1.5">
+            <input
+              type="date"
+              value={dataCustom}
+              onChange={(e) => { setDataCustom(e.target.value); if (e.target.value) setPeriodo("custom") }}
+              className={`h-8 px-2 rounded-lg text-xs border-2 bg-background transition-all ${
+                periodo === "custom"
+                  ? "border-[#F26E1D] text-[#F26E1D]"
+                  : "border-transparent bg-muted text-muted-foreground"
+              }`}
+              title="Projeção até uma data específica"
+              min={fmtDate(hoje)}
+            />
+          </div>
         </div>
       </div>
 
@@ -1180,7 +2115,7 @@ function FluxoCaixaTab({
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label: "Receitas confirmadas", valor: receitasConfirmadas, cor: "text-emerald-500", bg: "bg-emerald-500/10", desc: "Vendas já realizadas" },
-          { label: "Receitas previstas", valor: receitasPrevistas, cor: "text-blue-500", bg: "bg-blue-500/10", desc: "Agendamentos futuros" },
+          { label: "Receitas previstas", valor: receitasPrevistas, cor: "text-blue-500", bg: "bg-blue-500/10", desc: "Agendamentos + A receber" },
           { label: "Despesas previstas", valor: despesasPrevistas, cor: "text-red-500", bg: "bg-red-500/10", desc: "Contas a pagar" },
           { label: "Saldo projetado", valor: saldoProjetado, cor: saldoProjetado >= 0 ? "text-emerald-500" : "text-red-500", bg: saldoProjetado >= 0 ? "bg-emerald-500/10" : "bg-red-500/10", desc: saldoProjetado >= 0 ? "Resultado positivo" : "Atenção: déficit" },
         ].map(({ label, valor, cor, bg, desc }) => (

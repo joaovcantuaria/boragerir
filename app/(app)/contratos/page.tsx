@@ -11,8 +11,9 @@ export default async function ContratosPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const { data: empresa } = await supabase
-    .from("empresas").select("id, plano, plano_ativo").eq("user_id", user.id).single()
+  const { data: empresas } = await supabase
+    .from("empresas").select("id, plano, plano_ativo").eq("user_id", user.id).order("created_at", { ascending: true })
+  const empresa = empresas?.[0] ?? null
   if (!empresa) redirect("/onboarding")
 
   // Contratos disponível apenas nos planos Básico e Profissional

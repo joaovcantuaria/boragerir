@@ -125,8 +125,10 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(redirectUrl)
     }
 
-    const { data: empresa } = await supabase
-      .from("empresas").select("id, plano, plano_ativo").eq("user_id", user.id).single()
+    const { data: empresas } = await supabase
+      .from("empresas").select("id, plano, plano_ativo").eq("user_id", user.id).order("created_at", { ascending: true })
+
+    const empresa = empresas?.[0] ?? null
 
     if (!empresa) {
       const redirectUrl = request.nextUrl.clone()
@@ -152,6 +154,19 @@ export async function updateSession(request: NextRequest) {
       if (!eRotaPermitida) {
         const redirectUrl = request.nextUrl.clone()
         redirectUrl.pathname = "/agendamentos"
+        return NextResponse.redirect(redirectUrl)
+      }
+      return supabaseResponse
+    }
+
+    if (empresa.plano === "gestao" && empresa.plano_ativo) {
+      const rotasPermitidas = ["/dashboard", "/caixa", "/financeiro", "/funcionarios", "/tarefas", "/configuracoes", "/empresas"]
+      const eRotaPermitida = rotasPermitidas.some(
+        (r) => pathname === r || pathname.startsWith(r + "/")
+      )
+      if (!eRotaPermitida) {
+        const redirectUrl = request.nextUrl.clone()
+        redirectUrl.pathname = "/dashboard"
         return NextResponse.redirect(redirectUrl)
       }
       return supabaseResponse

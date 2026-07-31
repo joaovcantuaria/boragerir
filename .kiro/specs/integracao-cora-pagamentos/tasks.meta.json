@@ -1,0 +1,687 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Criar migration SQL para tabelas Cora": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419244976
+      },
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419275602
+      },
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419442763
+      }
+    ],
+    "1.2 Criar lib/cora/types.ts": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419245110
+      },
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419276334
+      },
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419444388
+      }
+    ],
+    "1.3 Criar lib/cora/crypto.ts": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419245407
+      },
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419457946
+      },
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419562368
+      }
+    ],
+    "1.5 Criar lib/cora/tokens.ts": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419245539
+      },
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419576378
+      },
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419788482
+      }
+    ],
+    "1.6 Criar lib/cora/client.ts": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419245727
+      },
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419830288
+      },
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419918319
+      }
+    ],
+    "1.7 Criar lib/cora/middleware.ts": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419245856
+      },
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419458628
+      },
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419563034
+      }
+    ],
+    "2.1 Criar app/api/cora/auth/route.ts": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419246027
+      },
+      {
+        "executionId": "abd54881-ff97-4550-bda8-9b7a311e3762",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785420031085
+      },
+      {
+        "executionId": "abd54881-ff97-4550-bda8-9b7a311e3762",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785420177364
+      }
+    ],
+    "2.2 Criar app/api/cora/callback/route.ts": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419246236
+      },
+      {
+        "executionId": "abd54881-ff97-4550-bda8-9b7a311e3762",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785420031868
+      },
+      {
+        "executionId": "abd54881-ff97-4550-bda8-9b7a311e3762",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785420178045
+      }
+    ],
+    "2.3 Criar app/api/cora/disconnect/route.ts": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419246403
+      },
+      {
+        "executionId": "abd54881-ff97-4550-bda8-9b7a311e3762",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785420032685
+      },
+      {
+        "executionId": "abd54881-ff97-4550-bda8-9b7a311e3762",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785420178561
+      }
+    ],
+    "2.4 Criar components/cora/cora-config.tsx": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419246505
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423150460
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423314509
+      }
+    ],
+    "2.5 Integrar cora-config na página de Configurações": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419246640
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423151533
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423315318
+      }
+    ],
+    "3. Checkpoint - Infraestrutura e OAuth": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419246743
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423321818
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423325642
+      }
+    ],
+    "4.1 Criar app/api/cora/boletos/route.ts (POST + GET)": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419246854
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423331479
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423521598
+      }
+    ],
+    "4.3 Criar app/api/cora/boletos/[id]/route.ts (GET)": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419246971
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423332279
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423522402
+      }
+    ],
+    "4.4 Criar app/api/cora/boletos/[id]/cancelar/route.ts (POST)": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419247073
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423333088
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423523463
+      }
+    ],
+    "4.5 Criar app/api/cora/boletos/carne/route.ts (POST)": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419247170
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423333964
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423524103
+      }
+    ],
+    "4.7 Criar components/cora/cora-emitir-boleto.tsx": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419247287
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423654909
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423878886
+      }
+    ],
+    "4.8 Criar components/cora/cora-emitir-carne.tsx": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419247839
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423655745
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423879643
+      }
+    ],
+    "4.9 Criar components/cora/cora-status-badge.tsx": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419247978
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423656535
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423880467
+      }
+    ],
+    "5.1 Criar app/api/cora/pix/route.ts (POST)": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419248145
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423334793
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423524847
+      }
+    ],
+    "5.2 Criar app/api/cora/extrato/route.ts (GET)": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419248279
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423529820
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423646767
+      }
+    ],
+    "5.4 Criar components/cora/cora-extrato.tsx": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419248394
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423657279
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423881205
+      }
+    ],
+    "6.1 Criar app/api/cora/transferencias/route.ts (POST + GET)": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419248502
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423530730
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423647578
+      }
+    ],
+    "6.2 Criar components/cora/cora-transferir.tsx": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419248623
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423658036
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423882048
+      }
+    ],
+    "7. Checkpoint - Boletos, Pix, Extrato e Transferências": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419248702
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423888393
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423895386
+      }
+    ],
+    "8.1 Criar components/cora/cora-cobrancas-tab.tsx": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419248809
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423900994
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785424258847
+      }
+    ],
+    "8.2 Integrar sub-aba \"Cobranças\" no financeiro-client.tsx": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419248923
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423902086
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785424259585
+      }
+    ],
+    "9.1 Criar app/api/cora/webhook/route.ts": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419249026
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785424264698
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785424410297
+      }
+    ],
+    "9.2 Implementar baixa automática em vendas e parcelas": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419249119
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785424265768
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785424410996
+      }
+    ],
+    "10.1 Adicionar \"Boleto Cora\" e \"Pix Cora\" como formas de pagamento no venda-client.tsx": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419249214
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785424418563
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785424759392
+      }
+    ],
+    "10.2 Emitir cobrança automaticamente ao finalizar venda": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419249284
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785424416994
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785424760358
+      }
+    ],
+    "11.1 Adicionar opção \"Gerar carnê Cora\" ao criar contrato": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419249388
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785424766425
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785424978955
+      }
+    ],
+    "11.2 Gerar carnê via API ao criar contrato com opção marcada": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419249457
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785424767535
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785424979718
+      }
+    ],
+    "11.3 Cancelar boletos pendentes ao cancelar contrato": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419249533
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785424768584
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785424980638
+      }
+    ],
+    "12.1 Implementar helper de audit log e integrar em todas as operações financeiras": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419249607
+      },
+      {
+        "executionId": "abd54881-ff97-4550-bda8-9b7a311e3762",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785420033580
+      },
+      {
+        "executionId": "abd54881-ff97-4550-bda8-9b7a311e3762",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785420179397
+      }
+    ],
+    "13. Checkpoint final": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419249724
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785424986069
+      },
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785424990316
+      }
+    ],
+    "1. Infraestrutura base": [
+      {
+        "executionId": "deb8c98b-535b-435d-a686-56bdaaf56977",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785419918471
+      }
+    ],
+    "12. Audit Logging": [
+      {
+        "executionId": "abd54881-ff97-4550-bda8-9b7a311e3762",
+        "chatSessionId": "sess_670c92d9-d854-4957-9363-822e5117dd6a",
+        "timestamp": 1785420179496
+      }
+    ],
+    "2. OAuth2 e Configuração": [
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423315456
+      }
+    ],
+    "4. Boletos e Carnês": [
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423880594
+      }
+    ],
+    "5. Pix e Extrato": [
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423881329
+      }
+    ],
+    "6. Transferências": [
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785423882183
+      }
+    ],
+    "8. Aba Cobranças no Financeiro": [
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785424259702
+      }
+    ],
+    "9. Webhooks": [
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785424411113
+      }
+    ],
+    "10. Integração no PDV (Venda)": [
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785424760506
+      }
+    ],
+    "11. Integração em Contratos": [
+      {
+        "executionId": "e3e3710e-2bcd-4416-9190-7a215ddb36fd",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785424980715
+      }
+    ]
+  }
+}

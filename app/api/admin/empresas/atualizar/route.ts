@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
     "nome", "telefone", "area_atuacao",
     "endereco_rua", "endereco_numero", "endereco_bairro",
     "endereco_cidade", "endereco_estado", "endereco_cep",
+    "max_empresas",
   ]
   const dadosFiltrados = Object.fromEntries(
     Object.entries(dados).filter(([k]) => camposPermitidos.includes(k))

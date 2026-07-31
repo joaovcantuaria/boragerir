@@ -10,8 +10,9 @@ export default async function AgendamentosPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const { data: empresaData } = await supabase
-    .from("empresas").select("*").eq("user_id", user.id).single()
+  const { data: empresasArr } = await supabase
+    .from("empresas").select("*").eq("user_id", user.id).order("created_at", { ascending: true })
+  const empresaData = empresasArr?.[0] ?? null
   if (!empresaData) redirect("/onboarding")
   const empresa = empresaData!
 

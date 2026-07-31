@@ -1,18 +1,35 @@
 import { NextRequest, NextResponse } from "next/server"
 import { enviarEmail, templateBase } from "@/lib/email/brevo"
+import { enviarWhatsAppTemplate } from "@/lib/whatsapp/boragerir-chat"
 import { format, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
 export async function POST(req: NextRequest) {
   try {
-    const { nomeCliente, emailCliente, nomeEmpresa, telefoneEmpresa, servico, dataHora } = await req.json()
-
-    if (!emailCliente) {
-      return NextResponse.json({ sucesso: false, motivo: "sem_email" })
-    }
+    const { nomeCliente, emailCliente, telefoneCliente, nomeEmpresa, telefoneEmpresa, servico, dataHora } = await req.json()
 
     const dataFormatada = format(parseISO(dataHora), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })
     const horario = format(parseISO(dataHora), "HH:mm")
+
+    // ─── Enviar WhatsApp via BoraGerir Chat (template aprovado) ───
+    const telefoneParaWhats = telefoneCliente || ""
+    if (telefoneParaWhats) {
+      const dataWhats = format(parseISO(dataHora), "d 'de' MMMM 'de' yyyy", { locale: ptBR })
+      enviarWhatsAppTemplate({
+        telefone: telefoneParaWhats,
+        template: "solicitacao_agendamento",
+        nomeCliente: nomeCliente || "Cliente",
+        data: dataWhats,
+        horario,
+        nomeEmpresa,
+        servico: servico || "Serviço",
+      })
+    }
+
+    // ─── Enviar Email ───
+    if (!emailCliente) {
+      return NextResponse.json({ sucesso: true, motivo: "sem_email_mas_whatsapp_enviado" })
+    }
 
     const html = templateBase(`
       <h2 style="color:#1a1a1a;font-size:18px;margin:0 0 16px;">📅 Solicitação de agendamento recebida!</h2>

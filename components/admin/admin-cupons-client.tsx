@@ -10,6 +10,7 @@ interface Cupom {
   id: string; codigo: string; descricao: string | null; tipo: string; valor: number
   uso_maximo: number | null; uso_atual: number; ativo: boolean
   validade: string | null; created_at: string
+  apenas_primeiro_mes?: boolean; periodicidades_validas?: string[]
 }
 
 export function AdminCuponsClient({ cupons: init }: { cupons: Cupom[] }) {
@@ -18,7 +19,8 @@ export function AdminCuponsClient({ cupons: init }: { cupons: Cupom[] }) {
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
     codigo: "", descricao: "", tipo: "percentual", valor: "",
-    uso_maximo: "", validade: "",
+    uso_maximo: "", validade: "", planos_validos: [] as string[],
+    apenas_primeiro_mes: false, periodicidades_validas: [] as string[],
   })
   const t = useAdminTema()
 
@@ -34,7 +36,7 @@ export function AdminCuponsClient({ cupons: init }: { cupons: Cupom[] }) {
     if (res.ok) {
       setCupons((prev) => [data, ...prev])
       setModalAberto(false)
-      setForm({ codigo: "", descricao: "", tipo: "percentual", valor: "", uso_maximo: "", validade: "" })
+      setForm({ codigo: "", descricao: "", tipo: "percentual", valor: "", uso_maximo: "", validade: "", planos_validos: [], apenas_primeiro_mes: false, periodicidades_validas: [] })
       toast.success("Cupom criado!")
     } else toast.error(data.erro)
     setLoading(false)
@@ -100,7 +102,7 @@ export function AdminCuponsClient({ cupons: init }: { cupons: Cupom[] }) {
               <div className="space-y-1.5">
                 <label className={`text-xs font-semibold ${t.textMuted3}`}>Tipo *</label>
                 <select value={form.tipo} onChange={(e) => setForm((p) => ({ ...p, tipo: e.target.value }))}
-                  className={`w-full ${t.subBg} border ${t.border} rounded-xl px-3 py-2.5 text-sm ${t.text} focus:outline-none focus:border-primary`}>
+                  className="w-full bg-white border border-gray-300 text-gray-900 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-primary">
                   <option value="percentual">Percentual (%)</option>
                   <option value="fixo">Valor fixo (R$)</option>
                 </select>
@@ -128,9 +130,81 @@ export function AdminCuponsClient({ cupons: init }: { cupons: Cupom[] }) {
                   className={`w-full ${t.inputBg} border ${t.inputBorder} rounded-xl px-3 py-2.5 text-sm ${t.inputText} focus:outline-none`} />
               </div>
             </div>
+            <div className="space-y-1.5">
+              <label className={`text-xs font-semibold ${t.textMuted3}`}>Válido para planos</label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: "agenda", label: "Agendamento" },
+                  { id: "basico", label: "Básico" },
+                  { id: "profissional", label: "Profissional" },
+                ].map((p) => (
+                  <label key={p.id} className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.planos_validos.includes(p.id)}
+                      onChange={(e) => {
+                        setForm((prev) => ({
+                          ...prev,
+                          planos_validos: e.target.checked
+                            ? [...prev.planos_validos, p.id]
+                            : prev.planos_validos.filter((x) => x !== p.id),
+                        }))
+                      }}
+                      className="rounded border-gray-300 text-primary focus:ring-primary"
+                    />
+                    <span className={`text-xs ${t.textMuted3}`}>{p.label}</span>
+                  </label>
+                ))}
+              </div>
+              <p className={`text-[10px] ${t.textMuted2}`}>Nenhum selecionado = vale para todos</p>
+            </div>
+
+            {/* Periodicidade válida */}
+            <div className="space-y-1.5">
+              <label className={`text-xs font-semibold ${t.textMuted3}`}>Válido para periodicidade</label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: "mensal", label: "Mensal" },
+                  { id: "anual", label: "Anual" },
+                ].map((p) => (
+                  <label key={p.id} className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.periodicidades_validas.includes(p.id)}
+                      onChange={(e) => {
+                        setForm((prev) => ({
+                          ...prev,
+                          periodicidades_validas: e.target.checked
+                            ? [...prev.periodicidades_validas, p.id]
+                            : prev.periodicidades_validas.filter((x) => x !== p.id),
+                        }))
+                      }}
+                      className="rounded border-gray-300 text-primary focus:ring-primary"
+                    />
+                    <span className={`text-xs ${t.textMuted3}`}>{p.label}</span>
+                  </label>
+                ))}
+              </div>
+              <p className={`text-[10px] ${t.textMuted2}`}>Nenhum selecionado = vale para qualquer periodicidade</p>
+            </div>
+
+            {/* Apenas primeiro mês */}
+            <div className="space-y-1.5">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.apenas_primeiro_mes}
+                  onChange={(e) => setForm((prev) => ({ ...prev, apenas_primeiro_mes: e.target.checked }))}
+                  className="rounded border-gray-300 text-primary focus:ring-primary w-4 h-4"
+                />
+                <span className={`text-xs font-semibold ${t.textMuted3}`}>Apenas primeiro mês</span>
+              </label>
+              <p className={`text-[10px] ${t.textMuted2} ml-6`}>Desconto aplicado somente na primeira mensalidade do assinante</p>
+            </div>
+
             <div className="flex gap-3 pt-2">
               <button onClick={() => setModalAberto(false)}
-                className={`flex-1 py-2.5 rounded-xl border ${t.border} ${t.textMuted4} text-sm ${t.hoverBg}`}>
+                className="flex-1 py-2.5 rounded-xl border border-gray-300 text-gray-700 text-sm hover:bg-gray-50 transition-colors">
                 Cancelar
               </button>
               <button onClick={criar} disabled={loading}

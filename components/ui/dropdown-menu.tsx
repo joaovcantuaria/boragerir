@@ -28,8 +28,7 @@ const DropdownMenuSubContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.SubContent>
 >(({ className, ...props }, ref) => (
   <DropdownMenuPrimitive.SubContent ref={ref}
-    style={{ backgroundColor: "#ffffff", color: "#111827", border: "1px solid #e5e7eb" }}
-    className={cn("z-[9999] min-w-[8rem] overflow-hidden rounded-xl p-1 shadow-lg dark:bg-[#1e2030] dark:text-gray-100 dark:border-[#2d3148]", className)}
+    className={cn("z-[9999] min-w-[8rem] overflow-hidden rounded-xl p-1 shadow-lg bg-white text-gray-900 border border-gray-200 dark:bg-[#1e2030] dark:text-gray-100 dark:border-[#2d3148]", className)}
     {...props} />
 ))
 
@@ -39,9 +38,9 @@ const DropdownMenuContent = React.forwardRef<
 >(({ className, sideOffset = 6, ...props }, ref) => (
   <DropdownMenuPrimitive.Portal>
     <DropdownMenuPrimitive.Content ref={ref} sideOffset={sideOffset}
-      style={{ backgroundColor: "#ffffff", color: "#111827", border: "1px solid #e5e7eb" }}
       className={cn(
         "z-[9999] min-w-[10rem] overflow-hidden rounded-xl p-1 shadow-lg",
+        "bg-white text-gray-900 border border-gray-200",
         "dark:bg-[#1e2030] dark:text-gray-100 dark:border-[#2d3148]",
         "data-[state=open]:animate-in data-[state=closed]:animate-out",
         "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",

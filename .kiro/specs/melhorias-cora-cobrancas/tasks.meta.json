@@ -1,0 +1,408 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Criar migration SQL para alterações no schema": [
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431504836
+      },
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431518478
+      },
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431615567
+      }
+    ],
+    "1.2 Atualizar types TypeScript do Supabase para refletir schema atualizado": [
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431505080
+      },
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431519307
+      },
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431616660
+      }
+    ],
+    "2.1 Criar endpoint `/api/cora/pix/status` (GET)": [
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431505183
+      },
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431623076
+      },
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431805834
+      }
+    ],
+    "2.3 Criar componente `PixOnlinePanel`": [
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431505316
+      },
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431813860
+      },
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785434654076
+      }
+    ],
+    "3.1 Modificar `venda-client.tsx` para adicionar opção \"Pix Online\"": [
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431505429
+      },
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785434985185
+      },
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785435592319
+      }
+    ],
+    "4. Checkpoint - Verificar fluxo Pix Online": [
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431505537
+      },
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785434661987
+      },
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785434672245
+      }
+    ],
+    "5.1 Criar componente `BoletoResultModal`": [
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431505650
+      },
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431623809
+      },
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431805984
+      }
+    ],
+    "5.2 Modificar `venda-client.tsx` para adicionar opção \"Boleto\"": [
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431505781
+      },
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431814726
+      },
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785434655032
+      }
+    ],
+    "6.1 Estender `processPaymentReconciliation` em `app/api/cora/webhook/route.ts`": [
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431505915
+      },
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431815459
+      },
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785434653331
+      }
+    ],
+    "7. Checkpoint - Verificar fluxo Boleto e Webhook": [
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431506032
+      },
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785435902167
+      },
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785435907235
+      }
+    ],
+    "8.1 Modificar `components/contratos/contratos-client.tsx` — formulário de criação": [
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431506182
+      },
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785435914821
+      },
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785438254523
+      }
+    ],
+    "8.4 Adicionar exibição de status de boletos na visualização do contrato": [
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431506299
+      },
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785438451304
+      },
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785438898169
+      }
+    ],
+    "9.1 Criar componente `GerarBoletoModal`": [
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431506411
+      },
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431624591
+      },
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431806667
+      }
+    ],
+    "9.2 Modificar `components/financeiro/financeiro-client.tsx` — seção Valores a Receber": [
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431506502
+      },
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785434984470
+      },
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785435593234
+      }
+    ],
+    "10. Checkpoint - Verificar Contratos e Valores a Receber": [
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431506612
+      },
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785438904635
+      },
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785438911863
+      }
+    ],
+    "11.1 Criar página e componente da Página de Boletos": [
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431506718
+      },
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785435913910
+      },
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785438437618
+      }
+    ],
+    "11.2 Criar endpoint `/api/cora/boletos/cancelar` (POST)": [
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431506832
+      },
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431625498
+      },
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431807565
+      }
+    ],
+    "12.1 Adicionar item \"Boletos\" no menu lateral": [
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431506932
+      },
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785438451985
+      },
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785438898936
+      }
+    ],
+    "12.2 Implementar middleware/guard de restrição de plano nos endpoints Cora": [
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431507032
+      },
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431816258
+      },
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785434652609
+      }
+    ],
+    "13. Final checkpoint - Verificar integração completa": [
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431507117
+      },
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785438917342
+      },
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785438928924
+      }
+    ],
+    "1. Migrations de banco de dados e interfaces base": [
+      {
+        "executionId": "cfab741c-d6e6-443a-b1a0-d9d18111adb1",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785431616738
+      }
+    ],
+    "6. Estender webhook handler para reconciliação completa": [
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785434653448
+      }
+    ],
+    "2. Endpoint de polling Pix e componente PixOnlinePanel": [
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785434654195
+      }
+    ],
+    "5. Fluxo Boleto no PDV": [
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785434655133
+      }
+    ],
+    "3. Fluxo Pix Online no PDV (venda-client)": [
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785435592438
+      }
+    ],
+    "9. Gerar Boleto em Valores a Receber": [
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785435593365
+      }
+    ],
+    "11. Página de Boletos": [
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785438437780
+      }
+    ],
+    "8. Toggle Boleto/Carnê e Entrada em Contratos": [
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785438898266
+      }
+    ],
+    "12. Menu lateral e Restrição de Plano": [
+      {
+        "executionId": "19a927d3-afca-4c81-844f-3fe08e978bbe",
+        "chatSessionId": "sess_8283ac5c-c61c-4d78-a4b4-1b938d78f2c6",
+        "timestamp": 1785438899032
+      }
+    ]
+  }
+}

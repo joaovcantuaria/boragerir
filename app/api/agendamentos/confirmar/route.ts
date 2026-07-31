@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { enviarEmail, templateBase } from "@/lib/email/brevo"
 import { dispararWebhook, normalizarTelefoneDDI } from "@/lib/webhook/n8n"
+import { enviarWhatsAppTemplate } from "@/lib/whatsapp/boragerir-chat"
 import { format, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
@@ -50,6 +51,24 @@ export async function POST(req: NextRequest) {
         data: format(dataISO, "dd/MM/yyyy", { locale: ptBR }),
         horario: format(dataISO, "HH:mm"),
       })
+    }
+    // ─────────────────────────────────────────────────────────
+
+    // ── WhatsApp via BoraGerir Chat (templates aprovados) ───
+    const telefoneWhats = agendamento.telefone_cliente_avulso ?? ""
+    if (telefoneWhats) {
+      const nomeClienteW = agendamento.nome_cliente_avulso ?? "Cliente"
+      const dataW = format(parseISO(agendamento.data_hora), "d 'de' MMMM 'de' yyyy", { locale: ptBR })
+      const horarioW = format(parseISO(agendamento.data_hora), "HH:mm")
+      const servicoW = agendamento.produtos_servicos?.nome ?? "Serviço"
+      const baseParams = { telefone: telefoneWhats, nomeCliente: nomeClienteW, data: dataW, horario: horarioW, nomeEmpresa: empresa?.nome ?? "", servico: servicoW }
+
+      if (acao === "confirmar") {
+        enviarWhatsAppTemplate({ ...baseParams, template: "confirmacao_agendamento" })
+      } else {
+        // Tanto "espera" quanto "cancelar" = horário indisponível para o cliente
+        enviarWhatsAppTemplate({ ...baseParams, template: "agendamento_indisponivel" })
+      }
     }
     // ─────────────────────────────────────────────────────────
 

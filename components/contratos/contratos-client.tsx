@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Plus, CheckCircle2, Clock, AlertCircle, XCircle, ChevronDown, ChevronUp, Trash2, X, Calendar, DollarSign, User, Loader2, FileText, TrendingUp, Banknote } from "lucide-react"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
@@ -9,6 +9,7 @@ import { ptBR } from "date-fns/locale"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { formatarMoeda } from "@/lib/utils"
+import { CoraStatusBadge } from "@/components/cora/cora-status-badge"
 
 type StatusContrato = "ativo" | "pausado" | "cancelado" | "concluido"
 type StatusParcela = "previsto" | "pago" | "atrasado" | "cancelado"
@@ -72,6 +73,51 @@ export function ContratosClient({ empresaId, contratosInit, parcelasInit, client
   const [descricao, setDescricao] = useState("")
   const [observacoes, setObservacoes] = useState("")
   const [loading, setLoading] = useState(false)
+
+  // Cora integration state
+  const [coraAtiva, setCoraAtiva] = useState(false)
+  const [tipoCobranca, setTipoCobranca] = useState<"nenhum" | "boletos" | "carne">("nenhum")
+  const [boletosPorParcela, setBoletosPorParcela] = useState<Record<string, { status: string; id: string }>>({})
+
+  // Entrada (down payment) state
+  const [receberEntrada, setReceberEntrada] = useState(false)
+  const [entradaValor, setEntradaValor] = useState("")
+  const [entradaFormaPag, setEntradaFormaPag] = useState("dinheiro")
+
+  useEffect(() => {
+    async function checkCora() {
+      const { data } = await supabase
+        .from("cora_contas")
+        .select("id, status")
+        .eq("empresa_id", empresaId)
+        .eq("status", "ativo")
+        .maybeSingle()
+      if (data) setCoraAtiva(true)
+    }
+    checkCora()
+  }, [empresaId])
+
+  useEffect(() => {
+    if (!expandido || !coraAtiva) return
+
+    const parcs = parcelasDoContrato(expandido)
+    if (parcs.length === 0) return
+
+    const parcelaIds = parcs.map((p) => p.id)
+
+    supabase
+      .from("cora_boletos")
+      .select("id, parcela_id, status")
+      .in("parcela_id", parcelaIds)
+      .then(({ data }) => {
+        if (!data) return
+        const byParcela: Record<string, { status: string; id: string }> = {}
+        for (const b of data) {
+          if (b.parcela_id) byParcela[b.parcela_id] = { status: b.status, id: b.id }
+        }
+        setBoletosPorParcela(byParcela)
+      })
+  }, [expandido, coraAtiva])
 
   const parcelasDoContrato = (id: string) => parcelas.filter((p) => p.contrato_id === id)
   const contratosFiltrados = contratos.filter((c) => filtro === "todos" || c.status === filtro)
@@ -149,12 +195,113 @@ export function ContratosClient({ empresaId, contratosInit, parcelasInit, client
       const parcsData = gerarParcelas(contrato.id, dataInicio, duracaoMeses, valor, diaVencimento)
       const { data: parcsInseridas } = await supabase.from("contratos_parcelas").insert(parcsData).select()
 
+      // Criar valores_receber para cada parcela (integração com financeiro)
+      if (parcsInseridas && parcsInseridas.length > 0) {
+        const clienteNome = clientes.find((c) => c.id === clienteId)?.nome_completo ?? titulo
+        const valoresReceber = parcsInseridas.map((p: any) => ({
+          empresa_id: empresaId,
+          devedor: clienteNome,
+          valor: p.valor,
+          data_vencimento: p.data_vencimento,
+          observacoes: `Contrato: ${titulo} — Parcela ${p.numero_parcela}/${duracaoMeses}`,
+          status: "pendente",
+        }))
+        await supabase.from("valores_receber").insert(valoresReceber)
+      }
+
       setContratos((p) => [contrato, ...p])
       if (parcsInseridas) setParcelas((p) => [...p, ...parcsInseridas])
       setExpandido(contrato.id)
       setModalNovo(false)
       resetForm()
       toast.success(`Contrato criado com ${duracaoMeses} parcelas!`)
+
+      // Entrada: marcar 1ª parcela como paga e registrar no caixa
+      if (receberEntrada && parcsInseridas && parcsInseridas.length > 0) {
+        const valorEntrada = parseFloat(entradaValor) || valor
+        // Mark first parcela as paid
+        await supabase.from("contratos_parcelas")
+          .update({ status: "pago", data_pagamento: new Date().toISOString().slice(0, 10) })
+          .eq("id", parcsInseridas[0].id)
+        // Update local state too
+        parcsInseridas[0].status = "pago" as any
+        parcsInseridas[0].data_pagamento = new Date().toISOString().slice(0, 10) as any
+        // Add caixa entry
+        const { data: caixaAberto } = await supabase
+          .from("caixas").select("id")
+          .eq("empresa_id", empresaId).eq("status", "aberto")
+          .order("created_at", { ascending: false }).limit(1).maybeSingle()
+        if (caixaAberto) {
+          await supabase.from("movimentacoes_caixa").insert({
+            empresa_id: empresaId, caixa_id: caixaAberto.id,
+            tipo: "entrada", categoria: "venda",
+            descricao: `Entrada contrato: ${titulo} — Parcela 1`,
+            valor: valorEntrada,
+            forma_pagamento: entradaFormaPag,
+          })
+        }
+      }
+
+      // Gerar boletos/carnê se opção selecionada
+      if ((tipoCobranca === "boletos" || tipoCobranca === "carne") && clienteId && parcsInseridas) {
+        const cliente = clientes.find(c => c.id === clienteId)
+        if (cliente) {
+          // Parcelas para gerar boletos (skip primeira se tinha entrada)
+          const parcelasParaBoleto = receberEntrada ? parcsInseridas.slice(1) : parcsInseridas
+
+          if (parcelasParaBoleto.length >= 1) {
+            try {
+              const pagador = {
+                nome: cliente.nome_completo,
+                documento: "00000000000",
+                email: "",
+                tipo: "PERSON" as const,
+                endereco: { rua: "N/A", numero: "S/N", bairro: "N/A", cidade: "N/A", estado: "SP", cep: "00000000" }
+              }
+
+              if (tipoCobranca === "carne" && parcelasParaBoleto.length >= 2) {
+                const res = await fetch("/api/cora/boletos/carne", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    pagador,
+                    valorTotal: valor * parcelasParaBoleto.length,
+                    numeroParcelas: parcelasParaBoleto.length,
+                    dataVencimentoPrimeira: parcelasParaBoleto[0].data_vencimento,
+                    descricaoServico: titulo,
+                    clienteId,
+                    contratoId: contrato.id,
+                  }),
+                })
+                if (res.ok) toast.success("Carnê Cora emitido com sucesso!")
+                else toast.error("Contrato criado, mas houve erro ao emitir carnê. Emita manualmente.")
+              } else {
+                // Individual boletos
+                let sucessos = 0
+                for (const parcela of parcelasParaBoleto) {
+                  const res = await fetch("/api/cora/boletos", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      pagador,
+                      valor,
+                      dataVencimento: parcela.data_vencimento,
+                      descricaoServico: `${titulo} — Parcela ${parcela.numero_parcela}`,
+                      clienteId,
+                      vendaId: undefined,
+                    }),
+                  })
+                  if (res.ok) sucessos++
+                }
+                if (sucessos > 0) toast.success(`${sucessos} boleto(s) Cora emitido(s)!`)
+                else toast.error("Contrato criado, mas houve erro ao emitir boletos. Emita manualmente.")
+              }
+            } catch {
+              toast.error("Contrato criado, mas houve erro ao emitir cobrança Cora.")
+            }
+          }
+        }
+      }
     } catch { toast.error("Erro inesperado.") }
     setLoading(false)
   }
@@ -163,7 +310,8 @@ export function ContratosClient({ empresaId, contratosInit, parcelasInit, client
     setTitulo(""); setClienteId(""); setServicoId(""); setFuncionarioId("")
     setValorMensal(""); setDuracaoMeses(12); setDiaVencimento(10)
     setDataInicio(new Date().toISOString().slice(0, 10))
-    setDescricao(""); setObservacoes("")
+    setDescricao(""); setObservacoes(""); setTipoCobranca("nenhum")
+    setReceberEntrada(false); setEntradaValor(""); setEntradaFormaPag("dinheiro")
   }
 
   async function marcarParcela(parcela: Parcela, novoStatus: StatusParcela) {
@@ -174,7 +322,81 @@ export function ContratosClient({ empresaId, contratosInit, parcelasInit, client
     const { error } = await supabase.from("contratos_parcelas").update(update).eq("id", parcela.id)
     if (error) { toast.error("Erro ao atualizar parcela."); return }
     setParcelas((p) => p.map((par) => par.id === parcela.id ? { ...par, ...update } : par))
-    if (novoStatus === "pago") toast.success("Parcela marcada como paga!")
+
+    const contrato = contratos.find((c) => c.id === parcela.contrato_id)
+
+    if (novoStatus === "pago") {
+      // Registrar entrada no caixa
+      const { data: caixaAberto } = await supabase
+        .from("caixas")
+        .select("id")
+        .eq("empresa_id", empresaId)
+        .eq("status", "aberto")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle()
+
+      if (caixaAberto) {
+        await supabase.from("movimentacoes_caixa").insert({
+          empresa_id: empresaId,
+          caixa_id: caixaAberto.id,
+          tipo: "entrada",
+          categoria: "venda",
+          descricao: `Contrato: ${contrato?.titulo ?? "Parcela"} — Parcela ${parcela.numero_parcela}`,
+          valor: parcela.valor,
+        })
+      }
+
+      // Marcar valor_receber correspondente como recebido (se existir)
+      if (contrato) {
+        const obsMatch = `Contrato: ${contrato.titulo} — Parcela ${parcela.numero_parcela}/`
+        const { data: vrMatch } = await supabase
+          .from("valores_receber")
+          .select("id")
+          .eq("empresa_id", empresaId)
+          .eq("status", "pendente")
+          .eq("valor", parcela.valor)
+          .ilike("observacoes", `${obsMatch}%`)
+          .limit(1)
+          .maybeSingle()
+        if (vrMatch) {
+          await supabase.from("valores_receber").update({ status: "recebido" }).eq("id", vrMatch.id)
+        }
+      }
+
+      // Verificar se todas as parcelas do contrato estão pagas → marcar contrato como concluido
+      const parcelasDoContrato = parcelas.filter((p) => p.contrato_id === parcela.contrato_id)
+      const todasPagas = parcelasDoContrato.every((p) => p.id === parcela.id ? true : p.status === "pago")
+      if (todasPagas && contrato) {
+        await supabase.from("contratos").update({ status: "concluido" }).eq("id", contrato.id)
+        setContratos((prev) => prev.map((c) => c.id === contrato.id ? { ...c, status: "concluido" } : c))
+      }
+
+      toast.success("Parcela paga e registrada no caixa!")
+    } else {
+      // Desfazer pagamento — criar saída no caixa para estornar
+      const { data: caixaAberto } = await supabase
+        .from("caixas")
+        .select("id")
+        .eq("empresa_id", empresaId)
+        .eq("status", "aberto")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle()
+
+      if (caixaAberto) {
+        await supabase.from("movimentacoes_caixa").insert({
+          empresa_id: empresaId,
+          caixa_id: caixaAberto.id,
+          tipo: "saida",
+          categoria: "estorno",
+          descricao: `Estorno parcela: ${contrato?.titulo ?? "Contrato"} — Parcela ${parcela.numero_parcela}`,
+          valor: parcela.valor,
+        })
+      }
+
+      toast.success("Pagamento desfeito e estornado do caixa.")
+    }
   }
 
   async function excluirContrato(id: string) {
@@ -190,6 +412,30 @@ export function ContratosClient({ empresaId, contratosInit, parcelasInit, client
     await supabase.from("contratos").update({ status }).eq("id", id)
     setContratos((p) => p.map((c) => c.id === id ? { ...c, status } : c))
     toast.success(`Contrato ${STATUS_CONTRATO[status].label.toLowerCase()}.`)
+
+    // Task 11.3: Cancelar boletos Cora pendentes ao cancelar contrato
+    if (status === "cancelado" && coraAtiva) {
+      try {
+        const { data: boletos } = await supabase
+          .from("cora_boletos")
+          .select("id, status")
+          .eq("contrato_id", id)
+          .in("status", ["aberto", "vencido"])
+
+        if (boletos && boletos.length > 0) {
+          let cancelados = 0
+          for (const boleto of boletos) {
+            const res = await fetch(`/api/cora/boletos/${boleto.id}/cancelar`, { method: "POST" })
+            if (res.ok) cancelados++
+          }
+          if (cancelados > 0) {
+            toast.success(`${cancelados} boleto(s) Cora cancelado(s)`)
+          }
+        }
+      } catch (err) {
+        console.error("Erro ao cancelar boletos Cora:", err)
+      }
+    }
   }
 
   return (
@@ -197,8 +443,8 @@ export function ContratosClient({ empresaId, contratosInit, parcelasInit, client
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-3xl font-black tracking-tight">Contratos</h1>
-          <p className="text-muted-foreground text-sm mt-1">Gerencie contratos recorrentes e previsão de receita</p>
+          <h1 className="text-lg font-semibold text-foreground">Contratos</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">Gerencie contratos recorrentes e previsão de receita</p>
         </div>
         <button onClick={() => setModalNovo(true)} style={{ backgroundColor: "#F26E1D" }}
           className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-sm">
@@ -206,17 +452,19 @@ export function ContratosClient({ empresaId, contratosInit, parcelasInit, client
         </button>
       </div>
 
-      {/* Métricas */}
+      {/* KPIs — estilo dashboard */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Receita mensal",      valor: formatarMoeda(totalMensalRecorrente), cor: "text-emerald-600",  borda: "border-emerald-200 dark:border-emerald-800" },
-          { label: "Contratos ativos",    valor: contratos.filter((c) => c.status === "ativo").length, cor: "text-foreground", borda: "border-border" },
-          { label: "Parcelas atrasadas",  valor: parcelasAtrasadas,  cor: parcelasAtrasadas > 0 ? "text-red-500" : "text-foreground", borda: parcelasAtrasadas > 0 ? "border-red-200 dark:border-red-800" : "border-border" },
-          { label: "Vencendo em 30 dias", valor: parcelasProximasMes, cor: "text-amber-600", borda: "border-amber-200 dark:border-amber-800" },
-        ].map((c) => (
-          <div key={c.label} className={`rounded-2xl border ${c.borda} bg-card p-4`}>
-            <p className="text-xs text-muted-foreground font-medium">{c.label}</p>
-            <p className={`text-2xl font-black mt-1 ${c.cor}`}>{c.valor}</p>
+          { label: "Receita mensal", valor: formatarMoeda(totalMensalRecorrente), color: "#10b981", bg: "#10b98115" },
+          { label: "Contratos ativos", valor: contratos.filter((c) => c.status === "ativo").length.toString(), color: "#6366f1", bg: "#6366f115" },
+          { label: "Parcelas atrasadas", valor: parcelasAtrasadas.toString(), color: parcelasAtrasadas > 0 ? "#ef4444" : "#6b7280", bg: parcelasAtrasadas > 0 ? "#ef444415" : "#6b728015" },
+          { label: "Vencendo em 30d", valor: parcelasProximasMes.toString(), color: "#f59e0b", bg: "#f59e0b15" },
+        ].map((kpi) => (
+          <div key={kpi.label} className="kpi-card">
+            <div className="flex items-center justify-between mb-2">
+              <span className="kpi-label">{kpi.label}</span>
+            </div>
+            <div className="kpi-value" style={{ color: kpi.color }}>{kpi.valor}</div>
           </div>
         ))}
       </div>
@@ -261,7 +509,7 @@ export function ContratosClient({ empresaId, contratosInit, parcelasInit, client
           const servico = servicos.find((s) => s.id === contrato.servico_id)
 
           return (
-            <div key={contrato.id} className="rounded-2xl border border-border overflow-hidden bg-card">
+            <div key={contrato.id} className="rounded-2xl border border-border overflow-hidden bg-card shadow-card">
               {/* Header do contrato */}
               <div className="flex items-center gap-3 px-4 py-3.5">
                 <div className="flex-1 min-w-0">
@@ -344,6 +592,12 @@ export function ContratosClient({ empresaId, contratosInit, parcelasInit, client
                                   <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", sp.bg, vencida && parcela.status === "previsto" ? "bg-red-50 text-red-600 dark:bg-red-900/30" : sp.cor)}>
                                     {vencida && parcela.status === "previsto" ? "Atrasado" : sp.label}
                                   </span>
+                                  {boletosPorParcela[parcela.id] && (
+                                    <CoraStatusBadge
+                                      status={boletosPorParcela[parcela.id].status}
+                                      className="text-[9px] px-1.5 py-0.5"
+                                    />
+                                  )}
                                   {parcela.status !== "pago" && parcela.status !== "cancelado" && (
                                     <button onClick={() => marcarParcela(parcela, "pago")}
                                       className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 transition-colors">
@@ -452,6 +706,72 @@ export function ContratosClient({ empresaId, contratosInit, parcelasInit, client
                     <p className="text-[10px] text-orange-500">Vence todo dia {diaVencimento} de cada mês</p>
                   </div>
                 )}
+
+                {/* Cobrança Cora: toggle Sem boleto / Boletos individuais / Gerar Carnê */}
+                {coraAtiva && (
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-gray-500">Cobrança Cora</label>
+                    <div className="flex gap-2">
+                      {(["nenhum", "boletos", "carne"] as const).map((tipo) => (
+                        <button
+                          key={tipo}
+                          type="button"
+                          onClick={() => setTipoCobranca(tipo)}
+                          className={`flex-1 py-2 rounded-xl border text-xs font-bold transition-all ${
+                            tipoCobranca === tipo
+                              ? "bg-[#F26E1D] text-white border-[#F26E1D]"
+                              : "border-gray-200 text-gray-600 hover:border-[#F26E1D]/50"
+                          }`}
+                        >
+                          {tipo === "nenhum" ? "Sem boleto" : tipo === "boletos" ? "Boletos individuais" : "Gerar Carnê"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Entrada (down payment) */}
+                <div className="rounded-xl border border-gray-200 p-3 space-y-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={receberEntrada}
+                      onChange={(e) => setReceberEntrada(e.target.checked)}
+                      className="w-4 h-4 rounded"
+                    />
+                    <span className="text-sm font-semibold text-gray-700">Receber entrada agora</span>
+                    <span className="text-xs text-gray-400">(1ª parcela paga no ato)</span>
+                  </label>
+                  {receberEntrada && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-xs text-gray-500">Valor da entrada (R$)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={entradaValor || (valorMensal ? valorMensal : "")}
+                          onChange={(e) => setEntradaValor(e.target.value)}
+                          placeholder={valorMensal || "0,00"}
+                          className="w-full h-9 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-gray-500">Forma de pagamento</label>
+                        <select
+                          value={entradaFormaPag}
+                          onChange={(e) => setEntradaFormaPag(e.target.value)}
+                          className="w-full h-9 rounded-lg border border-gray-200 bg-gray-50 px-2 text-sm text-gray-900 focus:outline-none cursor-pointer"
+                        >
+                          <option value="dinheiro">Dinheiro</option>
+                          <option value="pix">Pix</option>
+                          <option value="cartao_debito">Cartão Débito</option>
+                          <option value="cartao_credito">Cartão Crédito</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-gray-500">Observações</label>

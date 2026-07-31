@@ -65,12 +65,25 @@ export type ItemVendaForm = {
   subtotal: number
 }
 
+// Nota: As tabelas `vendas`, `contratos`, `cora_boletos` e `valores_receber` possuem
+// novos campos adicionados pela migration melhorias_cora_cobrancas:
+// - vendas: status agora inclui 'pendente_boleto'
+// - contratos: tipo_cobranca, entrada_valor, entrada_forma_pagamento
+// - cora_boletos: valor_receber_id (FK → valores_receber)
+// - valores_receber: cora_boleto_id (FK → cora_boletos)
+// Esses campos são refletidos automaticamente via Database types após regeneração do Supabase.
+// Types utilitários adicionais estão em lib/cora/types.ts (ContratoCoraFields, PixStatusResponse, etc.)
+
 // Planos
-export type Plano = "gratuito" | "basico" | "profissional" | "agenda"
+export type Plano = "gratuito" | "basico" | "profissional" | "agenda" | "gestao"
 
 // Plano "agenda" — módulo simplificado de agendamento online
 // Acesso restrito a: /agendamentos e /configuracoes
 export const PLANO_AGENDA_ROTAS = ["/agendamentos", "/configuracoes"]
+
+// Plano "gestao" — gestão financeira simplificada
+// Acesso restrito a: /dashboard, /caixa, /financeiro, /funcionarios, /tarefas, /configuracoes e /empresas
+export const PLANO_GESTAO_ROTAS = ["/dashboard", "/caixa", "/financeiro", "/funcionarios", "/tarefas", "/configuracoes", "/empresas"]
 
 export type InfoPlano = {
   nome: string
@@ -163,6 +176,24 @@ export const planosInfo: Record<Plano, InfoPlano> = {
     contratos: false,
     debito: false,
     caixasAnteriores: false,
+  },
+  gestao: {
+    nome: "Gestão",
+    preco: 29.9,
+    limiteClientes: null,
+    limiteProdutos: null,
+    limiteFuncionarios: null,
+    agendamentoOnline: false,
+    gestaoAgendaInterna: false,
+    lembretesAutomaticos: false,
+    marcaDagua: false,
+    fidelidade: false,
+    relatoriosAvancados: true,
+    exportacaoExcel: true,
+    tarefas: true,
+    contratos: false,
+    debito: true,
+    caixasAnteriores: true,
   },
 }
 

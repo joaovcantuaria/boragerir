@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { MercadoPagoConfig, Payment } from "mercadopago"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { calcularValor, type PlanoMP, type Periodicidade } from "@/lib/mercadopago/client"
+import { randomUUID } from "crypto"
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,27 +20,23 @@ export async function POST(req: NextRequest) {
     }
     let { valorTotal, descricao } = calcularValor(plano, periodicidade)
 
-    // ── Aplicar cupom se fornecido ──────────────────────────
+    // ── Aplicar cupom ──────────────────────────────────────────
     let cupomAplicado: { id: string; tipo: string; valor: number; codigo: string } | null = null
     if (cupom_codigo) {
       const admin = createAdminClient()
       const { data: cupom } = await admin
-        .from("cupons")
-        .select("*")
+        .from("cupons").select("*")
         .eq("codigo", cupom_codigo.toUpperCase().trim())
-        .eq("ativo", true)
-        .single()
+        .eq("ativo", true).single()
 
       if (cupom) {
         const vencido = cupom.validade && new Date() > new Date(cupom.validade)
         const esgotado = cupom.uso_maximo !== null && cupom.uso_atual >= cupom.uso_maximo
         if (!vencido && !esgotado) {
           cupomAplicado = { id: cupom.id, tipo: cupom.tipo, valor: cupom.valor, codigo: cupom.codigo }
-          if (cupom.tipo === "percentual") {
-            valorTotal = Math.max(0.01, valorTotal * (1 - cupom.valor / 100))
-          } else {
-            valorTotal = Math.max(0.01, valorTotal - cupom.valor)
-          }
+          valorTotal = cupom.tipo === "percentual"
+            ? Math.max(0.01, valorTotal * (1 - cupom.valor / 100))
+            : Math.max(0.01, valorTotal - cupom.valor)
           descricao += ` (cupom ${cupom.codigo})`
         }
       }
@@ -49,100 +45,127 @@ export async function POST(req: NextRequest) {
     const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN
     if (!accessToken) return NextResponse.json({ erro: "Gateway não configurado" }, { status: 500 })
 
-    const mp = new MercadoPagoConfig({ accessToken })
-    const payment = new Payment(mp)
+    const payerEmail = empresa.email || user.email || "cliente@boragerir.com"
+    const valorFinal = Math.max(1.00, Number(valorTotal.toFixed(2)))
+    // external_reference: apenas empresa_id (UUID é aceito pelo MP)
+    const externalReference = empresa.id
 
-    const partes = empresa.nome.trim().split(" ")
-    const firstName = partes[0] ?? "Cliente"
-    const lastName = partes.slice(1).join(" ") || firstName
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.boragerir.com"
-
-    const docLimpo = (empresa.documento ?? "").replace(/\D/g, "")
-    const temDocValido = empresa.tipo_documento === "cnpj"
-      ? docLimpo.length === 14
-      : docLimpo.length === 11
-
-    const tentativas = [
-      {
-        transaction_amount: Number(valorTotal.toFixed(2)),
-        description: descricao,
-        payment_method_id: "pix",
-        payer: {
-          email: empresa.email,
-          first_name: firstName,
-          last_name: lastName,
-          ...(temDocValido && {
-            identification: {
-              type: empresa.tipo_documento === "cnpj" ? "CNPJ" : "CPF",
-              number: docLimpo,
-            },
-          }),
-        },
-        metadata: { empresa_id: empresa.id, plano, periodicidade },
-        notification_url: `${appUrl}/api/webhooks/mercadopago`,
+    // ── Criar pagamento via API /v1/orders (Checkout Transparente) ──
+    const valorStr = valorFinal.toFixed(2)
+    const orderBody = {
+      type: "online",
+      processing_mode: "automatic",
+      total_amount: valorStr,
+      external_reference: externalReference,
+      description: descricao,
+      payer: { email: payerEmail },
+      transactions: {
+        payments: [{
+          amount: valorStr,
+          payment_method: { id: "pix", type: "bank_transfer" },
+        }],
       },
-      {
-        transaction_amount: Number(valorTotal.toFixed(2)),
-        description: descricao,
-        payment_method_id: "pix",
-        payer: { email: empresa.email, first_name: firstName, last_name: lastName },
-        metadata: { empresa_id: empresa.id, plano, periodicidade },
-        notification_url: `${appUrl}/api/webhooks/mercadopago`,
-      },
-    ]
-
-    let resultado = null
-    let ultimoErro = ""
-
-    for (const payBody of tentativas) {
-      try {
-        resultado = await payment.create({ body: payBody })
-        if (resultado?.id) break
-      } catch (err: unknown) {
-        ultimoErro = err instanceof Error ? err.message : String(err)
-        console.warn("Tentativa falhou:", ultimoErro)
-      }
     }
 
-    if (!resultado?.id) {
-      return NextResponse.json({ erro: `Erro no Mercado Pago: ${ultimoErro}` }, { status: 500 })
+    const res = await fetch("https://api.mercadopago.com/v1/orders", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${accessToken}`,
+        "X-Idempotency-Key": randomUUID(),
+      },
+      body: JSON.stringify(orderBody),
+    })
+
+    const resText = await res.text()
+
+    if (!res.ok) {
+      console.error("Orders API erro:", res.status, resText.slice(0, 1000))
+      let detalhe = ""
+      try { detalhe = JSON.parse(resText)?.message ?? resText.slice(0, 200) } catch { detalhe = resText.slice(0, 200) }
+      return NextResponse.json({
+        erro: `Erro ao gerar Pix (status ${res.status}): ${detalhe}`,
+      }, { status: 500 })
     }
 
-    // ── Salvar assinatura pendente ──────────────────────────
-    const valorOriginal = calcularValor(plano, periodicidade).valorTotal
+    let data: Record<string, unknown>
     try {
-      await supabase.from("assinaturas").insert({
-        empresa_id: empresa.id,
-        plano,
-        periodicidade,
-        status: "pendente",
-        forma_pagamento: "pix",
-        valor_mensal: plano === "basico" ? 49 : 99,
-        valor_total: Number(valorTotal.toFixed(2)),
-        mp_pix_payment_id: resultado.id.toString(),
-        mp_pix_qr_code: resultado.point_of_interaction?.transaction_data?.qr_code_base64 ?? null,
-        mp_pix_qr_code_text: resultado.point_of_interaction?.transaction_data?.qr_code ?? null,
-      })
-    } catch (dbErr) {
-      console.warn("Assinatura não salva:", dbErr)
+      data = JSON.parse(resText)
+    } catch {
+      console.error("Orders API resposta invalida:", resText.slice(0, 500))
+      return NextResponse.json({ erro: "Resposta inválida do gateway" }, { status: 500 })
     }
 
-    // ── Incrementar uso do cupom ────────────────────────────
+    // ── Extrair QR Code da resposta ─────────────────────────────
+    // A resposta pode ter QR em vários caminhos, buscar via regex no JSON
+    const raw = resText
+    const qrBase64Match = raw.match(/"qr_code_base64":"([^"]+)"/)
+    const qrCodeMatch = raw.match(/"qr_code":"(00[^"]+)"/)  // Pix copia-e-cola sempre começa com 00
+    const ticketUrlMatch = raw.match(/"ticket_url":"(https[^"]+)"/)
+
+    const qrCode = qrBase64Match ? qrBase64Match[1] : null
+    const qrCodeText = qrCodeMatch ? qrCodeMatch[1] : (ticketUrlMatch ? ticketUrlMatch[1] : null)
+
+    // Extrair IDs
+    const orderId = String(data.id ?? "")
+
+    if (!qrCode && !qrCodeText) {
+      console.error("Orders API sem QR Code:", resText.slice(0, 1000))
+      return NextResponse.json({
+        erro: "Pix gerado mas sem QR Code na resposta",
+        order_id: orderId,
+      }, { status: 500 })
+    }
+
+    // ── Salvar assinatura pendente ─────────────────────────────
+    // Salvar o ORDER ID como referência (é ele que consultamos para ver status)
+    const adminDb = createAdminClient()
+    
+    // Cancelar assinaturas pendentes anteriores dessa empresa
+    await adminDb.from("assinaturas")
+      .update({ status: "cancelada" })
+      .eq("empresa_id", empresa.id)
+      .eq("status", "pendente")
+
+    // Inserir nova assinatura
+    const { error: insertErr, data: insertData } = await adminDb.from("assinaturas").insert({
+      empresa_id: empresa.id,
+      plano,
+      periodicidade,
+      status: "pendente",
+      forma_pagamento: "pix",
+      valor_mensal: plano === "basico" ? 49 : plano === "agenda" ? 29 : 99,
+      valor_total: valorFinal,
+      mp_pix_payment_id: orderId,
+      mp_pix_qr_code: qrCode,
+      mp_pix_qr_code_text: qrCodeText,
+    }).select("id")
+    
+    if (insertErr) {
+      console.error("Erro ao salvar assinatura:", insertErr)
+      // Mesmo com erro no insert, retornar o QR Code (pagamento já foi criado no MP)
+    } else {
+      console.log("Assinatura salva:", insertData)
+    }
+
+    // ── Incrementar cupom ──────────────────────────────────────
     if (cupomAplicado) {
-      const admin = createAdminClient()
-      await admin.from("cupons")
-        .update({ uso_atual: (await admin.from("cupons").select("uso_atual").eq("id", cupomAplicado.id).single()).data?.uso_atual + 1 })
-        .eq("id", cupomAplicado.id)
+      try {
+        const admin = createAdminClient()
+        const { data: d } = await admin.from("cupons").select("uso_atual").eq("id", cupomAplicado.id).single()
+        await admin.from("cupons").update({ uso_atual: (d?.uso_atual ?? 0) + 1 }).eq("id", cupomAplicado.id)
+      } catch {}
     }
 
+    const valorOriginal = calcularValor(plano, periodicidade).valorTotal
     return NextResponse.json({
       sucesso: true,
-      payment_id: resultado.id.toString(),
-      qr_code: resultado.point_of_interaction?.transaction_data?.qr_code_base64,
-      qr_code_text: resultado.point_of_interaction?.transaction_data?.qr_code,
-      valor: Number(valorTotal.toFixed(2)),
+      payment_id: orderId,
+      qr_code: qrCode,
+      qr_code_text: qrCodeText,
+      valor: valorFinal,
       valor_original: valorOriginal,
-      desconto_aplicado: cupomAplicado ? Number((valorOriginal - valorTotal).toFixed(2)) : 0,
+      desconto_aplicado: cupomAplicado ? Number((valorOriginal - valorFinal).toFixed(2)) : 0,
       cupom: cupomAplicado?.codigo ?? null,
     })
 

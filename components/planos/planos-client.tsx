@@ -93,11 +93,14 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
   const searchParams = useSearchParams()
   const planoParam = searchParams.get("plano") as PlanoId | null
   const isNovoCadastro = searchParams.get("novo") === "1"
+  const statusParam = searchParams.get("status")
 
   const [periodicidade, setPeriodicidade] = useState<Periodicidade>("mensal")
   const [planoSel, setPlanoSel] = useState<PlanoId | null>(null)
   const [formaPag, setFormaPag] = useState<FormaPag>("pix")
-  const [etapa, setEtapa] = useState<"planos" | "pagamento" | "pix-aguardando" | "sucesso">("planos")
+  const [etapa, setEtapa] = useState<"planos" | "pagamento" | "pix-aguardando" | "sucesso">(
+    statusParam === "aprovado" ? "sucesso" : "planos"
+  )
   const [loading, setLoading] = useState(false)
   const [pixData, setPixData] = useState<{ qr_code: string; qr_code_text: string; payment_id: string; valor: number } | null>(null)
   const [copiado, setCopiado] = useState(false)
@@ -144,7 +147,7 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
       const res = await fetch("/api/pagamentos/validar-cupom", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ codigo: cupomInput, plano: planoSel }),
+        body: JSON.stringify({ codigo: cupomInput, plano: planoSel, periodicidade }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -187,6 +190,7 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.erro)
+
       setPixData({ qr_code: data.qr_code, qr_code_text: data.qr_code_text, payment_id: data.payment_id, valor: data.valor })
       setEtapa("pix-aguardando")
       verificarPix(data.payment_id)
@@ -204,7 +208,7 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
         if (d.status === "approved") { clearInterval(iv); setEtapa("sucesso"); toast.success("Pagamento confirmado!") }
       } catch {}
     }, 5000)
-    setTimeout(() => clearInterval(iv), 10 * 60 * 1000)
+    setTimeout(() => clearInterval(iv), 15 * 60 * 1000)
   }
 
   function copiarPix() {
@@ -253,12 +257,13 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
       <div>
         <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Pix Copia e Cola</label>
         <div className="flex gap-2">
-          <input value={pixData.qr_code_text} readOnly
+          <input value={pixData.qr_code_text || "Escaneie o QR Code acima"} readOnly
             className={cn(
               "flex-1 rounded-xl border px-3 py-2 text-xs font-mono",
               "bg-white border-gray-200 text-gray-600",
               "dark:bg-white/[0.03] dark:border-white/10 dark:text-gray-400"
             )} />
+          {pixData.qr_code_text && (
           <button onClick={copiarPix}
             className={cn(
               "px-3 rounded-xl border font-semibold text-sm transition-colors",
@@ -268,6 +273,7 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
             )}>
             {copiado ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
           </button>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/20 text-sm text-amber-700 dark:text-amber-400">
@@ -293,7 +299,7 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
       {isNovoCadastro && (
         <div className="space-y-3">
           <button
-            onClick={() => window.location.href = "/onboarding"}
+            onClick={() => setEtapa("planos")}
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             ← Voltar para escolha de planos

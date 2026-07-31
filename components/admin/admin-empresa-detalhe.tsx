@@ -7,7 +7,7 @@ import { ptBR } from "date-fns/locale"
 import {
   ArrowLeft, Building2, Mail, Phone, MessageSquare, Plus, Send, Loader2,
   Trash2, AlertTriangle, CreditCard, Edit2, Save, X, Gift, Calendar,
-  CheckCircle, Clock, XCircle, QrCode, BadgeCheck
+  CheckCircle, Clock, XCircle, QrCode, BadgeCheck, ShieldOff
 } from "lucide-react"
 import { toast } from "sonner"
 import { formatarCNPJ, formatarCPF, formatarTelefone, formatarMoeda } from "@/lib/utils"
@@ -22,10 +22,10 @@ interface Empresa {
   created_at: string; logo_url: string | null
 }
 
-type Aba = "dados" | "assinaturas" | "notas" | "email" | "perigo"
+type Aba = "dados" | "assinaturas" | "notas" | "email" | "perigo" | "empresas" | "historico" | "acessos"
 
-const PLANOS = ["gratuito", "basico", "profissional", "agenda"]
-const PLANOS_PAGOS = ["basico", "profissional", "agenda"]
+const PLANOS = ["gratuito", "basico", "profissional", "agenda", "gestao"]
+const PLANOS_PAGOS = ["basico", "profissional", "agenda", "gestao"]
 const DIAS_TESTE = [7, 15, 30]
 const BADGE_STATUS: Record<string, string> = {
   ativa:     "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
@@ -34,15 +34,20 @@ const BADGE_STATUS: Record<string, string> = {
   pausada:   "bg-gray-500/10 text-gray-400 border-gray-500/20",
 }
 
-export function AdminEmpresaDetalhe({ empresa: empInit, assinaturas: assInit, notas: notasInit, tickets }: {
+export function AdminEmpresaDetalhe({ empresa: empInit, assinaturas: assInit, notas: notasInit, tickets, subEmpresas: subEmpInit = [], vendas = [], movimentacoes = [], auditLog = [] }: {
   empresa: Empresa
   assinaturas: { id: string; plano: string; periodicidade: string; status: string; valor_total: number; forma_pagamento: string | null; created_at: string; data_fim: string | null }[]
   notas: { id: string; nota: string; created_at: string }[]
   tickets: { id: string; assunto: string; status: string; mensagem: string; resposta_admin: string | null; created_at: string }[]
+  subEmpresas?: Empresa[]
+  vendas?: { id: string; total: number; forma_pagamento: string; status: string; created_at: string }[]
+  movimentacoes?: { id: string; tipo: string; categoria: string; valor: number; descricao: string; created_at: string }[]
+  auditLog?: { id: string; acao: string; detalhes: string | null; usuario: string | null; created_at: string }[]
 }) {
   const [empresa, setEmpresa] = useState(empInit)
   const [assinaturas, setAssinaturas] = useState(assInit)
   const [notas, setNotas] = useState(notasInit)
+  const [subEmpresas, setSubEmpresas] = useState(subEmpInit)
   const [aba, setAba] = useState<Aba>("dados")
   const [loading, setLoading] = useState(false)
   const [t] = [useAdminTema()]
@@ -167,6 +172,11 @@ export function AdminEmpresaDetalhe({ empresa: empInit, assinaturas: assInit, no
   const abas: { id: Aba; label: string }[] = [
     { id: "dados",        label: "Dados" },
     { id: "assinaturas",  label: "Assinaturas" },
+    ...(subEmpresas.length > 0 || empresa.plano === "gestao"
+      ? [{ id: "empresas" as Aba, label: `Empresas (${subEmpresas.length})` }]
+      : []),
+    { id: "acessos",      label: "Acessos" },
+    { id: "historico",    label: "Histórico" },
     { id: "notas",        label: `Notas${notas.length ? ` (${notas.length})` : ""}` },
     { id: "email",        label: "E-mail" },
     { id: "perigo",       label: "⚠️ Perigo" },
@@ -198,11 +208,14 @@ export function AdminEmpresaDetalhe({ empresa: empInit, assinaturas: assInit, no
       </div>
 
       {/* Abas */}
-      <div className={`flex gap-1 p-1 ${t.subBg} rounded-xl border ${t.border} overflow-x-auto`}>
+      <div className="flex gap-1 p-1 bg-muted rounded-xl border border-border overflow-x-auto">
         {abas.map((a) => (
           <button key={a.id} onClick={() => setAba(a.id)}
             className={cn("px-3 py-2 rounded-lg text-xs font-semibold transition-all shrink-0 whitespace-nowrap",
-              aba === a.id ? "bg-primary text-white" : `${t.textMuted3} hover:text-white ${t.hoverBg}`)}>
+              aba === a.id
+                ? "border border-primary bg-primary/10 text-primary"
+                : "text-muted-foreground hover:text-foreground hover:bg-background"
+            )}>
             {a.label}
           </button>
         ))}
@@ -285,8 +298,11 @@ export function AdminEmpresaDetalhe({ empresa: empInit, assinaturas: assInit, no
             <div className="flex gap-2">
               {(["teste", "pago"] as const).map((tipo) => (
                 <button key={tipo} onClick={() => setTipoAssinatura(tipo)}
-                  className={cn("flex-1 py-2.5 rounded-xl border text-sm font-bold transition-all capitalize",
-                    tipoAssinatura === tipo ? "bg-primary text-white border-primary" : `${t.subBg} ${t.textMuted4} border-${t.border} hover:border-primary/40`)}>
+                  className={cn("flex-1 py-2.5 rounded-xl border text-sm font-bold transition-all",
+                    tipoAssinatura === tipo
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:border-primary/40 bg-transparent"
+                  )}>
                   {tipo === "teste" ? "🎁 Período de Teste" : "💳 Plano Pago"}
                 </button>
               ))}
@@ -296,10 +312,37 @@ export function AdminEmpresaDetalhe({ empresa: empInit, assinaturas: assInit, no
             <div className="space-y-1.5">
               <label className={`text-xs font-semibold ${t.textMuted3}`}>Plano</label>
               <select value={planoManual} onChange={(e) => setPlanoManual(e.target.value)}
-                className={`w-full h-10 rounded-xl border ${t.border} ${t.subBg} px-3 text-sm ${t.text} focus:outline-none cursor-pointer`}>
-                {PLANOS_PAGOS.map((p) => <option key={p} value={p} className="capitalize">{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
+                className="w-full h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:border-primary cursor-pointer">
+                {PLANOS_PAGOS.map((p) => <option key={p} value={p} className="capitalize bg-white text-gray-900">{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
               </select>
             </div>
+
+            {/* Qtd empresas — apenas plano gestão */}
+            {planoManual === "gestao" && (
+              <div className="space-y-1.5">
+                <label className={`text-xs font-semibold ${t.textMuted3}`}>Qtd. de empresas liberadas</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="50"
+                  value={(empresa as any).max_empresas ?? 1}
+                  onChange={async (e) => {
+                    const val = parseInt(e.target.value) || 1
+                    setEmpresa((p) => ({ ...p, max_empresas: val }))
+                    await fetch("/api/admin/empresas/atualizar", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ empresa_id: empresa.id, dados: { max_empresas: val } }),
+                    })
+                    toast.success(`Limite atualizado para ${val} empresa(s)`)
+                  }}
+                  className="w-full h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:border-primary"
+                />
+                <p className={`text-xs ${t.textMuted}`}>
+                  Valor total: R$ {(((empresa as any).max_empresas ?? 1) * 29.9).toFixed(2).replace(".", ",")}/mês
+                </p>
+              </div>
+            )}
 
             {tipoAssinatura === "teste" ? (
               <div className="space-y-1.5">
@@ -308,7 +351,10 @@ export function AdminEmpresaDetalhe({ empresa: empInit, assinaturas: assInit, no
                   {DIAS_TESTE.map((d) => (
                     <button key={d} onClick={() => setDiasTeste(d)}
                       className={cn("py-2.5 rounded-xl border text-sm font-bold transition-all",
-                        diasTeste === d ? "bg-primary text-white border-primary" : `${t.subBg} ${t.textMuted4} border-${t.border}`)}>
+                        diasTeste === d
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border text-muted-foreground hover:border-primary/40 bg-transparent"
+                      )}>
                       {d} dias
                     </button>
                   ))}
@@ -324,9 +370,9 @@ export function AdminEmpresaDetalhe({ empresa: empInit, assinaturas: assInit, no
                   <div className="space-y-1.5">
                     <label className={`text-xs font-semibold ${t.textMuted3}`}>Duração (meses)</label>
                     <select value={mesesManual} onChange={(e) => setMesesManual(parseInt(e.target.value))}
-                      className={`w-full h-10 rounded-xl border ${t.border} ${t.subBg} px-3 text-sm ${t.text} focus:outline-none cursor-pointer`}>
+                      className="w-full h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground focus:outline-none cursor-pointer">
                       {Array.from({ length: 48 }, (_, i) => i + 1).map((m) => (
-                        <option key={m} value={m}>{m} {m === 1 ? "mês" : "meses"}</option>
+                        <option key={m} value={m} className="bg-white text-gray-900">{m} {m === 1 ? "mês" : "meses"}</option>
                       ))}
                     </select>
                   </div>
@@ -359,6 +405,30 @@ export function AdminEmpresaDetalhe({ empresa: empInit, assinaturas: assInit, no
               {loadingAssinatura ? <Loader2 className="w-4 h-4 animate-spin" /> : <BadgeCheck className="w-4 h-4" />}
               {tipoAssinatura === "teste" ? `Ativar ${diasTeste} dias grátis` : `Ativar plano por ${mesesManual} ${mesesManual === 1 ? "mês" : "meses"}`}
             </button>
+
+            {/* Rebaixar para gratuito */}
+            {empresa.plano !== "gratuito" && (
+              <button
+                onClick={async () => {
+                  if (!confirm("Rebaixar para plano Gratuito? O cliente perderá acesso aos recursos pagos.")) return
+                  const res = await fetch("/api/admin/empresas/alterar-plano", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ empresa_id: empresa.id, plano: "gratuito" }),
+                  })
+                  if (res.ok) {
+                    toast.success("Plano rebaixado para Gratuito")
+                    setEmpresa((p) => ({ ...p, plano: "gratuito", plano_ativo: false }))
+                  } else {
+                    toast.error("Erro ao rebaixar plano")
+                  }
+                }}
+                className="w-full h-10 rounded-xl border border-red-500/30 text-red-400 text-sm font-semibold hover:bg-red-500/10 transition-all flex items-center justify-center gap-2"
+              >
+                <ShieldOff className="w-4 h-4" />
+                Rebaixar para Gratuito
+              </button>
+            )}
           </div>
 
           {/* Histórico de assinaturas */}
@@ -440,6 +510,196 @@ export function AdminEmpresaDetalhe({ empresa: empInit, assinaturas: assInit, no
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             Enviar e-mail
           </button>
+        </div>
+      )}
+
+      {/* ── ABA EMPRESAS DEPENDENTES ── */}
+      {aba === "empresas" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className={`text-base font-bold ${t.text}`}>Empresas vinculadas</h3>
+              <p className={`text-xs ${t.textMuted}`}>
+                {subEmpresas.length} empresa(s) dependente(s) deste cadastro
+                {(empresa as any).max_empresas && ` · Limite: ${(empresa as any).max_empresas}`}
+              </p>
+            </div>
+          </div>
+
+          {subEmpresas.length === 0 ? (
+            <div className={`rounded-xl border ${t.border} p-8 text-center`}>
+              <p className={`text-sm ${t.textMuted}`}>Nenhuma empresa dependente cadastrada.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {subEmpresas.map((sub) => (
+                <div key={sub.id} className={`rounded-xl border ${t.border} ${t.cardBg} p-4`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
+                        <span className="text-sm font-bold text-primary">{sub.nome.charAt(0)}</span>
+                      </div>
+                      <div className="min-w-0">
+                        <p className={`text-sm font-semibold ${t.text} truncate`}>{sub.nome}</p>
+                        <div className={`flex items-center gap-3 text-xs ${t.textMuted2} mt-0.5`}>
+                          <span>{sub.area_atuacao}</span>
+                          <span>{sub.telefone}</span>
+                          {sub.documento && <span>{sub.tipo_documento === "cnpj" ? formatarCNPJ(sub.documento) : sub.documento}</span>}
+                        </div>
+                        {(sub.endereco_cidade || sub.endereco_estado) && (
+                          <p className={`text-[10px] ${t.textMuted} mt-0.5`}>
+                            {[sub.endereco_rua, sub.endereco_numero, sub.endereco_bairro, sub.endereco_cidade, sub.endereco_estado].filter(Boolean).join(", ")}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => router.push(`/admin/empresas/${sub.id}`)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                    >
+                      Ver detalhes
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── ABA ACESSOS + RESUMO MOVIMENTAÇÕES ── */}
+      {aba === "acessos" && (
+        <div className="space-y-6">
+          {/* Resumo de Movimentações / Faturamento */}
+          <div className={`rounded-2xl border ${t.border} ${t.subBg} p-5 space-y-4`}>
+            <h3 className={`font-bold text-sm ${t.text} flex items-center gap-2`}>
+              <CreditCard className="w-4 h-4 text-emerald-400" /> Resumo de Movimentações
+            </h3>
+            {vendas.length > 0 ? (() => {
+              const totalFaturado = vendas.reduce((s, v) => s + v.total, 0)
+              const totalVendas = vendas.length
+              const ticketMedio = totalVendas > 0 ? totalFaturado / totalVendas : 0
+              // Últimos 30 dias
+              const agora = new Date()
+              const d30 = new Date(agora.getTime() - 30 * 24 * 60 * 60 * 1000)
+              const vendas30d = vendas.filter(v => new Date(v.created_at) >= d30)
+              const faturamento30d = vendas30d.reduce((s, v) => s + v.total, 0)
+              // Formas de pagamento
+              const porForma: Record<string, number> = {}
+              vendas.forEach(v => { porForma[v.forma_pagamento] = (porForma[v.forma_pagamento] || 0) + v.total })
+              const entradas = movimentacoes.filter(m => m.tipo === "entrada").reduce((s, m) => s + m.valor, 0)
+              const saidas = movimentacoes.filter(m => m.tipo === "saida").reduce((s, m) => s + m.valor, 0)
+
+              return (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className={`p-3 rounded-xl ${t.bg} border ${t.border}`}>
+                      <p className={`text-[10px] uppercase ${t.textMuted}`}>Faturamento total</p>
+                      <p className={`text-lg font-black ${t.text}`}>{formatarMoeda(totalFaturado)}</p>
+                    </div>
+                    <div className={`p-3 rounded-xl ${t.bg} border ${t.border}`}>
+                      <p className={`text-[10px] uppercase ${t.textMuted}`}>Últimos 30 dias</p>
+                      <p className={`text-lg font-black text-emerald-400`}>{formatarMoeda(faturamento30d)}</p>
+                    </div>
+                    <div className={`p-3 rounded-xl ${t.bg} border ${t.border}`}>
+                      <p className={`text-[10px] uppercase ${t.textMuted}`}>Total de vendas</p>
+                      <p className={`text-lg font-black ${t.text}`}>{totalVendas}</p>
+                    </div>
+                    <div className={`p-3 rounded-xl ${t.bg} border ${t.border}`}>
+                      <p className={`text-[10px] uppercase ${t.textMuted}`}>Ticket médio</p>
+                      <p className={`text-lg font-black ${t.text}`}>{formatarMoeda(ticketMedio)}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className={`p-3 rounded-xl ${t.bg} border ${t.border}`}>
+                      <p className={`text-[10px] uppercase ${t.textMuted}`}>Entradas (caixa)</p>
+                      <p className={`text-sm font-bold text-emerald-400`}>{formatarMoeda(entradas)}</p>
+                    </div>
+                    <div className={`p-3 rounded-xl ${t.bg} border ${t.border}`}>
+                      <p className={`text-[10px] uppercase ${t.textMuted}`}>Saídas (caixa)</p>
+                      <p className={`text-sm font-bold text-red-400`}>{formatarMoeda(saidas)}</p>
+                    </div>
+                  </div>
+                  {Object.keys(porForma).length > 0 && (
+                    <div>
+                      <p className={`text-xs font-semibold ${t.textMuted} mb-2`}>Por forma de pagamento</p>
+                      <div className="space-y-1">
+                        {Object.entries(porForma).sort(([,a],[,b]) => b - a).map(([fp, val]) => (
+                          <div key={fp} className={`flex items-center justify-between text-xs px-3 py-1.5 rounded-lg ${t.bg}`}>
+                            <span className={`${t.text} capitalize`}>{fp.replace(/_/g, " ")}</span>
+                            <span className={`font-bold ${t.text}`}>{formatarMoeda(val)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })() : (
+              <p className={`text-sm ${t.textMuted}`}>Nenhuma venda registrada.</p>
+            )}
+          </div>
+
+          {/* Histórico de Acessos */}
+          <div className={`rounded-2xl border ${t.border} ${t.subBg} p-5 space-y-3`}>
+            <h3 className={`font-bold text-sm ${t.text} flex items-center gap-2`}>
+              <Clock className="w-4 h-4 text-blue-400" /> Histórico de Acessos
+            </h3>
+            <p className={`text-xs ${t.textMuted}`}>
+              Acessos são rastreados pelo Supabase Auth. Último acesso disponível no painel do Supabase.
+            </p>
+            <div className={`p-3 rounded-xl ${t.bg} border ${t.border} space-y-1`}>
+              <div className="flex items-center justify-between">
+                <span className={`text-xs ${t.textMuted}`}>Email da conta</span>
+                <span className={`text-xs font-medium ${t.text}`}>{empresa.email}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className={`text-xs ${t.textMuted}`}>Data de cadastro</span>
+                <span className={`text-xs font-medium ${t.text}`}>{format(parseISO(empresa.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className={`text-xs ${t.textMuted}`}>Plano atual</span>
+                <span className={`text-xs font-medium ${t.text} capitalize`}>{empresa.plano} {empresa.plano_ativo ? "✓" : "(inativo)"}</span>
+              </div>
+            </div>
+            <p className={`text-[10px] ${t.textMuted} italic`}>
+              Para histórico detalhado de logins, consulte o painel Supabase → Authentication → Users.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── ABA HISTÓRICO DE ALTERAÇÕES ── */}
+      {aba === "historico" && (
+        <div className={`rounded-2xl border ${t.border} ${t.subBg} p-5 space-y-4`}>
+          <h3 className={`font-bold text-sm ${t.text} flex items-center gap-2`}>
+            <Calendar className="w-4 h-4 text-purple-400" /> Histórico de Alterações
+          </h3>
+          {auditLog.length > 0 ? (
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {auditLog.map((log) => (
+                <div key={log.id} className={`p-3 rounded-xl ${t.bg} border ${t.border} flex items-start gap-3`}>
+                  <div className="w-2 h-2 rounded-full bg-purple-400 mt-1.5 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-xs font-semibold ${t.text}`}>{log.acao}</p>
+                    {log.detalhes && <p className={`text-[10px] ${t.textMuted} mt-0.5`}>{log.detalhes}</p>}
+                    <p className={`text-[10px] ${t.textMuted} mt-1`}>
+                      {format(parseISO(log.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                      {log.usuario && ` · ${log.usuario}`}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className={`text-center py-8`}>
+              <Calendar className={`w-8 h-8 mx-auto mb-2 opacity-30 ${t.textMuted}`} />
+              <p className={`text-sm ${t.textMuted}`}>Nenhuma alteração registrada ainda.</p>
+              <p className={`text-[10px] ${t.textMuted} mt-1`}>
+                Alterações feitas pelo admin (plano, dados, assinaturas) aparecerão aqui.
+              </p>
+            </div>
+          )}
         </div>
       )}
 

@@ -23,14 +23,57 @@ export async function GET(req: NextRequest) {
     groq_key: !!process.env.GROQ_API_KEY,
   }
 
-  // Testar conectividade com Mercado Pago (sem criar pagamento real)
+  // Testar conectividade com Mercado Pago — diagnóstico completo
   try {
-    const res = await fetch("https://api.mercadopago.com/users/me", {
-      headers: { "Authorization": `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}` },
+    const token = process.env.MERCADOPAGO_ACCESS_TOKEN ?? ""
+    const tokenPrefix = token.slice(0, 12) + "..." // APP_USR-1234...
+
+    // 1. Verificar /users/me (identidade da conta)
+    const resMe = await fetch("https://api.mercadopago.com/users/me", {
+      headers: { "Authorization": `Bearer ${token}` },
     })
-    diagnostico.mercadopago = { ok: res.ok, status: res.status }
+    const meData = resMe.ok ? await resMe.json() : null
+
+    // 2. Verificar se o token é de teste ou produção
+    const isTestToken = token.includes("TEST")
+    const isProductionToken = token.startsWith("APP_USR-") && !token.includes("TEST")
+
+    // 3. Tentar criar pagamento mínimo para verificar permissão Pix
+    let pixTest: { ok: boolean; status?: number; message?: string } = { ok: false }
+    try {
+      const resPix = await fetch("https://api.mercadopago.com/v1/payments", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+          "X-Idempotency-Key": `diag-${Date.now()}`,
+        },
+        body: JSON.stringify({
+          transaction_amount: 0.01,
+          description: "Diagnóstico — ignorar",
+          payment_method_id: "pix",
+          payer: { email: "test@test.com" },
+        }),
+      })
+      const pixData = await resPix.json()
+      pixTest = {
+        ok: resPix.ok,
+        status: resPix.status,
+        message: pixData?.message ?? pixData?.error ?? null,
+      }
+    } catch (e) {
+      pixTest = { ok: false, message: e instanceof Error ? e.message : "erro desconhecido" }
+    }
+
+    diagnostico.mercadopago = {
+      token_prefix: tokenPrefix,
+      is_test_token: isTestToken,
+      is_production_token: isProductionToken,
+      users_me: { ok: resMe.ok, status: resMe.status, site_id: meData?.site_id, id: meData?.id },
+      pix_test: pixTest,
+    }
   } catch {
-    diagnostico.mercadopago = { ok: false }
+    diagnostico.mercadopago = { ok: false, erro: "Falha na conexão" }
   }
 
   // Testar tabela assinaturas

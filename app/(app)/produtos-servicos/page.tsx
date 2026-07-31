@@ -10,8 +10,9 @@ export default async function ProdutosServicosPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const { data: empresa } = await supabase
-    .from("empresas").select("*").eq("user_id", user.id).single()
+  const { data: empresas } = await supabase
+    .from("empresas").select("*").eq("user_id", user.id).order("created_at", { ascending: true })
+  const empresa = empresas?.[0] ?? null
   if (!empresa) redirect("/onboarding")
 
   const [{ data: produtos }, { data: categorias }] = await Promise.all([
@@ -25,6 +26,8 @@ export default async function ProdutosServicosPage() {
       plano={empresa.plano}
       produtos={produtos ?? []}
       categorias={categorias ?? []}
+      pinGerente={empresa.pin_gerente ?? null}
+      restricoesAcesso={empresa.restricoes_acesso ?? null}
     />
   )
 }

@@ -1,33 +1,135 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { createClient } from "@/lib/supabase/client"
 import type { Empresa } from "@/types"
 
+const STORAGE_KEY = "boragerir_empresa_selecionada"
+const COOKIE_KEY = "empresa_ativa_id"
+const CACHE_KEY = "boragerir_empresa_cache"
+const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+
+function setCookie(name: string, value: string) {
+  document.cookie = `${name}=${value};path=/;max-age=${60 * 60 * 24 * 365};SameSite=Lax`
+}
+
+function getCookie(name: string): string | null {
+  const match = document.cookie.match(new RegExp(`(^| )${name}=([^;]+)`))
+  return match ? match[2] : null
+}
+
 export function useEmpresa() {
   const [empresa, setEmpresa] = useState<Empresa | null>(null)
+  const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
 
   useEffect(() => {
-    async function carregarEmpresa() {
+    async function carregarEmpresas() {
+      // Check cache first
+      try {
+        const cached = sessionStorage.getItem(CACHE_KEY)
+        if (cached) {
+          const { data, timestamp } = JSON.parse(cached)
+          if (Date.now() - timestamp < CACHE_TTL && data.lista?.length > 0) {
+            setEmpresas(data.lista)
+            setEmpresa(data.selecionada)
+            setLoading(false)
+            // Still refresh in background but don't block UI
+            refreshInBackground()
+            return
+          }
+        }
+      } catch { /* ignore cache errors */ }
+
+      await fetchAndSetEmpresas()
+    }
+
+    async function refreshInBackground() {
+      await fetchAndSetEmpresas(true)
+    }
+
+    async function fetchAndSetEmpresas(silent = false) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         setLoading(false)
         return
       }
+
+      // Carregar todas as empresas do usuário
       const { data } = await supabase
         .from("empresas")
         .select("*")
         .eq("user_id", user.id)
-        .single()
+        .order("created_at", { ascending: true })
 
-      setEmpresa(data)
+      const lista = data ?? []
+      setEmpresas(lista)
+
+      if (lista.length === 0) {
+        setLoading(false)
+        return
+      }
+
+      // Para plano gestão: a primeira empresa é o container, selecionar a segunda se existir
+      const isGestao = lista[0]?.plano === "gestao"
+      const empresasVisiveis = isGestao ? lista.filter((_, i: number) => i > 0) : lista
+
+      let selecionada = null
+      if (empresasVisiveis.length > 0) {
+        const salvoId = getCookie(COOKIE_KEY) || localStorage.getItem(STORAGE_KEY)
+        const salva = empresasVisiveis.find((e: any) => e.id === salvoId)
+        selecionada = salva ?? empresasVisiveis[0]
+        setEmpresa(selecionada)
+        // Garantir que cookie está sincronizado
+        setCookie(COOKIE_KEY, selecionada.id)
+      } else {
+        // Gestão sem empresas reais ainda — usar o container pra não quebrar
+        selecionada = lista[0]
+        setEmpresa(lista[0])
+        setCookie(COOKIE_KEY, lista[0].id)
+      }
+
+      // Save to cache
+      try {
+        sessionStorage.setItem(CACHE_KEY, JSON.stringify({
+          data: { lista, selecionada },
+          timestamp: Date.now()
+        }))
+      } catch { /* ignore */ }
+
       setLoading(false)
     }
 
-    carregarEmpresa()
+    carregarEmpresas()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  return { empresa, loading }
+  const selecionarEmpresa = useCallback((id: string) => {
+    const allEmpresas = empresas
+    const found = allEmpresas.find((e) => e.id === id)
+    if (found) {
+      setEmpresa(found)
+      localStorage.setItem(STORAGE_KEY, id)
+      setCookie(COOKIE_KEY, id)
+      // Update cache
+      try {
+        const cached = sessionStorage.getItem(CACHE_KEY)
+        if (cached) {
+          const parsed = JSON.parse(cached)
+          parsed.data.selecionada = found
+          sessionStorage.setItem(CACHE_KEY, JSON.stringify(parsed))
+        }
+      } catch { /* ignore */ }
+    }
+  }, [empresas])
+
+  // Para plano gestão, excluir o container da lista visível
+  const isGestao = empresas[0]?.plano === "gestao"
+  const empresasVisiveis = isGestao ? empresas.filter((_, i) => i > 0) : empresas
+
+  // Limite de empresas (pega do campo max_empresas da primeira empresa ou default 1)
+  const maxEmpresas = empresas[0]?.max_empresas ?? 1
+
+  return { empresa, empresas: empresasVisiveis, loading, selecionarEmpresa, maxEmpresas }
 }

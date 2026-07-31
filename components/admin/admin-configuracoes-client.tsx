@@ -135,7 +135,7 @@ export function AdminConfiguracoesClient({
       </div>
 
       {/* Abas */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         {[
           { id: "planos", label: "Planos e Preços", icon: DollarSign },
           { id: "app", label: "Configurações do App", icon: Settings },
@@ -143,7 +143,9 @@ export function AdminConfiguracoesClient({
         ].map(({ id, label, icon: Icon }) => (
           <button key={id} onClick={() => { setAba(id as "planos" | "app" | "documentos"); if (id === "documentos") carregarDocumentos() }}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
-              aba === id ? "bg-primary text-white" : t.filterInativo
+              aba === id
+                ? "bg-primary text-white"
+                : "bg-white border border-gray-300 text-gray-700 hover:border-primary hover:text-primary"
             }`}>
             <Icon className="w-4 h-4" />{label}
           </button>

@@ -27,13 +27,19 @@ export type Database = {
           endereco_cidade: string
           endereco_estado: string
           endereco_cep: string
-          plano: "gratuito" | "basico" | "profissional" | "agenda"
+          plano: "gratuito" | "basico" | "profissional" | "agenda" | "gestao"
           plano_ativo: boolean
           pontos_por_real: number
           pontos_para_desconto: number
+          max_empresas: number | null
           recibo_template: "padrao" | "moderno" | "minimalista" | "colorido" | null
           recibo_cor_primaria: string | null
           recibo_rodape: string | null
+          pin_gerente: string | null
+          restricoes_acesso: {
+            areas_protegidas?: string[]
+            limite_desconto_sem_pin?: number
+          } | null
           created_at: string
         }
         Insert: Omit<Database["public"]["Tables"]["empresas"]["Row"], "id" | "created_at"> & {
@@ -134,6 +140,8 @@ export type Database = {
           status: "aberto" | "fechado"
           aberto_por: string
           fechado_por: string | null
+          tipo_caixa: "diario" | "semanal" | "mensal"
+          nome_caixa: string | null
           created_at: string
         }
         Insert: Omit<Database["public"]["Tables"]["caixas"]["Row"], "id" | "created_at"> & {
@@ -295,6 +303,40 @@ export type Database = {
           updated_at?: string
         }
         Update: Partial<Database["public"]["Tables"]["assinaturas"]["Insert"]>
+      }
+      recompensas_fidelidade: {
+        Row: {
+          id: string
+          empresa_id: string
+          nome: string
+          descricao: string | null
+          pontos_necessarios: number
+          estoque: number | null
+          ativo: boolean
+          created_at: string
+        }
+        Insert: Omit<Database["public"]["Tables"]["recompensas_fidelidade"]["Row"], "id" | "created_at"> & {
+          id?: string
+          created_at?: string
+        }
+        Update: Partial<Database["public"]["Tables"]["recompensas_fidelidade"]["Insert"]>
+      }
+      resgates_recompensas: {
+        Row: {
+          id: string
+          empresa_id: string
+          cliente_id: string
+          recompensa_id: string
+          venda_id: string | null
+          pontos_usados: number
+          nome_recompensa: string
+          created_at: string
+        }
+        Insert: Omit<Database["public"]["Tables"]["resgates_recompensas"]["Row"], "id" | "created_at"> & {
+          id?: string
+          created_at?: string
+        }
+        Update: Partial<Database["public"]["Tables"]["resgates_recompensas"]["Insert"]>
       }
     }
     Views: {

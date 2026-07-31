@@ -1,137 +1,147 @@
 import { NextRequest, NextResponse } from "next/server"
-import { MercadoPagoConfig, Payment, PreApproval } from "mercadopago"
-import { createClient } from "@/lib/supabase/server"
-import { createHmac } from "crypto"
-
-const mp = new MercadoPagoConfig({
-  accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN!,
-})
-
-// Valida a assinatura do webhook do Mercado Pago
-function validarAssinaturaMP(req: NextRequest, body: string): boolean {
-  const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET
-  if (!secret) return true // sem secret configurado, aceita (compatibilidade)
-
-  const xSignature = req.headers.get("x-signature") ?? ""
-  const xRequestId = req.headers.get("x-request-id") ?? ""
-  const dataId = req.nextUrl.searchParams.get("data.id") ?? ""
-
-  // Formato: ts=<timestamp>,v1=<hash>
-  const parts = Object.fromEntries(xSignature.split(",").map(p => p.split("=")))
-  const ts = parts["ts"] ?? ""
-  const v1 = parts["v1"] ?? ""
-
-  if (!ts || !v1) return false
-
-  const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`
-  const expected = createHmac("sha256", secret).update(manifest).digest("hex")
-
-  return expected === v1
-}
+import { createAdminClient } from "@/lib/supabase/admin"
 
 export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.text()
-
-    // Valida assinatura — rejeita chamadas não originadas do Mercado Pago
-    if (!validarAssinaturaMP(req, rawBody)) {
-      console.warn("Webhook MP: assinatura inválida")
-      return NextResponse.json({ erro: "Assinatura inválida" }, { status: 401 })
-    }
+    console.log("Webhook MP raw:", rawBody.slice(0, 500))
 
     const body = JSON.parse(rawBody)
-    const { type, data } = body
+    const { type, data, action } = body
 
-    console.log("Webhook MP recebido:", type, data?.id)
+    console.log("Webhook MP:", JSON.stringify({ type, action, dataId: data?.id }))
 
-    const supabase = await createClient()
+    const supabase = createAdminClient()
+    const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN!
 
-    // ── Pagamento Pix confirmado ──────────────────────────────
-    if (type === "payment") {
-      const payment = new Payment(mp)
-      const pagamento = await payment.get({ id: data.id })
+    // ── Pagamento ──────────────────────────────────────────────
+    if (type === "payment" && data?.id) {
+      // Tentar buscar detalhes do pagamento
+      let pagamento: Record<string, unknown> | null = null
+      try {
+        const res = await fetch(`https://api.mercadopago.com/v1/payments/${data.id}`, {
+          headers: { "Authorization": `Bearer ${accessToken}` },
+        })
+        const text = await res.text()
+        console.log("Webhook MP payment fetch:", res.status, text.slice(0, 300))
+        if (res.ok) {
+          pagamento = JSON.parse(text)
+        }
+      } catch (e) {
+        console.error("Webhook: erro ao buscar pagamento:", e)
+      }
 
-      if (pagamento.status === "approved") {
-        const meta = pagamento.metadata as {
-          empresa_id?: string
-          plano?: string
-          periodicidade?: string
+      if (pagamento && pagamento.status === "approved") {
+        const meta = (pagamento.metadata ?? {}) as Record<string, string>
+        const externalRef = pagamento.external_reference as string | undefined
+        const paymentId = String(pagamento.id)
+
+        let empresaId = meta?.empresa_id
+        let plano = meta?.plano
+
+        if (!empresaId && externalRef) {
+          // external_reference é o empresa_id direto
+          empresaId = externalRef
         }
 
-        if (meta?.empresa_id) {
-          await supabase.from("assinaturas")
+        console.log("Webhook MP approved:", { empresaId, plano, paymentId })
+
+        if (empresaId) {
+          // Ativar assinatura pendente
+          const { data: updated, error: errUpdate } = await supabase.from("assinaturas")
             .update({
               status: "ativa",
               data_inicio: new Date().toISOString(),
-              mp_payment_id: pagamento.id?.toString(),
+              mp_payment_id: paymentId,
             })
-            .eq("empresa_id", meta.empresa_id)
-            .eq("mp_pix_payment_id", pagamento.id?.toString())
+            .eq("empresa_id", empresaId)
+            .eq("status", "pendente")
+            .select("id")
 
-          if (meta.plano) {
-            await supabase.from("empresas")
-              .update({ plano: meta.plano, plano_ativo: true })
-              .eq("id", meta.empresa_id)
+          console.log("Webhook assinatura update:", { updated, errUpdate })
+
+          // Atualizar plano da empresa
+          if (plano) {
+            const { error: errEmpresa } = await supabase.from("empresas")
+              .update({ plano, plano_ativo: true })
+              .eq("id", empresaId)
+            console.log("Webhook empresa update:", { plano, errEmpresa })
           }
-
-          console.log(`✅ Pix aprovado para empresa ${meta.empresa_id}`)
         }
       }
 
-      if (pagamento.status === "cancelled" || pagamento.status === "rejected") {
-        const meta = pagamento.metadata as { empresa_id?: string }
+      if (pagamento && (pagamento.status === "cancelled" || pagamento.status === "rejected")) {
+        const meta = (pagamento.metadata ?? {}) as Record<string, string>
         if (meta?.empresa_id) {
           await supabase.from("assinaturas")
             .update({ status: "cancelada" })
-            .eq("mp_pix_payment_id", pagamento.id?.toString())
-          console.log(`❌ Pix cancelado/rejeitado para empresa ${meta.empresa_id}`)
+            .eq("empresa_id", meta.empresa_id)
+            .eq("status", "pendente")
         }
       }
     }
 
-    // ── Assinatura recorrente (cartão) ────────────────────────
-    if (type === "subscription_preapproval") {
-      const preApproval = new PreApproval(mp)
-      const assinatura = await preApproval.get({ id: data.id })
-      const meta = assinatura.metadata as { empresa_id?: string; plano?: string }
+    // ── Merchant Order (Checkout Pro envia isso) ───────────────
+    if (type === "merchant_order" && data?.id) {
+      try {
+        const res = await fetch(`https://api.mercadopago.com/merchant_orders/${data.id}`, {
+          headers: { "Authorization": `Bearer ${accessToken}` },
+        })
+        if (res.ok) {
+          const order = await res.json()
+          console.log("Webhook merchant_order:", JSON.stringify(order).slice(0, 500))
 
-      if (!meta?.empresa_id) return NextResponse.json({ ok: true })
+          // Verificar se todos os pagamentos estão aprovados
+          const payments = order.payments ?? []
+          const totalPago = payments
+            .filter((p: Record<string, unknown>) => p.status === "approved")
+            .reduce((sum: number, p: Record<string, unknown>) => sum + (p.transaction_amount as number ?? 0), 0)
 
-      if (assinatura.status === "authorized") {
-        await supabase.from("assinaturas")
-          .update({ status: "ativa" })
-          .eq("mp_preapproval_id", data.id)
+          if (totalPago >= order.total_amount && order.external_reference) {
+            // external_reference é o empresa_id
+            const empresaId = order.external_reference
 
-        await supabase.from("empresas")
-          .update({ plano: meta.plano ?? "basico", plano_ativo: true })
-          .eq("id", meta.empresa_id)
+            if (empresaId) {
+              // Buscar assinatura pendente para saber o plano
+              const { data: assPendente } = await supabase.from("assinaturas")
+                .select("id, plano")
+                .eq("empresa_id", empresaId)
+                .eq("status", "pendente")
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .single()
 
-        console.log(`✅ Assinatura ativada para empresa ${meta.empresa_id}`)
-      }
+              if (assPendente) {
+                await supabase.from("assinaturas")
+                  .update({
+                    status: "ativa",
+                    data_inicio: new Date().toISOString(),
+                    mp_payment_id: payments[0]?.id?.toString() ?? "",
+                  })
+                  .eq("id", assPendente.id)
 
-      if (assinatura.status === "cancelled" || assinatura.status === "paused") {
-        await supabase.from("assinaturas")
-          .update({ status: assinatura.status === "cancelled" ? "cancelada" : "pausada" })
-          .eq("mp_preapproval_id", data.id)
+                await supabase.from("empresas")
+                  .update({ plano: assPendente.plano, plano_ativo: true })
+                  .eq("id", empresaId)
 
-        if (assinatura.status === "cancelled") {
-          await supabase.from("empresas")
-            .update({ plano: "gratuito", plano_ativo: true })
-            .eq("id", meta.empresa_id)
-          console.log(`⚠️ Empresa ${meta.empresa_id} rebaixada para gratuito`)
+                console.log("Webhook merchant_order ativou:", { empresaId, plano: assPendente.plano })
+              }
+            }
+          }
         }
+      } catch (e) {
+        console.error("Webhook merchant_order erro:", e)
       }
     }
 
     return NextResponse.json({ ok: true })
-
   } catch (error) {
-    console.error("Erro no webhook MP:", error)
-    return NextResponse.json({ erro: "Erro interno" }, { status: 500 })
+    console.error("Webhook MP erro fatal:", error)
+    return NextResponse.json({ ok: true })
   }
 }
 
-// Mercado Pago envia GET para validar a URL
+// GET para validação de URL
 export async function GET() {
   return NextResponse.json({ status: "webhook ativo — Bora Gerir" })
 }

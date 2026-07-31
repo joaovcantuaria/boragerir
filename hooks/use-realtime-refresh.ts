@@ -26,14 +26,12 @@ export function useRealtimeRefresh(empresaId: string | null | undefined) {
       if (ROTAS_SEM_REFRESH.some((r) => pathname.startsWith(r))) return
 
       if (timerRef.current) clearTimeout(timerRef.current)
-      // 800ms de debounce — aguarda estabilizar antes de refrescar
-      timerRef.current = setTimeout(() => router.refresh(), 800)
+      // 1500ms de debounce — aguarda estabilizar antes de refrescar
+      timerRef.current = setTimeout(() => router.refresh(), 1500)
     }
 
     const tabelas = [
-      "vendas", "agendamentos", "clientes", "movimentacoes_caixa",
-      "caixas", "produtos_servicos", "funcionarios", "debitos_clientes",
-      "orcamentos", "tarefas", "contratos", "contratos_parcelas", "agenda_config",
+      "vendas", "agendamentos", "caixas", "movimentacoes_caixa",
     ]
 
     const canais = tabelas.map((tabela) =>

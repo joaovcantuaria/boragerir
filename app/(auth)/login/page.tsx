@@ -42,15 +42,24 @@ export default function LoginPage() {
 
   async function onLogin(data: FormLogin) {
     setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({
-      email: data.email,
-      password: data.senha,
+
+    // Usar API route própria que permite login mesmo sem email confirmado
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: data.email, password: data.senha }),
     })
-    if (error) {
-      toast.error("E-mail ou senha incorretos.")
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      toast.error(body.error ?? "E-mail ou senha incorretos.")
       setLoading(false)
       return
     }
+
+    // Sessão foi definida nos cookies pela API — atualizar antes de ler
+    router.refresh()
+    await new Promise((r) => setTimeout(r, 200)) // aguarda propagação dos cookies
 
     // Redirecionar baseado no plano e status de pagamento
     try {
@@ -105,15 +114,21 @@ export default function LoginPage() {
 
   async function onRecuperar(data: FormRecuperar) {
     setLoading(true)
-    const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
-      redirectTo: `${window.location.origin}/auth/reset-password`,
-    })
-    if (error) {
-      toast.error("Erro ao enviar e-mail. Verifique o endereço.")
-      setLoading(false)
-      return
+    try {
+      const res = await fetch("/api/auth/recuperar-senha", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: data.email }),
+      })
+      if (!res.ok) {
+        toast.error("Erro ao enviar e-mail. Verifique o endereço.")
+        setLoading(false)
+        return
+      }
+      setEmailEnviado(true)
+    } catch {
+      toast.error("Erro de conexão. Tente novamente.")
     }
-    setEmailEnviado(true)
     setLoading(false)
   }
 

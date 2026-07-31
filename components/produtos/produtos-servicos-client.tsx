@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Plus, Search, Package, Scissors, Edit, AlertTriangle, Loader2 } from "lucide-react"
+import { Plus, Search, Package, Scissors, Edit, AlertTriangle, Loader2, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,6 +18,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { createClient } from "@/lib/supabase/client"
 import { formatarMoeda, calcularMargem } from "@/lib/utils"
 import type { ProdutoServico, Categoria } from "@/types"
+import { PinProtected } from "@/components/ui/pin-protected"
+import { PinModal } from "@/components/ui/pin-modal"
 
 const schemaProduto = z.object({
   nome: z.string().min(1, "Nome obrigatório"),
@@ -25,6 +27,7 @@ const schemaProduto = z.object({
   categoria_id: z.string().optional(),
   descricao: z.string().optional(),
   codigo: z.string().optional(),
+  codigo_barras: z.string().optional(),
   unidade_medida: z.string().optional(),
   preco: z.string().min(1, "Preço obrigatório"),
   custo: z.string().optional(),
@@ -54,11 +57,15 @@ export function ProdutosServicosClient({
   plano,
   produtos: produtosIniciais,
   categorias: categoriasIniciais,
+  pinGerente,
+  restricoesAcesso,
 }: {
   empresaId: string
   plano: string
   produtos: ProdutoServico[]
   categorias: Categoria[]
+  pinGerente?: string | null
+  restricoesAcesso?: { areas_protegidas?: string[]; limite_desconto_sem_pin?: number } | null
 }) {
   const [produtos, setProdutos] = useState(produtosIniciais)
   const [categorias, setCategorias] = useState(categoriasIniciais)
@@ -70,10 +77,26 @@ export function ProdutosServicosClient({
   const [criandoCategoria, setCriandoCategoria] = useState(false)
   const [nomeNovaCategoria, setNomeNovaCategoria] = useState("")
   const [loadingCategoria, setLoadingCategoria] = useState(false)
+  const [unidadeCustom, setUnidadeCustom] = useState("")
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<FormProduto>({
     resolver: zodResolver(schemaProduto),
   })
+
+  // ── PIN Protection ──
+  const [pinModalOpen, setPinModalOpen] = useState(false)
+  const [pinAcaoPendente, setPinAcaoPendente] = useState<(() => void) | null>(null)
+  const areasProtegidas = restricoesAcesso?.areas_protegidas || []
+  const pinConf = !!pinGerente
+
+  function executarComPin(restricaoId: string, acao: () => void) {
+    if (pinConf && areasProtegidas.includes(restricaoId)) {
+      const chave = `pin_acao_${empresaId}_${restricaoId}`
+      if (sessionStorage.getItem(chave) === "true") { acao(); return }
+      setPinAcaoPendente(() => () => { sessionStorage.setItem(chave, "true"); acao() })
+      setPinModalOpen(true)
+    } else { acao() }
+  }
 
   const produtosFiltrados = produtos.filter((p) =>
     p.tipo === "produto" &&
@@ -126,23 +149,63 @@ export function ProdutosServicosClient({
     setTipoModal(produto.tipo)
     setCriandoCategoria(false)
     setNomeNovaCategoria("")
+    const unidade = produto.unidade_medida ?? "unidade"
+    const isCustom = !UNIDADES.some((u) => u.value === unidade) || (unidade !== "outro" && !UNIDADES.find((u) => u.value === unidade))
+    if (unidade === "outro" || isCustom) {
+      setUnidadeCustom(unidade === "outro" ? "" : unidade)
+    } else {
+      setUnidadeCustom("")
+    }
     reset({
       nome: produto.nome,
       tipo: produto.tipo,
       categoria_id: produto.categoria_id ?? "",
       descricao: produto.descricao ?? "",
+      codigo_barras: produto.codigo_barras ?? "",
       preco: produto.preco.toString(),
       custo: produto.custo?.toString() ?? "",
       estoque_atual: produto.estoque_atual?.toString() ?? "",
       estoque_minimo: produto.estoque_minimo?.toString() ?? "",
       comissao_percentual: produto.comissao_percentual?.toString() ?? "",
       duracao_minutos: produto.duracao_minutos?.toString() ?? "",
+      unidade_medida: UNIDADES.some((u) => u.value === unidade) ? unidade : "outro",
     })
     setModalAberto(true)
   }
 
+  async function excluirProduto(id: string) {
+    if (!confirm("Tem certeza que deseja excluir este item?")) return
+    const { error } = await supabase.from("produtos_servicos").update({ ativo: false }).eq("id", id)
+    if (error) { toast.error("Erro ao excluir."); return }
+    setProdutos((prev) => prev.map((p) => p.id === id ? { ...p, ativo: false } : p))
+    toast.success("Item excluído com sucesso!")
+  }
+
   async function onSubmit(data: FormProduto) {
     setLoading(true)
+
+    // Gerar código de barras automaticamente se não informado
+    let codigoBarras = data.codigo_barras?.trim() || null
+    if (!codigoBarras && !editando) {
+      // Buscar o maior código numérico existente para essa empresa
+      const { data: ultimoProduto } = await supabase
+        .from("produtos_servicos")
+        .select("codigo_barras")
+        .eq("empresa_id", empresaId)
+        .not("codigo_barras", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(50)
+
+      let maiorCodigo = 100000
+      if (ultimoProduto) {
+        for (const p of ultimoProduto) {
+          const num = parseInt(p.codigo_barras ?? "0")
+          if (!isNaN(num) && num >= maiorCodigo) maiorCodigo = num
+        }
+      }
+      codigoBarras = String(maiorCodigo + 1).padStart(6, "0")
+    }
+
     const payload = {
       empresa_id: empresaId,
       nome: data.nome,
@@ -150,7 +213,8 @@ export function ProdutosServicosClient({
       categoria_id: data.categoria_id || null,
       descricao: data.descricao || null,
       codigo: data.codigo || null,
-      unidade_medida: data.unidade_medida || "unidade",
+      codigo_barras: codigoBarras,
+      unidade_medida: (data.unidade_medida === "outro" && unidadeCustom.trim() ? unidadeCustom.trim() : (data.unidade_medida || "unidade")) as any,
       preco: parseFloat(data.preco),
       custo: data.custo ? parseFloat(data.custo) : null,
       estoque_atual: data.estoque_atual ? parseInt(data.estoque_atual) : null,
@@ -204,9 +268,14 @@ export function ProdutosServicosClient({
                 {item.comissao_percentual && <span>Comissão: {item.comissao_percentual}%</span>}
               </div>
             </div>
-            <Button variant="ghost" size="icon" onClick={() => abrirModalEditar(item)}>
-              <Edit className="w-4 h-4" />
-            </Button>
+            <div className="flex items-center gap-1 shrink-0">
+              <Button variant="ghost" size="icon" onClick={() => executarComPin("produtos_editar", () => abrirModalEditar(item))}>
+                <Edit className="w-4 h-4" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => executarComPin("produtos_editar", () => excluirProduto(item.id))} className="text-muted-foreground hover:text-red-500">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -217,8 +286,8 @@ export function ProdutosServicosClient({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Produtos e Serviços</h1>
-          <p className="text-muted-foreground">{produtos.filter((p) => p.ativo).length} item(ns) cadastrado(s)</p>
+          <h1 className="text-lg font-semibold text-foreground">Produtos e Serviços</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">{produtos.filter((p) => p.ativo).length} item(ns) cadastrado(s)</p>
         </div>
       </div>
 
@@ -240,7 +309,7 @@ export function ProdutosServicosClient({
         </div>
 
         <TabsContent value="produtos" className="mt-4 space-y-2">
-          <Button onClick={() => abrirModalNovo("produto")} className="gap-2 w-full sm:w-auto">
+          <Button onClick={() => executarComPin("produtos_cadastrar", () => abrirModalNovo("produto"))} className="gap-2 w-full sm:w-auto">
             <Plus className="w-4 h-4" />Novo Produto
           </Button>
           {produtosFiltrados.length > 0 ? produtosFiltrados.map(renderItem) : (
@@ -252,7 +321,7 @@ export function ProdutosServicosClient({
         </TabsContent>
 
         <TabsContent value="servicos" className="mt-4 space-y-2">
-          <Button onClick={() => abrirModalNovo("servico")} className="gap-2 w-full sm:w-auto">
+          <Button onClick={() => executarComPin("produtos_cadastrar", () => abrirModalNovo("servico"))} className="gap-2 w-full sm:w-auto">
             <Plus className="w-4 h-4" />Novo Serviço
           </Button>
           {servicosFiltrados.length > 0 ? servicosFiltrados.map(renderItem) : (
@@ -281,13 +350,13 @@ export function ProdutosServicosClient({
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label>Código (opcional)</Label>
-                <Input placeholder="Ex: PROD001" {...register("codigo")} />
-                <p className="text-xs text-muted-foreground">Para facilitar a busca na venda</p>
+                <Label>Código de barras</Label>
+                <Input placeholder="EAN ou código interno" {...register("codigo_barras")} />
+                <p className="text-xs text-muted-foreground">Deixe vazio para gerar automaticamente</p>
               </div>
               <div className="space-y-2">
                 <Label>Vendido por</Label>
-                <Select defaultValue="unidade" onValueChange={(v) => setValue("unidade_medida", v)}>
+                <Select value={watch("unidade_medida") || "unidade"} onValueChange={(v) => { setValue("unidade_medida", v); if (v !== "outro") setUnidadeCustom("") }}>
                   <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
                   <SelectContent>
                     {UNIDADES.map((u) => (
@@ -295,6 +364,14 @@ export function ProdutosServicosClient({
                     ))}
                   </SelectContent>
                 </Select>
+                {watch("unidade_medida") === "outro" && (
+                  <Input
+                    placeholder="Digite a unidade de medida..."
+                    value={unidadeCustom}
+                    onChange={(e) => setUnidadeCustom(e.target.value)}
+                    className="mt-1"
+                  />
+                )}
               </div>
             </div>
             <div className="space-y-2">
@@ -395,6 +472,8 @@ export function ProdutosServicosClient({
           </form>
         </DialogContent>
       </Dialog>
+
+      <PinModal aberto={pinModalOpen} onClose={() => { setPinModalOpen(false); setPinAcaoPendente(null) }} onSuccess={() => { setPinModalOpen(false); if (pinAcaoPendente) { pinAcaoPendente(); setPinAcaoPendente(null) } }} empresaId={empresaId} titulo="Ação Restrita" descricao="Digite o PIN de gerente para executar esta ação" />
     </div>
   )
 }

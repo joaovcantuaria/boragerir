@@ -12,7 +12,6 @@ import { useRegistrarVisita } from "@/hooks/use-registrar-visita"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { createClient } from "@/lib/supabase/client"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 
@@ -32,8 +31,9 @@ export default function CadastroPage() {
   useRegistrarVisita("cadastro")
   const [mostrarSenha, setMostrarSenha] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [emailCadastrado, setEmailCadastrado] = useState("")
+  const [emailJaExiste, setEmailJaExiste] = useState(false)
   const router = useRouter()
-  const supabase = createClient()
 
   // Documentos legais
   const [termos, setTermos] = useState<string>("")
@@ -66,31 +66,95 @@ export default function CadastroPage() {
       return
     }
     setLoading(true)
-    const { error } = await supabase.auth.signUp({
-      email: data.email,
-      password: data.senha,
-      options: {
-        data: {
-          nome_completo: data.nome,
-          aceite_termos: true,
-          aceite_termos_data: new Date().toISOString(),
-          aceite_politica: true,
-          aceite_politica_data: new Date().toISOString(),
-        },
-      },
-    })
-    if (error) {
-      toast.error(error.message === "User already registered"
-        ? "E-mail já cadastrado." : "Erro ao criar conta.")
+
+    try {
+      const res = await fetch("/api/auth/cadastro", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nome: data.nome,
+          email: data.email,
+          senha: data.senha,
+        }),
+      })
+
+      const result = await res.json()
+
+      if (!res.ok) {
+        if (result.error === "already_registered") {
+          setEmailCadastrado(data.email)
+          setEmailJaExiste(true)
+        } else {
+          console.error("[cadastro] Erro:", result.message)
+          toast.error(`Erro ao criar conta: ${result.message || "Tente novamente."}`)
+        }
+        setLoading(false)
+        return
+      }
+
+      // Conta criada com sucesso — sessão já estabelecida via cookies
+      toast.success("Conta criada! Vamos configurar seu negócio.")
+      router.push("/onboarding")
+      router.refresh()
+    } catch (err) {
+      console.error("[cadastro] Erro de rede:", err)
+      toast.error("Erro de conexão. Verifique sua internet e tente novamente.")
+    } finally {
       setLoading(false)
-      return
     }
-    toast.success("Conta criada! Vamos configurar seu negócio.")
-    router.push("/onboarding")
-    router.refresh()
   }
 
   return (
+    <div className="space-y-6">
+      {/* ── Email já cadastrado ── */}
+      {emailJaExiste && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-6 text-center"
+        >
+          <div className="w-16 h-16 rounded-2xl bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center mx-auto">
+            <Shield className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-black text-foreground">E-mail já cadastrado</h2>
+            <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+              O e-mail <strong className="text-foreground">{emailCadastrado}</strong> já possui uma conta no Bora Gerir.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <Link href="/login">
+              <Button className="w-full font-bold">
+                Fazer login →
+              </Button>
+            </Link>
+            <button
+              onClick={async () => {
+                await fetch("/api/auth/recuperar-senha", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ email: emailCadastrado }),
+                })
+                toast.success("E-mail de recuperação enviado! Verifique sua caixa de entrada.")
+              }}
+              className="w-full py-2.5 rounded-xl border border-gray-200 dark:border-white/10 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
+            >
+              Esqueci minha senha
+            </button>
+          </div>
+
+          <button
+            onClick={() => { setEmailJaExiste(false); setEmailCadastrado("") }}
+            className="text-xs text-primary hover:underline"
+          >
+            ← Tentar com outro e-mail
+          </button>
+        </motion.div>
+      )}
+
+      {/* ── Formulário de cadastro ── */}
+      {!emailJaExiste && (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-black text-foreground">Criar conta grátis</h2>
@@ -288,6 +352,8 @@ export default function CadastroPage() {
           </div>
         )}
       </AnimatePresence>
+    </div>
+    )} {/* fim !emailJaExiste */}
     </div>
   )
 }
