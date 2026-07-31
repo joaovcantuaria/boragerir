@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     // Montar CoraInvoiceRequest
     const invoiceRequest: CoraInvoiceRequest = {
       code: `PIX-${empresaId.slice(0, 8)}-${Date.now()}`,
-      buyer: {
+      customer: {
         name: body.pagador.nome,
         document: body.pagador.documento,
         email: body.pagador.email || undefined,

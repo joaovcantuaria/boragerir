@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     // Montar CoraInvoiceRequest
     const invoiceRequest: CoraInvoiceRequest = {
       code: crypto.randomUUID(),
-      buyer: {
+      customer: {
         name: pagador.nome.trim(),
         document: pagador.documento.trim(),
         email: pagador.email?.trim() || undefined,

@@ -2,7 +2,7 @@
 
 export interface CoraInvoiceRequest {
   code: string; // ID interno para referência
-  buyer: CoraBuyer;
+  customer: CoraBuyer;
   services: CoraService[];
   paymentTerms: CoraPaymentTerms;
   fine?: CoraFine;

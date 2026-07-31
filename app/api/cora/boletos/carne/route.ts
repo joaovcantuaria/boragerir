@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
 
       const invoiceRequest: CoraInvoiceRequest = {
         code: `${carneId}-${numeroParcela}`,
-        buyer: {
+        customer: {
           name: body.pagador.nome,
           document: body.pagador.documento,
           email: body.pagador.email || undefined,
