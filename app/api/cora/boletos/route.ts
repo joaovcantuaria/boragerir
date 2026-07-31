@@ -101,6 +101,8 @@ export async function POST(request: NextRequest) {
       },
     }
 
+    console.log("[Cora Boletos] Sending invoice request:", JSON.stringify(invoiceRequest, null, 2))
+
     // Buscar cora_conta da empresa
     const supabase = createAdminClient()
     const { data: conta, error: contaError } = await supabase

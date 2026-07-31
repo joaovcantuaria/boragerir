@@ -57,8 +57,11 @@ export class CoraClient {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new CoraApiError(response.status, error.code, error.message);
+      const errorText = await response.text().catch(() => "");
+      let errorBody: any = {};
+      try { errorBody = JSON.parse(errorText); } catch {}
+      console.error("[CoraClient] API Error:", response.status, response.statusText, "Body:", errorText, "URL:", `${CORA_API_URL}${path}`);
+      throw new CoraApiError(response.status, errorBody.code || errorBody.error_code, errorBody.message || errorBody.error_description || errorText);
     }
 
     // Para respostas 204 (No Content), retorna undefined como T

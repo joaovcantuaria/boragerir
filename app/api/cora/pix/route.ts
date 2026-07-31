@@ -128,6 +128,8 @@ export async function POST(request: NextRequest) {
       ...(body.pagador.email ? { notification: { emails: [body.pagador.email] } } : {}),
     }
 
+    console.log("[Cora Pix] Sending invoice request:", JSON.stringify(invoiceRequest, null, 2))
+
     // Chamar API da Cora
     const coraClient = new CoraClient(empresaId)
     const coraResponse = await coraClient.createInvoice(invoiceRequest)

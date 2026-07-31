@@ -13,7 +13,7 @@ export interface CoraInvoiceRequest {
 export interface CoraBuyer {
   name: string; // max 60 chars
   document: string; // CPF ou CNPJ
-  email: string;
+  email?: string;
   type: 'PERSON' | 'BUSINESS';
   address: CoraAddress;
 }
