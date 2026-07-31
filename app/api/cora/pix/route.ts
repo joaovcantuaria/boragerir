@@ -79,8 +79,10 @@ export async function POST(request: NextRequest) {
     // Converter valor para centavos
     const valorCentavos = Math.round(body.valor * 100)
 
-    // Data de vencimento = hoje (Pix instantâneo)
-    const hoje = new Date().toISOString().split("T")[0]
+    // Data de vencimento = amanhã (Cora rejeita datas no mesmo dia)
+    const amanha = new Date()
+    amanha.setDate(amanha.getDate() + 1)
+    const dueDate = amanha.toISOString().split("T")[0]
 
     // Buscar cora_conta_id para a empresa
     const supabase = createAdminClient()
@@ -123,9 +125,8 @@ export async function POST(request: NextRequest) {
         },
       ],
       paymentTerms: {
-        dueDate: hoje,
+        dueDate: dueDate,
       },
-      ...(body.pagador.email ? { notification: { emails: [body.pagador.email] } } : {}),
     }
 
     console.log("[Cora Pix] Sending invoice request:", JSON.stringify(invoiceRequest, null, 2))
@@ -143,7 +144,7 @@ export async function POST(request: NextRequest) {
         cora_invoice_id: coraResponse.id,
         tipo: "pix",
         valor: body.valor,
-        data_vencimento: hoje,
+        data_vencimento: dueDate,
         status: "aberto",
         qr_code_pix: coraResponse.pix?.qrCode ?? null,
         codigo_barras: coraResponse.bankslip.barcode,
