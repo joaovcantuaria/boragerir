@@ -527,9 +527,9 @@ export function VendaClient({
             pagador: {
               nome: clienteSelecionado.nome_completo || "Cliente",
               documento: clienteSelecionado.cpf?.replace(/\D/g, "") || "00000000000",
-              email: "",
+              email: "noreply@boragerir.com",
               tipo: (clienteSelecionado.cpf?.replace(/\D/g, "")?.length === 14) ? "BUSINESS" : "PERSON",
-              endereco: { rua: "N/A", numero: "S/N", bairro: "N/A", cidade: "N/A", estado: "SP", cep: "00000000" }
+              endereco: { rua: "Rua Exemplo", numero: "100", bairro: "Centro", cidade: "Sao Paulo", estado: "SP", cep: "01001000" }
             },
             valor: total,
             dataVencimento: vencimento,
@@ -582,9 +582,9 @@ export function VendaClient({
             pagador: {
               nome: clienteSelecionado.nome_completo || "Cliente",
               documento: clienteSelecionado.cpf?.replace(/\D/g, "") || "00000000000",
-              email: "",
+              email: "noreply@boragerir.com",
               tipo: "PERSON",
-              endereco: { rua: "N/A", numero: "S/N", bairro: "N/A", cidade: "N/A", estado: "SP", cep: "00000000" }
+              endereco: { rua: "Rua Exemplo", numero: "100", bairro: "Centro", cidade: "Sao Paulo", estado: "SP", cep: "01001000" }
             },
             valor: total,
             descricaoServico: `Venda #${venda.numero_venda}`,
