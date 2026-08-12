@@ -32,7 +32,8 @@ interface BoletoResultModalProps {
 
 function formatarData(dataISO: string): string {
   try {
-    const date = new Date(dataISO)
+    // Add T12:00:00 to avoid timezone issues (UTC midnight becomes previous day in Brazil)
+    const date = new Date(dataISO + "T12:00:00")
     return date.toLocaleDateString("pt-BR")
   } catch {
     return dataISO
