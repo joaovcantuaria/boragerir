@@ -230,7 +230,7 @@ export async function GET(request: NextRequest) {
     // Montar query base
     let query = supabase
       .from("cora_boletos")
-      .select("*, clientes(nome)", { count: "exact" })
+      .select("*, clientes(nome_completo)", { count: "exact" })
       .eq("empresa_id", empresaId)
       .order("created_at", { ascending: false })
 
@@ -250,7 +250,7 @@ export async function GET(request: NextRequest) {
     // Aplicar filtro por nome do cliente (join com clientes)
     if (clienteNome) {
       query = query.not("cliente_id", "is", null)
-        .ilike("clientes.nome", `%${clienteNome}%`)
+        .ilike("clientes.nome_completo", `%${clienteNome}%`)
     }
 
     // Aplicar paginação
@@ -282,7 +282,7 @@ export async function GET(request: NextRequest) {
       urlPdf: boleto.url_pdf,
       dataPagamento: boleto.data_pagamento,
       dataCancelamento: boleto.data_cancelamento,
-      clienteNome: boleto.clientes?.nome || null,
+      clienteNome: boleto.clientes?.nome_completo || null,
       clienteId: boleto.cliente_id,
       vendaId: boleto.venda_id,
       contratoId: boleto.contrato_id,
