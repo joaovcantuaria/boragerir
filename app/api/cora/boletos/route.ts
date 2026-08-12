@@ -123,6 +123,8 @@ export async function POST(request: NextRequest) {
     const client = new CoraClient(empresaId)
     const coraResponse = await client.createInvoice(invoiceRequest)
 
+    console.log("[Cora Boletos] Cora response:", JSON.stringify(coraResponse, null, 2))
+
     // Salvar no banco local
     const { data: boleto, error: insertError } = await supabase
       .from("cora_boletos")

@@ -178,16 +178,25 @@ export function BoletoResultModal({
 
           {/* Ações */}
           <div className="flex flex-col gap-2 pt-2">
-            {boleto.urlPdf && (
+            {boleto.urlPdf ? (
               <Button
                 variant="outline"
                 className="w-full justify-center gap-2"
                 onClick={abrirPdf}
               >
                 <Download className="h-4 w-4" />
-                Baixar PDF
+                Baixar PDF do Boleto
               </Button>
-            )}
+            ) : boleto.linhaDigitavel ? (
+              <Button
+                variant="outline"
+                className="w-full justify-center gap-2"
+                onClick={copiarLinhaDigitavel}
+              >
+                <Copy className="h-4 w-4" />
+                {copiado ? "Copiado!" : "Copiar Linha Digitável"}
+              </Button>
+            ) : null}
 
             <Button
               variant="default"
