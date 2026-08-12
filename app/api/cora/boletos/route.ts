@@ -69,6 +69,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Compensar D-1 da Cora: adicionar 1 dia para que o boleto seja gerado na data correta
+    const dataVencimentoAjustada = (() => {
+      const d = new Date(dataVencimento + "T12:00:00")
+      d.setDate(d.getDate() + 1)
+      return d.toISOString().split("T")[0]
+    })()
+
     // Converter valor de reais para centavos
     const valorCentavos = Math.round(valor * 100)
 
@@ -97,7 +104,7 @@ export async function POST(request: NextRequest) {
         },
       ],
       paymentTerms: {
-        dueDate: dataVencimento,
+        dueDate: dataVencimentoAjustada,
       },
     }
 
