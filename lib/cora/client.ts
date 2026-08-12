@@ -109,17 +109,49 @@ export class CoraClient {
       ...(data.notification ? { notification: { emails: data.notification.emails } } : {})
     };
 
-    return this.request<CoraInvoiceResponse>('/invoices', {
+    // Get raw response from Cora (snake_case format)
+    const raw: any = await this.request<any>('/invoices', {
       method: 'POST',
       body: JSON.stringify(coraBody),
     });
+
+    // Transform Cora's snake_case response to our camelCase types
+    return this.mapInvoiceResponse(raw);
   }
 
   /**
    * Consulta os detalhes de uma cobrança pelo ID.
    */
   async getInvoice(invoiceId: string): Promise<CoraInvoiceResponse> {
-    return this.request<CoraInvoiceResponse>(`/invoices/${invoiceId}`);
+    const raw: any = await this.request<any>(`/invoices/${invoiceId}`);
+    return this.mapInvoiceResponse(raw);
+  }
+
+  /**
+   * Mapeia a resposta snake_case da API Cora para o formato camelCase interno.
+   */
+  private mapInvoiceResponse(raw: any): CoraInvoiceResponse {
+    return {
+      id: raw.id,
+      amountTotal: raw.total_amount ?? raw.amountTotal ?? 0,
+      status: raw.status,
+      documentUrl: raw.payment_options?.bank_slip?.url || raw.documentUrl || null,
+      buyer: raw.customer || raw.buyer,
+      bankslip: raw.payment_options?.bank_slip ? {
+        barcode: raw.payment_options.bank_slip.barcode || "",
+        digitableLine: raw.payment_options.bank_slip.digitable || "",
+      } : (raw.bankslip || { barcode: "", digitableLine: "" }),
+      pix: raw.pix ? {
+        qrCode: raw.pix.qr_code || raw.pix.qrCode || raw.pix.encoded_image || "",
+        copyAndPaste: raw.pix.copy_and_paste || raw.pix.emv || "",
+      } : undefined,
+      services: raw.services || [],
+      paymentTerms: raw.payment_terms
+        ? { dueDate: raw.payment_terms.due_date }
+        : (raw.paymentTerms || { dueDate: "" }),
+      payments: raw.payments || [],
+      createdAt: raw.created_at || raw.createdAt || "",
+    };
   }
 
   /**
