@@ -8,7 +8,7 @@ import { formatarMoeda } from "@/lib/utils"
 
 interface PixOnlinePanelProps {
   boletoId: string
-  qrCode: string // base64 image (may or may not include data:image/png;base64, prefix)
+  qrCode: string // base64 image, data URI, or URL
   copiaCola: string
   valor: number
   onPaid: () => void
@@ -34,7 +34,11 @@ export function PixOnlinePanel({
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Build QR code src
-  const qrSrc = qrCode.startsWith("data:") ? qrCode : `data:image/png;base64,${qrCode}`
+  const qrSrc = qrCode.startsWith("data:") 
+    ? qrCode 
+    : qrCode.startsWith("http") 
+      ? qrCode 
+      : `data:image/png;base64,${qrCode}`
 
   // Polling function
   const checkStatus = useCallback(async () => {
