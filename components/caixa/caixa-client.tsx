@@ -79,6 +79,10 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
   const [valorFechamento, setValorFechamento] = useState("")
   const [pinModalCaixa, setPinModalCaixa] = useState(false)
   const [pinAcaoPendente, setPinAcaoPendente] = useState<(() => void) | null>(null)
+  // Filtros de movimentações
+  const [filtroMovData, setFiltroMovData] = useState("")
+  const [filtroMovTipo, setFiltroMovTipo] = useState("todos")
+  const [filtroMovForma, setFiltroMovForma] = useState("todos")
   const { colaborador } = useColaborador()
   const router = useRouter()
   const supabase = createClient()
@@ -113,6 +117,83 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
     : (caixa?.valor_abertura ?? 0)
   const saldoAtual = totalAberturas + totalEntradas - totalSaidas
   const valorEsperado = saldoAtual
+
+  // Extrair forma de pagamento da descrição (formato: "descrição [forma]")
+  function extrairFormaPagamento(descricao: string): string {
+    const match = descricao.match(/\[(.*?)\]/)
+    return match ? match[1] : ""
+  }
+
+  // Movimentações filtradas e ordenadas por data de criação (mais recentes primeiro)
+  const movimentacoesFiltradas = [...movimentacoes]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .filter((mov) => {
+      // Filtro por data (compara só o dia)
+      if (filtroMovData) {
+        const movData = new Date(mov.created_at).toISOString().split("T")[0]
+        if (movData !== filtroMovData) return false
+      }
+      // Filtro por tipo
+      if (filtroMovTipo !== "todos" && mov.tipo !== filtroMovTipo) return false
+      // Filtro por forma de pagamento
+      if (filtroMovForma !== "todos") {
+        const forma = extrairFormaPagamento(mov.descricao)
+        if (forma !== filtroMovForma) return false
+      }
+      return true
+    })
+
+  // Barra de filtros reutilizável
+  const FiltrosMovimentacoes = (
+    <div className="flex flex-wrap gap-2 items-end mb-3 pb-3 border-b border-border">
+      <div className="space-y-1">
+        <Label className="text-xs">Data</Label>
+        <Input
+          type="date"
+          value={filtroMovData}
+          onChange={(e) => setFiltroMovData(e.target.value)}
+          className="h-8 text-xs w-[150px]"
+        />
+      </div>
+      <div className="space-y-1">
+        <Label className="text-xs">Tipo</Label>
+        <select
+          value={filtroMovTipo}
+          onChange={(e) => setFiltroMovTipo(e.target.value)}
+          className="h-8 text-xs rounded-lg border border-border bg-background px-2 w-[130px]"
+        >
+          <option value="todos">Todos</option>
+          <option value="entrada">Entrada</option>
+          <option value="saida">Saída</option>
+        </select>
+      </div>
+      <div className="space-y-1">
+        <Label className="text-xs">Forma de pagamento</Label>
+        <select
+          value={filtroMovForma}
+          onChange={(e) => setFiltroMovForma(e.target.value)}
+          className="h-8 text-xs rounded-lg border border-border bg-background px-2 w-[150px]"
+        >
+          <option value="todos">Todas</option>
+          <option value="dinheiro">Dinheiro</option>
+          <option value="pix">Pix</option>
+          <option value="cartao_credito">Cartão Crédito</option>
+          <option value="cartao_debito">Cartão Débito</option>
+          <option value="transferencia">Transferência</option>
+        </select>
+      </div>
+      {(filtroMovData || filtroMovTipo !== "todos" || filtroMovForma !== "todos") && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => { setFiltroMovData(""); setFiltroMovTipo("todos"); setFiltroMovForma("todos") }}
+          className="h-8 text-xs"
+        >
+          Limpar filtros
+        </Button>
+      )}
+    </div>
+  )
 
   // Formulário abrir caixa
   const isGestaoPlano = plano === "gestao"
@@ -540,8 +621,14 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
                 <CardTitle className="text-base">Movimentações do caixa</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
+                {FiltrosMovimentacoes}
+                {movimentacoesFiltradas.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-6 text-center">
+                    Nenhuma movimentação encontrada com os filtros aplicados
+                  </p>
+                ) : (
                 <div className="space-y-1">
-                  {movimentacoes.map((mov) => (
+                  {movimentacoesFiltradas.map((mov) => (
                     <div key={mov.id} className="flex items-center justify-between py-2.5 border-b border-border last:border-0">
                       <div className="flex items-center gap-3">
                         {mov.tipo === "entrada" ? (
@@ -573,6 +660,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
                     </div>
                   ))}
                 </div>
+                )}
               </CardContent>
             </Card>
           )}
@@ -717,9 +805,15 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
               <CardTitle className="text-base">Movimentações do caixa</CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
+              {movimentacoes.length > 0 && FiltrosMovimentacoes}
               {movimentacoes.length > 0 ? (
+                movimentacoesFiltradas.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-6 text-center">
+                    Nenhuma movimentação encontrada com os filtros aplicados
+                  </p>
+                ) : (
                 <div className="space-y-1">
-                  {movimentacoes.map((mov) => (
+                  {movimentacoesFiltradas.map((mov) => (
                     <div key={mov.id} className="flex items-center justify-between py-2.5 border-b border-border last:border-0">
                       <div className="flex items-center gap-3">
                         {mov.tipo === "entrada" ? (
@@ -753,6 +847,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
                     </div>
                   ))}
                 </div>
+                )
               ) : (
                 <p className="text-sm text-muted-foreground py-6 text-center">
                   Nenhuma movimentação registrada ainda
