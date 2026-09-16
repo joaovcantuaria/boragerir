@@ -615,8 +615,8 @@ export function PlanosClient({ empresa, assinaturaAtiva }: Props) {
                 : "bg-white border-gray-200 dark:bg-white/[0.02] dark:border-white/10"
             )}>
               {p.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[10px] font-black px-3 py-1 rounded-full">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+                  <span className="inline-block bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[10px] font-black px-3 py-1 rounded-full whitespace-nowrap">
                     MAIS POPULAR
                   </span>
                 </div>
