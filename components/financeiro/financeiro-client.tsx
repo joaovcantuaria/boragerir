@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
@@ -115,6 +115,16 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   const supabase = createClient()
   const router = useRouter()
   const isGestao = plano === "gestao"
+
+  // ── Aba ativa via query param (?tab=) ──
+  const searchParams = useSearchParams()
+  const tabInicial = searchParams.get("tab")
+  const [tabAtiva, setTabAtiva] = useState<string>(tabInicial || (isGestao ? "areceber" : "faturamento"))
+
+  useEffect(() => {
+    const t = searchParams.get("tab")
+    if (t) setTabAtiva(t)
+  }, [searchParams])
 
   // ── PIN Protection ──
   const [pinModalOpen, setPinModalOpen] = useState(false)
@@ -541,7 +551,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
       </div>
       </PinProtected>
 
-      <Tabs defaultValue={isGestao ? "areceber" : "faturamento"}>
+      <Tabs value={tabAtiva} onValueChange={setTabAtiva}>
         {/* Mobile: grid 2 colunas. Desktop: scroll horizontal */}
         <div className="block sm:hidden">
           <TabsList className="w-full grid grid-cols-2 h-auto gap-1 p-1">
