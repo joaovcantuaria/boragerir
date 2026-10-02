@@ -46,7 +46,9 @@ export function RelatoriosGestaoTab({ empresaId }: { empresaId: string }) {
         .gte("data_abertura", dataInicio + "T00:00:00")
         .lte("data_abertura", dataFim + "T23:59:59")
         .order("data_abertura"),
-      supabase.from("movimentacoes_caixa").select("*").eq("empresa_id", empresaId)
+      supabase.from("movimentacoes_caixa")
+        .select("*, vendas!movimentacoes_caixa_venda_id_fkey(status)")
+        .eq("empresa_id", empresaId)
         .gte("created_at", dataInicio + "T00:00:00")
         .lte("created_at", dataFim + "T23:59:59")
         .order("created_at"),
@@ -59,7 +61,13 @@ export function RelatoriosGestaoTab({ empresaId }: { empresaId: string }) {
         .lte("data_vencimento", dataFim)
         .order("data_vencimento"),
     ])
-    return { caixas: caixas ?? [], movs: movimentacoes ?? [], cp: contasPagar ?? [], vr: valoresReceber ?? [] }
+    // Excluir movimentações de vendas canceladas (igual ao caixa-client)
+    const movsFiltradas = (movimentacoes ?? []).filter((m: any) => {
+      if (!m.venda_id) return true
+      if (m.vendas && m.vendas.status === "cancelada") return false
+      return true
+    })
+    return { caixas: caixas ?? [], movs: movsFiltradas, cp: contasPagar ?? [], vr: valoresReceber ?? [] }
   }
 
   async function gerarPDF(dados: Awaited<ReturnType<typeof buscarDados>>) {
