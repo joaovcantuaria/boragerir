@@ -344,8 +344,16 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
 
     // Data retroativa (plano gestão) — salva em data_movimento E tenta created_at
     if (data.data && plano === "gestao") {
-      payload.created_at = new Date(`${data.data}T12:00:00`).toISOString()
-      payload.data_movimento = data.data  // coluna dedicada para data retroativa
+      // Garantir que a data está no formato YYYY-MM-DD com ano de 4 dígitos
+      const dataLimpa = data.data.trim()
+      const anoMatch = dataLimpa.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+      if (anoMatch && parseInt(anoMatch[1]) >= 2020) {
+        payload.created_at = new Date(`${dataLimpa}T12:00:00`).toISOString()
+        payload.data_movimento = dataLimpa
+      } else {
+        // Data inválida — usar data atual
+        payload.data_movimento = new Date().toISOString().split("T")[0]
+      }
     } else {
       payload.data_movimento = new Date().toISOString().split("T")[0]
     }
@@ -436,8 +444,14 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
     }
     // Data retroativa (plano gestão) — salva em data_movimento E tenta created_at
     if (data.data && plano === "gestao") {
-      updateData.created_at = new Date(`${data.data}T12:00:00`).toISOString()
-      updateData.data_movimento = data.data
+      const dataLimpa = data.data.trim()
+      const anoMatch = dataLimpa.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+      if (anoMatch && parseInt(anoMatch[1]) >= 2020) {
+        updateData.created_at = new Date(`${dataLimpa}T12:00:00`).toISOString()
+        updateData.data_movimento = dataLimpa
+      } else {
+        updateData.data_movimento = new Date().toISOString().split("T")[0]
+      }
     } else {
       updateData.data_movimento = new Date().toISOString().split("T")[0]
     }
