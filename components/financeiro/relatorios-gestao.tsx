@@ -49,7 +49,7 @@ export function RelatoriosGestaoTab({ empresaId }: { empresaId: string }) {
       supabase.from("movimentacoes_caixa")
         .select("*, vendas!movimentacoes_caixa_venda_id_fkey(status)")
         .eq("empresa_id", empresaId)
-        .gte("created_at", dataInicio + "T00:00:00")
+        .gte("created_at", new Date(new Date(dataInicio).getTime() - 30 * 24 * 60 * 60 * 1000).toISOString())
         .lte("created_at", dataFim + "T23:59:59")
         .order("created_at"),
       supabase.from("contas_pagar").select("*").eq("empresa_id", empresaId)
@@ -61,11 +61,15 @@ export function RelatoriosGestaoTab({ empresaId }: { empresaId: string }) {
         .lte("data_vencimento", dataFim)
         .order("data_vencimento"),
     ])
-    // Excluir movimentações de vendas canceladas (igual ao caixa-client)
+    // Filtrar por data_movimento (retroativa) com fallback para created_at
     const movsFiltradas = (movimentacoes ?? []).filter((m: any) => {
-      if (!m.venda_id) return true
-      if (m.vendas && m.vendas.status === "cancelada") return false
-      return true
+      // Excluir movimentações de vendas canceladas
+      if (m.venda_id && m.vendas && m.vendas.status === "cancelada") return false
+      // Usar data_movimento se disponível, senão usar created_at
+      const dataRef = m.data_movimento
+        ? m.data_movimento  // formato YYYY-MM-DD
+        : m.created_at.split("T")[0]
+      return dataRef >= dataInicio && dataRef <= dataFim
     })
     return { caixas: caixas ?? [], movs: movsFiltradas, cp: contasPagar ?? [], vr: valoresReceber ?? [] }
   }

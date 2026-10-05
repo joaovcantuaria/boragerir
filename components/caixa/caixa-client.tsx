@@ -41,7 +41,7 @@ type CaixaAnterior = {
 }
 
 type Movimentacao = {
-  id: string; tipo: string; categoria: string; descricao: string; valor: number; created_at: string
+  id: string; tipo: string; categoria: string; descricao: string; valor: number; created_at: string; data_movimento?: string
 }
 
 interface CaixaClientProps {
@@ -342,9 +342,12 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
       colaborador_id: colaborador?.id !== "owner" ? colaborador?.id : null,
     }
 
-    // Data retroativa (plano gestão)
+    // Data retroativa (plano gestão) — salva em data_movimento E tenta created_at
     if (data.data && plano === "gestao") {
       payload.created_at = new Date(`${data.data}T12:00:00`).toISOString()
+      payload.data_movimento = data.data  // coluna dedicada para data retroativa
+    } else {
+      payload.data_movimento = new Date().toISOString().split("T")[0]
     }
 
     const { data: mov, error } = await supabase
@@ -431,9 +434,12 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
     if (caixaIdMovimentacao && caixaIdMovimentacao !== (editandoMov as any).caixa_id) {
       updateData.caixa_id = caixaIdMovimentacao
     }
-    // Data retroativa (plano gestão)
+    // Data retroativa (plano gestão) — salva em data_movimento E tenta created_at
     if (data.data && plano === "gestao") {
       updateData.created_at = new Date(`${data.data}T12:00:00`).toISOString()
+      updateData.data_movimento = data.data
+    } else {
+      updateData.data_movimento = new Date().toISOString().split("T")[0]
     }
 
     await supabase.from("movimentacoes_caixa").update(updateData).eq("id", editandoMov.id)
