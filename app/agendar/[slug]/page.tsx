@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { AgendamentoPublicoClient } from "@/components/agendamento-publico/agendamento-publico-client"
 import { notFound } from "next/navigation"
 
@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic"
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data: empresa } = await supabase
     .from("empresas").select("nome, area_atuacao").eq("slug", slug).single()
 
@@ -20,7 +20,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function AgendamentoPublicoPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const supabase = await createClient()
+  // Página pública: lê com service role e seleciona SÓ colunas públicas
+  // (o RLS não libera essas tabelas para visitantes sem login)
+  const supabase = createAdminClient()
 
   // Buscar empresa pelo slug
   const { data: empresa } = await supabase
