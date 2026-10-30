@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { buscarPerfilAdmin } from "@/lib/auth/admin"
 
 // Rota para confirmar pagamento manualmente (admin)
 // Também serve como fallback quando o webhook não funciona
@@ -11,7 +12,7 @@ export async function POST(req: NextRequest) {
     if (!user) return NextResponse.json({ erro: "Não autenticado" }, { status: 401 })
 
     // Verificar se é admin ou o próprio usuário tentando confirmar
-    const isAdmin = user.email?.toLowerCase() === "contato@boragerir.com"
+    const isAdmin = !!user.email && (await buscarPerfilAdmin(user.email)) === "super_admin"
 
     const { empresa_id } = await req.json()
     const targetEmpresaId = empresa_id ?? null

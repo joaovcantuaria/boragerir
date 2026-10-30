@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { createClient } from "@/lib/supabase/server"
+import { exigirAdmin } from "@/lib/auth/admin"
 
 export async function GET() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (user?.email?.toLowerCase() !== "contato@boragerir.com") {
-    return NextResponse.json({ erro: "Não autorizado" }, { status: 403 })
-  }
+  const auth = await exigirAdmin(["super_admin"])
+  if (!auth.ok) return auth.resposta
   const admin = createAdminClient()
   const { data } = await admin.from("notificacoes_admin")
     .select("*").order("created_at", { ascending: false }).limit(50)
@@ -15,11 +12,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (user?.email?.toLowerCase() !== "contato@boragerir.com") {
-    return NextResponse.json({ erro: "Não autorizado" }, { status: 403 })
-  }
+  const auth = await exigirAdmin(["super_admin"])
+  if (!auth.ok) return auth.resposta
   const { id } = await req.json() // marcar como lida
   const admin = createAdminClient()
 

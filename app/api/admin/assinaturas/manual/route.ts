@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { createClient } from "@/lib/supabase/server"
+import { exigirAdmin } from "@/lib/auth/admin"
 import { addDays, addMonths, format } from "date-fns"
 import { enviarEmail, templateTesteGratis, templateAssinaturaConfirmada } from "@/lib/email/brevo"
 
@@ -9,20 +9,10 @@ import { enviarEmail, templateTesteGratis, templateAssinaturaConfirmada } from "
  * Tipos: "teste" (7, 15, 30 dias) ou "pago" (1-48 meses com valor customizado).
  */
 export async function POST(req: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ erro: "Não autenticado" }, { status: 401 })
+  const auth = await exigirAdmin(["super_admin"])
+  if (!auth.ok) return auth.resposta
 
   const admin = createAdminClient()
-  const { data: usuarioAdmin } = await admin
-    .from("usuarios_admin")
-    .select("perfil, ativo")
-    .eq("email", user.email ?? "")
-    .single()
-
-  if (!usuarioAdmin?.ativo || usuarioAdmin.perfil !== "super_admin") {
-    return NextResponse.json({ erro: "Apenas super_admin pode criar assinaturas manuais." }, { status: 403 })
-  }
 
   const body = await req.json()
   const { empresa_id, tipo, plano, meses, dias_teste, valor_recebido } = body

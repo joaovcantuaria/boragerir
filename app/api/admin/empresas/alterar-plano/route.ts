@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { createClient } from "@/lib/supabase/server"
+import { exigirAdmin } from "@/lib/auth/admin"
 
 export async function POST(req: NextRequest) {
-  // Verificar se é admin
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (user?.email?.toLowerCase() !== "contato@boragerir.com") {
-    return NextResponse.json({ erro: "Não autorizado" }, { status: 403 })
-  }
+  const auth = await exigirAdmin(["super_admin"])
+  if (!auth.ok) return auth.resposta
 
   const { empresa_id, plano } = await req.json()
 

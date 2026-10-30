@@ -1,19 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { createClient } from "@/lib/supabase/server"
+import { exigirAdmin } from "@/lib/auth/admin"
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ erro: "Não autenticado" }, { status: 401 })
+  const auth = await exigirAdmin()
+  if (!auth.ok) return auth.resposta
 
   const admin = createAdminClient()
-  const { data: usuarioAdmin } = await admin
-    .from("usuarios_admin").select("perfil, ativo").eq("email", user.email ?? "").single()
-
-  if (!usuarioAdmin?.ativo) {
-    return NextResponse.json({ erro: "Sem permissão." }, { status: 403 })
-  }
 
   const { empresa_id, dados } = await req.json()
   if (!empresa_id || !dados) {

@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { createClient } from "@/lib/supabase/server"
+import { exigirAdmin } from "@/lib/auth/admin"
 
 export async function GET(req: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (user?.email?.toLowerCase() !== "contato@boragerir.com") {
-    return NextResponse.json({ erro: "Não autorizado" }, { status: 403 })
-  }
+  const auth = await exigirAdmin(["super_admin"])
+  if (!auth.ok) return auth.resposta
 
   const conversa_id = req.nextUrl.searchParams.get("conversa_id")
   if (!conversa_id) return NextResponse.json({ erro: "conversa_id obrigatório" }, { status: 400 })

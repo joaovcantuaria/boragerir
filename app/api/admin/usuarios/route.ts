@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@supabase/supabase-js"
-import { createClient as createServerClient } from "@/lib/supabase/server"
+import { exigirAdmin } from "@/lib/auth/admin"
 
 function getAdminAuthClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -9,33 +9,10 @@ function getAdminAuthClient() {
   return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } })
 }
 
-// Verifica se o caller é um admin autenticado e ativo
-async function verificarAdmin(): Promise<{ autorizado: boolean; erro?: string }> {
-  try {
-    const supabase = await createServerClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { autorizado: false, erro: "Não autenticado" }
-
-    const adminDb = createAdminClient()
-    const { data: usuarioAdmin } = await adminDb
-      .from("usuarios_admin")
-      .select("perfil, ativo")
-      .eq("email", user.email ?? "")
-      .single()
-
-    if (!usuarioAdmin || !usuarioAdmin.ativo) {
-      return { autorizado: false, erro: "Sem permissão" }
-    }
-    return { autorizado: true }
-  } catch {
-    return { autorizado: false, erro: "Erro ao verificar permissão" }
-  }
-}
-
 // POST — criar novo usuário admin
 export async function POST(req: NextRequest) {
-  const { autorizado, erro } = await verificarAdmin()
-  if (!autorizado) return NextResponse.json({ erro }, { status: 401 })
+  const auth = await exigirAdmin(["super_admin"])
+  if (!auth.ok) return auth.resposta
 
   try {
     const { nome, email, perfil, senha } = await req.json()
@@ -73,8 +50,8 @@ export async function POST(req: NextRequest) {
 
 // PUT — editar usuário admin
 export async function PUT(req: NextRequest) {
-  const { autorizado, erro } = await verificarAdmin()
-  if (!autorizado) return NextResponse.json({ erro }, { status: 401 })
+  const auth = await exigirAdmin(["super_admin"])
+  if (!auth.ok) return auth.resposta
 
   try {
     const { id, nome, perfil } = await req.json()
@@ -98,8 +75,8 @@ export async function PUT(req: NextRequest) {
 
 // PATCH — ativar/desativar usuário admin
 export async function PATCH(req: NextRequest) {
-  const { autorizado, erro } = await verificarAdmin()
-  if (!autorizado) return NextResponse.json({ erro }, { status: 401 })
+  const auth = await exigirAdmin(["super_admin"])
+  if (!auth.ok) return auth.resposta
 
   try {
     const { id, ativo } = await req.json()

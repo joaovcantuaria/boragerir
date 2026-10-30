@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { createClient } from "@/lib/supabase/server"
+import { exigirAdmin } from "@/lib/auth/admin"
 import { enviarEmail, templateBase } from "@/lib/email/brevo"
 
 // Templates HTML para cada tipo de disparo
@@ -80,12 +80,8 @@ function delay(ms: number) {
 }
 
 export async function POST(req: NextRequest) {
-  // Auth check
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (user?.email?.toLowerCase() !== "contato@boragerir.com") {
-    return NextResponse.json({ erro: "Não autorizado" }, { status: 403 })
-  }
+  const auth = await exigirAdmin(["super_admin"])
+  if (!auth.ok) return auth.resposta
 
   const body = await req.json()
   const { template, assunto, destinatarios, dados_template } = body as {

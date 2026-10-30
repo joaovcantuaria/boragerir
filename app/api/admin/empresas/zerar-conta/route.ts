@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { createClient } from "@/lib/supabase/server"
+import { exigirAdmin } from "@/lib/auth/admin"
 
 /**
  * Zera os dados operacionais de uma empresa (mantém cadastro, clientes, produtos, configurações).
@@ -9,21 +9,10 @@ import { createClient } from "@/lib/supabase/server"
  */
 export async function POST(req: NextRequest) {
   try {
-    // Verificar autenticação do admin
-    const supabaseAuth = await createClient()
-    const { data: { user } } = await supabaseAuth.auth.getUser()
-    if (!user) return NextResponse.json({ erro: "Não autenticado" }, { status: 401 })
+    const auth = await exigirAdmin(["super_admin"])
+    if (!auth.ok) return auth.resposta
 
     const adminDb = createAdminClient()
-    const { data: usuarioAdmin } = await adminDb
-      .from("usuarios_admin")
-      .select("perfil, ativo")
-      .eq("email", user.email ?? "")
-      .single()
-
-    if (!usuarioAdmin?.ativo || usuarioAdmin.perfil !== "super_admin") {
-      return NextResponse.json({ erro: "Sem permissão. Apenas super_admin pode zerar contas." }, { status: 403 })
-    }
 
     const { empresa_id } = await req.json()
     if (!empresa_id) return NextResponse.json({ erro: "empresa_id obrigatório" }, { status: 400 })
