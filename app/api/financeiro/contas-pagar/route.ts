@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import type { TablesInsert } from "@/types/database"
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient()
@@ -128,7 +129,7 @@ export async function POST(req: NextRequest) {
   }
 
   const grupoId = crypto.randomUUID()
-  const registros: object[] = []
+  const registros: TablesInsert<"contas_pagar">[] = []
   const dataBase = new Date(data_vencimento + "T12:00:00")
   const quantidade = Math.min(Math.max(parseInt(qtd_parcelas) || 12, 1), 120)
 

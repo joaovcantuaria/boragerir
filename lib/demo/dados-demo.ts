@@ -4,6 +4,7 @@
 // ============================================================
 
 import { subDays, subHours, addDays, format, startOfDay, addHours } from "date-fns"
+import { ptBR } from "date-fns/locale"
 
 const hoje = new Date()
 
@@ -402,7 +403,7 @@ export function vendasUltimos7Dias() {
     const total = vendasDemo
       .filter((v) => v.created_at.startsWith(diaStr))
       .reduce((s, v) => s + v.total, 0)
-    return { dia: format(dia, "EEE", { locale: { code: "pt-BR" } }), diaStr, total }
+    return { dia: format(dia, "EEE", { locale: ptBR }), diaStr, total }
   })
 }
 

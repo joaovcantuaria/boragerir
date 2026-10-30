@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
+import type { Tables } from "@/types/database"
 import { formatarMoeda, labelsFormaPagamento, coresStatus, labelsStatus } from "@/lib/utils"
 import { RelatoriosGestaoTab } from "@/components/financeiro/relatorios-gestao"
 import { CoraCobrancasTab } from "@/components/cora/cora-cobrancas-tab"
@@ -436,7 +437,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
     const desconto = parseFloat(editDesconto) || 0
     const total = Math.max(0, modalEditar.subtotal - desconto)
     const { error } = await supabase.from("vendas").update({
-      forma_pagamento: editFormaPagamento,
+      forma_pagamento: editFormaPagamento as Tables<"vendas">["forma_pagamento"],
       desconto,
       total,
       observacoes: editObservacoes || null,
@@ -625,7 +626,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
                   <BarChart data={dadosFaturamento}>
                     <XAxis dataKey="dia" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${v}`} />
-                    <Tooltip formatter={(v: number) => formatarMoeda(v)} />
+                    <Tooltip formatter={(v) => formatarMoeda(Number(v))} />
                     <Bar dataKey="total" fill="#10B981" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -914,10 +915,10 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
                   <ResponsiveContainer width="100%" height={250}>
                     <PieChart>
                       <Pie data={dadosPagamento} cx="50%" cy="50%" outerRadius={100} dataKey="value"
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                        label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}>
                         {dadosPagamento.map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]} />)}
                       </Pie>
-                      <Tooltip formatter={(v: number) => formatarMoeda(v)} />
+                      <Tooltip formatter={(v) => formatarMoeda(Number(v))} />
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="space-y-2 min-w-40">
@@ -2175,7 +2176,7 @@ function FluxoCaixaTab({
               <BarChart data={dadosGrafico} barGap={2}>
                 <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${v}`} />
-                <Tooltip formatter={(v: number, name: string) => [formatarMoeda(v), name === "receita" ? "Receitas" : "Despesas"]} />
+                <Tooltip formatter={(v, name) => [formatarMoeda(Number(v)), name === "receita" ? "Receitas" : "Despesas"]} />
                 <Bar dataKey="receita" name="receita" fill="#10B981" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="despesa" name="despesa" fill="#EF4444" radius={[4, 4, 0, 0]} />
               </BarChart>

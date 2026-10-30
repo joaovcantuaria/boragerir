@@ -141,7 +141,7 @@ export function ClientesClient({
     const termo = busca.toLowerCase()
     return (
       c.nome_completo.toLowerCase().includes(termo) ||
-      c.cpf.includes(termo) ||
+      (c.cpf ?? "").includes(termo) ||
       c.telefone.includes(termo)
     )
   })

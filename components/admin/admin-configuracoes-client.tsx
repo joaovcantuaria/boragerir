@@ -197,7 +197,7 @@ export function AdminConfiguracoesClient({
                         <label className={`text-xs ${t.textMuted}`}>{label}</label>
                         <input
                           type="number"
-                          value={(p as Record<string, number | boolean | string | string[]>)[campo] as number}
+                          value={(p as unknown as Record<string, number | boolean | string | string[]>)[campo] as number}
                           onChange={(e) => atualizarPlano(planoId, campo, parseInt(e.target.value) || 0)}
                           className={`w-full ${t.inputBg} border ${t.inputBorder} rounded-xl px-3 py-2 text-xs ${t.inputText} focus:outline-none`}
                         />
@@ -216,10 +216,10 @@ export function AdminConfiguracoesClient({
                       <label key={campo} className="flex items-center justify-between cursor-pointer">
                         <span className={`text-xs ${t.textMuted4}`}>{label}</span>
                         <div
-                          onClick={() => atualizarPlano(planoId, campo, !(p as Record<string, boolean>)[campo])}
-                          className={`w-9 h-5 rounded-full transition-colors relative ${(p as Record<string, boolean>)[campo] ? "bg-primary" : t.subBg}`}
+                          onClick={() => atualizarPlano(planoId, campo, !(p as unknown as Record<string, boolean>)[campo])}
+                          className={`w-9 h-5 rounded-full transition-colors relative ${(p as unknown as Record<string, boolean>)[campo] ? "bg-primary" : t.subBg}`}
                         >
-                          <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${(p as Record<string, boolean>)[campo] ? "left-4.5" : "left-0.5"}`} />
+                          <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${(p as unknown as Record<string, boolean>)[campo] ? "left-4.5" : "left-0.5"}`} />
                         </div>
                       </label>
                     ))}
@@ -278,7 +278,7 @@ export function AdminConfiguracoesClient({
               <label className={`text-xs ${t.textMuted}`}>{label}</label>
               <input
                 type={type}
-                value={String((appConfig as Record<string, string | number>)[campo] ?? "")}
+                value={String((appConfig as unknown as Record<string, string | number>)[campo] ?? "")}
                 onChange={(e) => setAppConfig((prev) => ({ ...prev, [campo]: type === "number" ? parseInt(e.target.value) : e.target.value }))}
                 className={`w-full ${t.inputBg} border ${t.inputBorder} rounded-xl px-3 py-2.5 text-sm ${t.inputText} focus:outline-none`}
               />

@@ -27,7 +27,7 @@ interface GerarReciboParams {
     parcelas: number
     created_at: string
   }
-  cliente: { nome_completo: string; cpf: string; telefone: string } | null
+  cliente: { nome_completo: string; cpf: string | null; telefone: string } | null
   itens: { nome_item: string; quantidade: number; preco_unitario: number; subtotal: number }[]
 }
 
@@ -119,7 +119,7 @@ export async function gerarReciboPDF({ empresa, venda, cliente, itens }: GerarRe
   doc.setFontSize(10)
   if (cliente) {
     doc.text(cliente.nome_completo, 15, 59)
-    doc.text(`CPF: ${formatarCPF(cliente.cpf)}  |  Tel: ${cliente.telefone}`, 15, 65)
+    doc.text(`CPF: ${formatarCPF(cliente.cpf ?? "")}  |  Tel: ${cliente.telefone}`, 15, 65)
   } else {
     doc.text("Consumidor final", 15, 59)
   }

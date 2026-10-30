@@ -26,6 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LinkAgendamento } from "@/components/agendamentos/link-agendamento"
 import { AgendaConfig } from "@/components/agendamentos/agenda-config"
 import { createClient } from "@/lib/supabase/client"
+import type { Agendamento } from "@/types"
 import { coresStatus, labelsStatus } from "@/lib/utils"
 
 const schemaAgendamento = z.object({
@@ -116,8 +117,8 @@ export function AgendamentosClient({
       funcionario_id: data.funcionario_id || null,
       servico_id: data.servico_id || null,
       duracao_minutos: parseInt(data.duracao_minutos || "60") || 60,
-      status: editando ? editando.status : "agendado" as const,
-      origem: editando ? editando.origem : "manual" as const,
+      status: (editando ? editando.status : "agendado") as Agendamento["status"],
+      origem: (editando ? editando.origem : "manual") as Agendamento["origem"],
       observacoes: data.observacoes || null,
     }
     if (editando) {
@@ -140,7 +141,7 @@ export function AgendamentosClient({
     // Optimistic update
     const statusAnterior = agendamentos.find((a) => a.id === id)?.status
     setAgendamentos((prev) => prev.map((a) => a.id === id ? { ...a, status } : a))
-    const { error } = await supabase.from("agendamentos").update({ status }).eq("id", id)
+    const { error } = await supabase.from("agendamentos").update({ status: status as Agendamento["status"] }).eq("id", id)
     if (error) {
       // Reverter em caso de erro
       setAgendamentos((prev) => prev.map((a) => a.id === id ? { ...a, status: statusAnterior ?? a.status } : a))

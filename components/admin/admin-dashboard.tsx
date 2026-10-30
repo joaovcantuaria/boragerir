@@ -146,7 +146,7 @@ export function AdminDashboard({
                   <Pie data={dadosPizza} cx="50%" cy="50%" innerRadius={45} outerRadius={70} dataKey="value">
                     {dadosPizza.map((_, i) => <Cell key={i} fill={CORES[i]} />)}
                   </Pie>
-                  <Tooltip formatter={(v: number) => [`${v} empresas`]} contentStyle={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "white" }} />
+                  <Tooltip formatter={(v) => [`${v} empresas`]} contentStyle={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "white" }} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="space-y-2">

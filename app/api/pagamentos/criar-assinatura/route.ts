@@ -83,6 +83,7 @@ export async function POST(req: NextRequest) {
           ...(periodicidade === "anual" && { end_date: dataFim.toISOString() }),
         },
         back_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?assinatura=sucesso`,
+        // @ts-expect-error -- campo enviado à API do MP, mas ausente nos tipos do SDK
         notification_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/mercadopago`,
         metadata: {
           empresa_id: empresa.id,

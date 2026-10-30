@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
   const { data: empresa } = await supabase
     .from("empresas").select("id").eq("user_id", user.id).single()
   if (!empresa) return NextResponse.json({ erro: "Empresa não encontrada" }, { status: 404 })
+  const empresaId = empresa.id
 
   let backup: any
   try {
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
     // Substituir empresa_id pelo da empresa atual
     const registrosNormalizados = registros.map((r: any) => ({
       ...r,
-      empresa_id: empresa.id,
+      empresa_id: empresaId,
     }))
 
     // Importar em lotes de 50
@@ -77,7 +78,7 @@ export async function POST(req: NextRequest) {
   // Agenda config — upsert único
   if (dados.agenda_config) {
     const { error } = await supabase.from("agenda_config").upsert(
-      { ...dados.agenda_config, empresa_id: empresa.id },
+      { ...dados.agenda_config, empresa_id: empresaId },
       { onConflict: "empresa_id" }
     )
     resultados["agenda_config"] = { importados: error ? 0 : 1, erros: error ? 1 : 0 }

@@ -30,7 +30,7 @@ const schemaOrcamento = z.object({
 })
 type FormOrcamento = z.infer<typeof schemaOrcamento>
 
-interface ItemOrc { produto_servico_id?: string; nome_item: string; quantidade: number; preco_unitario: number; subtotal: number }
+interface ItemOrc { produto_servico_id?: string | null; nome_item: string; quantidade: number; preco_unitario: number; subtotal: number }
 
 export function OrcamentosClient({ empresa, orcamentos: orcInit, clientes, produtos }: {
   empresa: Empresa
@@ -52,7 +52,7 @@ export function OrcamentosClient({ empresa, orcamentos: orcInit, clientes, produ
   const [loading, setLoading] = useState(false)
   const supabase = createClient()
 
-  const { register, handleSubmit, reset, setValue, watch } = useForm<FormOrcamento>({
+  const { register, handleSubmit, reset, setValue, watch } = useForm<z.input<typeof schemaOrcamento>, unknown, FormOrcamento>({
     resolver: zodResolver(schemaOrcamento),
     defaultValues: { validade_dias: "30", desconto: "0" },
   })
@@ -110,7 +110,7 @@ export function OrcamentosClient({ empresa, orcamentos: orcInit, clientes, produ
     setLoading(false)
   }
 
-  async function alterarStatus(id: string, status: string) {
+  async function alterarStatus(id: string, status: "aprovado" | "recusado") {
     const { error } = await supabase.from("orcamentos").update({ status }).eq("id", id)
     if (error) { toast.error("Erro ao atualizar."); return }
     setOrcamentos((prev) => prev.map((o) => o.id === id ? { ...o, status } : o))

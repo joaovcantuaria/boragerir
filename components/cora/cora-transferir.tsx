@@ -43,7 +43,7 @@ const transferenciaSchema = z.object({
     .min(1, "Conta é obrigatória")
     .regex(/^\d+[-]?\d$/, "Conta deve ser numérica com dígito verificador"),
   tipoConta: z.enum(["corrente", "poupanca"], {
-    required_error: "Selecione o tipo de conta",
+    error: "Selecione o tipo de conta",
   }),
   documento: z
     .string()

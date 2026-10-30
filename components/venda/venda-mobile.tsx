@@ -34,7 +34,7 @@ interface ProdutoSimples {
 interface ClienteSimples {
   id: string
   nome_completo: string
-  cpf: string
+  cpf: string | null
   telefone: string
   pontos_fidelidade: number
 }

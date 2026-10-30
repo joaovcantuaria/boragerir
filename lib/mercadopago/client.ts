@@ -30,7 +30,10 @@ export const PLANOS_MP = {
 export type PlanoMP = keyof typeof PLANOS_MP
 export type Periodicidade = "mensal" | "anual"
 
-export function calcularValor(plano: PlanoMP, periodicidade: Periodicidade) {
+export function calcularValor(
+  plano: PlanoMP,
+  periodicidade: Periodicidade
+): { valorTotal: number; valorMensal: number; economia: number; descricao: string } {
   const info = PLANOS_MP[plano]
   if (periodicidade === "anual") {
     return {

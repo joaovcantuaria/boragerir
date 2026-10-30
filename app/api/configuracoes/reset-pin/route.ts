@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
 
     const emailMascarado = emailDestino.replace(
       /(.{2})(.*)(@.*)/,
-      (_, a, b, c) => a + "*".repeat(Math.min(b.length, 5)) + c
+      (_: string, a: string, b: string, c: string) => a + "*".repeat(Math.min(b.length, 5)) + c
     )
 
     return NextResponse.json({ sucesso: true, email: emailMascarado })

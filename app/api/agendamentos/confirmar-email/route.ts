@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
 
     const { data: agendamento } = await supabase
       .from("agendamentos")
-      .select("*, clientes(nome_completo, email), produtos_servicos(nome)")
+      .select("*, clientes(nome_completo, email, telefone), produtos_servicos(nome)")
       .eq("id", agendamento_id)
       .single()
 

@@ -19,7 +19,7 @@ interface Contrato {
   funcionario_id: string | null; titulo: string; descricao: string | null
   valor_mensal: number; duracao_meses: number; dia_vencimento: number
   data_inicio: string; data_fim: string; status: StatusContrato
-  observacoes: string | null; created_at: string
+  observacoes: string | null; created_at: string | null
 }
 
 interface Parcela {
@@ -235,9 +235,8 @@ export function ContratosClient({ empresaId, contratosInit, parcelasInit, client
           await supabase.from("movimentacoes_caixa").insert({
             empresa_id: empresaId, caixa_id: caixaAberto.id,
             tipo: "entrada", categoria: "venda",
-            descricao: `Entrada contrato: ${titulo} — Parcela 1`,
+            descricao: `Entrada contrato: ${titulo} — Parcela 1 [${entradaFormaPag}]`,
             valor: valorEntrada,
-            forma_pagamento: entradaFormaPag,
           })
         }
       }

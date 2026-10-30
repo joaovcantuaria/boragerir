@@ -23,12 +23,12 @@ export type StatusTarefa = "pendente" | "iniciado" | "concluido"
 export type PrioridadeTarefa = "baixa" | "media" | "alta" | "urgente"
 
 export interface BlocoTarefa {
-  id: string; empresa_id: string; nome: string; cor: string; posicao: number; created_at: string
+  id: string; empresa_id: string; nome: string; cor: string; posicao: number; created_at: string | null
 }
 export interface Tarefa {
   id: string; empresa_id: string; bloco_id: string | null; titulo: string
   descricao: string | null; status: StatusTarefa; prioridade: PrioridadeTarefa
-  prazo: string | null; posicao: number; created_at: string
+  prazo: string | null; posicao: number; created_at: string | null
 }
 export interface Anexo {
   id: string; tarefa_id: string; empresa_id: string; nome: string

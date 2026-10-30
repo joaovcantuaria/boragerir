@@ -131,7 +131,7 @@ export default function DemoDashboard() {
               <BarChart data={dadosSemana}>
                 <XAxis dataKey="dia" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `R$${v}`} />
-                <Tooltip formatter={(v: number) => formatarMoeda(v)} />
+                <Tooltip formatter={(v) => formatarMoeda(Number(v))} />
                 <Bar dataKey="total" fill="#10B981" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -147,10 +147,10 @@ export default function DemoDashboard() {
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
                   <Pie data={dadosPagamento} cx="50%" cy="50%" innerRadius={55} outerRadius={80}
-                    dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                    dataKey="value" label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`} labelLine={false}>
                     {dadosPagamento.map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]} />)}
                   </Pie>
-                  <Tooltip formatter={(v: number) => formatarMoeda(v)} />
+                  <Tooltip formatter={(v) => formatarMoeda(Number(v))} />
                 </PieChart>
               </ResponsiveContainer>
             ) : (

@@ -1,8 +1,6 @@
 import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
-  typescript: { ignoreBuildErrors: true },
-
   // Otimização de imports — reduz o tamanho do bundle JS carregando só o que é usado
   experimental: {
     optimizePackageImports: [

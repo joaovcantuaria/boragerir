@@ -593,29 +593,29 @@ export function AdminEmpresaDetalhe({ empresa: empInit, assinaturas: assInit, no
               return (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div className={`p-3 rounded-xl ${t.bg} border ${t.border}`}>
+                    <div className={`p-3 rounded-xl border ${t.border}`}>
                       <p className={`text-[10px] uppercase ${t.textMuted}`}>Faturamento total</p>
                       <p className={`text-lg font-black ${t.text}`}>{formatarMoeda(totalFaturado)}</p>
                     </div>
-                    <div className={`p-3 rounded-xl ${t.bg} border ${t.border}`}>
+                    <div className={`p-3 rounded-xl border ${t.border}`}>
                       <p className={`text-[10px] uppercase ${t.textMuted}`}>Últimos 30 dias</p>
                       <p className={`text-lg font-black text-emerald-400`}>{formatarMoeda(faturamento30d)}</p>
                     </div>
-                    <div className={`p-3 rounded-xl ${t.bg} border ${t.border}`}>
+                    <div className={`p-3 rounded-xl border ${t.border}`}>
                       <p className={`text-[10px] uppercase ${t.textMuted}`}>Total de vendas</p>
                       <p className={`text-lg font-black ${t.text}`}>{totalVendas}</p>
                     </div>
-                    <div className={`p-3 rounded-xl ${t.bg} border ${t.border}`}>
+                    <div className={`p-3 rounded-xl border ${t.border}`}>
                       <p className={`text-[10px] uppercase ${t.textMuted}`}>Ticket médio</p>
                       <p className={`text-lg font-black ${t.text}`}>{formatarMoeda(ticketMedio)}</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className={`p-3 rounded-xl ${t.bg} border ${t.border}`}>
+                    <div className={`p-3 rounded-xl border ${t.border}`}>
                       <p className={`text-[10px] uppercase ${t.textMuted}`}>Entradas (caixa)</p>
                       <p className={`text-sm font-bold text-emerald-400`}>{formatarMoeda(entradas)}</p>
                     </div>
-                    <div className={`p-3 rounded-xl ${t.bg} border ${t.border}`}>
+                    <div className={`p-3 rounded-xl border ${t.border}`}>
                       <p className={`text-[10px] uppercase ${t.textMuted}`}>Saídas (caixa)</p>
                       <p className={`text-sm font-bold text-red-400`}>{formatarMoeda(saidas)}</p>
                     </div>
@@ -625,7 +625,7 @@ export function AdminEmpresaDetalhe({ empresa: empInit, assinaturas: assInit, no
                       <p className={`text-xs font-semibold ${t.textMuted} mb-2`}>Por forma de pagamento</p>
                       <div className="space-y-1">
                         {Object.entries(porForma).sort(([,a],[,b]) => b - a).map(([fp, val]) => (
-                          <div key={fp} className={`flex items-center justify-between text-xs px-3 py-1.5 rounded-lg ${t.bg}`}>
+                          <div key={fp} className={`flex items-center justify-between text-xs px-3 py-1.5 rounded-lg`}>
                             <span className={`${t.text} capitalize`}>{fp.replace(/_/g, " ")}</span>
                             <span className={`font-bold ${t.text}`}>{formatarMoeda(val)}</span>
                           </div>
@@ -648,7 +648,7 @@ export function AdminEmpresaDetalhe({ empresa: empInit, assinaturas: assInit, no
             <p className={`text-xs ${t.textMuted}`}>
               Acessos são rastreados pelo Supabase Auth. Último acesso disponível no painel do Supabase.
             </p>
-            <div className={`p-3 rounded-xl ${t.bg} border ${t.border} space-y-1`}>
+            <div className={`p-3 rounded-xl border ${t.border} space-y-1`}>
               <div className="flex items-center justify-between">
                 <span className={`text-xs ${t.textMuted}`}>Email da conta</span>
                 <span className={`text-xs font-medium ${t.text}`}>{empresa.email}</span>
@@ -678,7 +678,7 @@ export function AdminEmpresaDetalhe({ empresa: empInit, assinaturas: assInit, no
           {auditLog.length > 0 ? (
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {auditLog.map((log) => (
-                <div key={log.id} className={`p-3 rounded-xl ${t.bg} border ${t.border} flex items-start gap-3`}>
+                <div key={log.id} className={`p-3 rounded-xl border ${t.border} flex items-start gap-3`}>
                   <div className="w-2 h-2 rounded-full bg-purple-400 mt-1.5 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className={`text-xs font-semibold ${t.text}`}>{log.acao}</p>

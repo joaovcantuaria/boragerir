@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { createClient } from "@/lib/supabase/client"
+import type { TablesInsert } from "@/types/database"
 import { formatarMoeda, formatarDataHora } from "@/lib/utils"
 import { useColaborador } from "@/contexts/colaborador-context"
 
@@ -41,7 +42,7 @@ type CaixaAnterior = {
 }
 
 type Movimentacao = {
-  id: string; tipo: string; categoria: string; descricao: string; valor: number; created_at: string; data_movimento?: string
+  id: string; tipo: string; categoria: string; descricao: string; valor: number; created_at: string; data_movimento?: string | null
 }
 
 interface CaixaClientProps {
@@ -49,10 +50,10 @@ interface CaixaClientProps {
   userId: string
   plano?: string
   caixaAberto: {
-    id: string; valor_abertura: number; data_abertura: string; observacoes_abertura?: string | null; tipo_conta?: string; nome_caixa?: string
+    id: string; valor_abertura: number; data_abertura: string; observacoes_abertura?: string | null; tipo_conta?: string | null; nome_caixa?: string | null
   } | null
   caixasAbertos?: {
-    id: string; valor_abertura: number; data_abertura: string; observacoes_abertura?: string | null; tipo_conta?: string; nome_caixa?: string
+    id: string; valor_abertura: number; data_abertura: string; observacoes_abertura?: string | null; tipo_conta?: string | null; nome_caixa?: string | null
   }[]
   movimentacoes: Movimentacao[]
   caixasAnteriores: CaixaAnterior[]
@@ -325,7 +326,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
       despesa: "saida",
     }
 
-    const payload: Record<string, unknown> = {
+    const payload: TablesInsert<"movimentacoes_caixa"> = {
       empresa_id: empresaId,
       caixa_id: caixaAlvo.id,
       tipo: tipoMap[modalMovimentacao],
@@ -531,7 +532,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
             <div className="flex items-center gap-2">
               {(caixa as any).tipo_caixa && (
                 <Badge variant="outline" className="text-xs capitalize">
-                  {{ diario: "Diário", semanal: "Semanal", mensal: "Mensal" }[(caixa as any).tipo_caixa] ?? (caixa as any).tipo_caixa}
+                  {({ diario: "Diário", semanal: "Semanal", mensal: "Mensal" } as Record<string, string>)[(caixa as any).tipo_caixa] ?? (caixa as any).tipo_caixa}
                 </Badge>
               )}
               {(caixa as any).nome_caixa && (
@@ -710,7 +711,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
             <div className="flex items-center gap-2">
               {(caixa as any).tipo_caixa && (
                 <Badge variant="outline" className="text-xs capitalize">
-                  {{ diario: "Diário", semanal: "Semanal", mensal: "Mensal" }[(caixa as any).tipo_caixa] ?? (caixa as any).tipo_caixa}
+                  {({ diario: "Diário", semanal: "Semanal", mensal: "Mensal" } as Record<string, string>)[(caixa as any).tipo_caixa] ?? (caixa as any).tipo_caixa}
                 </Badge>
               )}
               {(caixa as any).nome_caixa && (

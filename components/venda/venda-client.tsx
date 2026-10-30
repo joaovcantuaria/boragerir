@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { createClient } from "@/lib/supabase/client"
 import { formatarMoeda, gerarLinkWhatsApp, labelsFormaPagamento } from "@/lib/utils"
-import type { Empresa } from "@/types"
+import type { Empresa, Venda } from "@/types"
 import { gerarReciboPDF } from "@/lib/pdf/recibo"
 import { PinModal } from "@/components/ui/pin-modal"
 import { VendaMobile } from "@/components/venda/venda-mobile"
@@ -42,7 +42,7 @@ interface ProdutoSimples {
 interface ClienteSimples {
   id: string
   nome_completo: string
-  cpf: string
+  cpf: string | null
   telefone: string
   pontos_fidelidade: number
 }
@@ -394,7 +394,7 @@ export function VendaClient({
     const isDebito = formaPagamento === "debito_cliente"
     const valorPagoAgora = isDebito ? Math.min(parseFloat(valorRecebido) || 0, total) : total
     const formaPagFinal = isDebito
-      ? (valorPagoAgora > 0 ? formaPagEntrada : "outro")
+      ? (valorPagoAgora > 0 ? formaPagEntrada as Venda["forma_pagamento"] : "outro")
       : formaPagamento as "dinheiro" | "cartao_credito" | "cartao_debito" | "pix" | "outro" | "boleto_cora" | "pix_cora"
 
     const { data: venda, error: errVenda } = await supabase
@@ -467,19 +467,14 @@ export function VendaClient({
     for (const item of itens) {
       const prod = produtos.find((p) => p.id === item.produto_servico_id)
       if (prod?.tipo === "produto" && prod.estoque_atual !== null) {
-        // Usar RPC para decrementar de forma atômica (evita race condition)
-        await supabase.rpc("decrementar_estoque", {
-          produto_id: prod.id,
-          quantidade: item.quantidade,
-        }).then(({ error }) => {
-          // Fallback se RPC não existir
-          if (error) {
-            supabase
-              .from("produtos_servicos")
-              .update({ estoque_atual: Math.max(0, (prod.estoque_atual ?? 0) - item.quantidade) })
-              .eq("id", prod.id)
-          }
-        })
+        // Lê o estoque atual do banco (o da tela pode estar desatualizado após outras vendas)
+        const { data: atual } = await supabase
+          .from("produtos_servicos").select("estoque_atual").eq("id", prod.id).single()
+        const estoqueAtual = atual?.estoque_atual ?? prod.estoque_atual
+        await supabase
+          .from("produtos_servicos")
+          .update({ estoque_atual: Math.max(0, estoqueAtual - item.quantidade) })
+          .eq("id", prod.id)
       }
     }
 

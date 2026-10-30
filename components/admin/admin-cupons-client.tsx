@@ -92,7 +92,7 @@ export function AdminCuponsClient({ cupons: init }: { cupons: Cupom[] }) {
             ].map((f) => (
               <div key={f.key} className="space-y-1.5">
                 <label className={`text-xs font-semibold ${t.textMuted3}`}>{f.label}</label>
-                <input value={(form as Record<string, string>)[f.key]}
+                <input value={(form as unknown as Record<string, string>)[f.key]}
                   onChange={(e) => setForm((p) => ({ ...p, [f.key]: f.upper ? e.target.value.toUpperCase() : e.target.value }))}
                   placeholder={f.placeholder}
                   className={`w-full ${t.inputBg} border ${t.inputBorder} rounded-xl px-3 py-2.5 text-sm ${t.inputText} focus:outline-none`} />

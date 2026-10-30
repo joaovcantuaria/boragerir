@@ -87,7 +87,7 @@ export default function DemoFinanceiro() {
                 <BarChart data={dadosFaturamento}>
                   <XAxis dataKey="dia" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${v}`} />
-                  <Tooltip formatter={(v: number) => formatarMoeda(v)} />
+                  <Tooltip formatter={(v) => formatarMoeda(Number(v))} />
                   <Bar dataKey="total" fill="#10B981" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -122,10 +122,10 @@ export default function DemoFinanceiro() {
                 <ResponsiveContainer width="100%" height={250}>
                   <PieChart>
                     <Pie data={dadosPagamento} cx="50%" cy="50%" outerRadius={100} dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                      label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}>
                       {dadosPagamento.map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]} />)}
                     </Pie>
-                    <Tooltip formatter={(v: number) => formatarMoeda(v)} />
+                    <Tooltip formatter={(v) => formatarMoeda(Number(v))} />
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="space-y-2 min-w-40">

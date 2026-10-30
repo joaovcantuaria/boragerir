@@ -184,7 +184,7 @@ export function WidgetGraficoSemana({ data }: WidgetProps) {
             <BarChart data={dadosSemana}>
               <XAxis dataKey="dia" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `R$${v}`} />
-              <Tooltip formatter={(v: number) => formatarMoeda(v)} />
+              <Tooltip formatter={(v) => formatarMoeda(Number(v))} />
               <Bar dataKey="total" fill="#F26E1D" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
