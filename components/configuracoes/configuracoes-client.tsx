@@ -6,7 +6,7 @@ import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import {
   Loader2, Store, CreditCard, Tag, Star, Lock,
-  Plus, Trash2, Check, Upload, Camera, FileText, Database, Gift, Landmark
+  Plus, Trash2, Check, Upload, Camera, FileText, Database, Gift, Landmark, MessageCircle
 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -29,6 +29,7 @@ import { BackupClient } from "@/components/configuracoes/backup-client"
 import { RecompensasFidelidade } from "@/components/configuracoes/recompensas-fidelidade"
 import { ConfigAcessos } from "@/components/configuracoes/config-acessos"
 import { CoraConfig } from "@/components/cora/cora-config"
+import { IntegracaoChat } from "@/components/configuracoes/integracao-chat"
 
 const schemaNegocio = z.object({
   nome: z.string().min(2),
@@ -232,7 +233,7 @@ export function ConfiguracoesClient({
       </div>
 
       <Tabs defaultValue="negocio">
-        <TabsList className="grid grid-cols-9 w-full">
+        <TabsList className="grid grid-cols-10 w-full">
           <TabsTrigger value="negocio" className="gap-1.5 text-xs font-semibold">
             <Store className="w-3.5 h-3.5" /><span className="hidden sm:inline">Negócio</span>
           </TabsTrigger>
@@ -259,6 +260,9 @@ export function ConfiguracoesClient({
           </TabsTrigger>
           <TabsTrigger value="cora" className="gap-1.5 text-xs font-semibold">
             <Landmark className="w-3.5 h-3.5" /><span className="hidden sm:inline">Cora</span>
+          </TabsTrigger>
+          <TabsTrigger value="chat" className="gap-1.5 text-xs font-semibold">
+            <MessageCircle className="w-3.5 h-3.5" /><span className="hidden sm:inline">Chat</span>
           </TabsTrigger>
         </TabsList>
 
@@ -857,6 +861,11 @@ export function ConfiguracoesClient({
         {/* ── ABA CORA PAGAMENTOS ── */}
         <TabsContent value="cora" className="mt-4">
           <CoraConfig empresa={empresa} />
+        </TabsContent>
+
+        {/* ── ABA BORAGERIR CHAT ── */}
+        <TabsContent value="chat" className="mt-4">
+          <IntegracaoChat />
         </TabsContent>
       </Tabs>
     </div>

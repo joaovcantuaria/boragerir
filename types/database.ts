@@ -1388,6 +1388,50 @@ export type Database = {
           },
         ]
       }
+      integracoes_chat: {
+        Row: {
+          id: string
+          empresa_id: string
+          chat_api_key_enc: string
+          chat_api_key_final: string
+          app_token_hash: string
+          ativo: boolean
+          conectado_em: string
+          ultimo_uso_em: string | null
+          total_requisicoes: number
+        }
+        Insert: {
+          id?: string
+          empresa_id: string
+          chat_api_key_enc: string
+          chat_api_key_final: string
+          app_token_hash: string
+          ativo?: boolean
+          conectado_em?: string
+          ultimo_uso_em?: string | null
+          total_requisicoes?: number
+        }
+        Update: {
+          id?: string
+          empresa_id?: string
+          chat_api_key_enc?: string
+          chat_api_key_final?: string
+          app_token_hash?: string
+          ativo?: boolean
+          conectado_em?: string
+          ultimo_uso_em?: string | null
+          total_requisicoes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integracoes_chat_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: true
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       itens_orcamento: {
         Row: {
           id: string
