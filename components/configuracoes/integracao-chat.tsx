@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge"
 
 interface StatusChat {
+  empresa_nome: string
   configurado: boolean
   conectado: boolean
   chave_final: string | null
@@ -27,7 +28,20 @@ export function IntegracaoChat() {
   const [chave, setChave] = useState("")
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => { carregarStatus() }, [])
+  useEffect(() => {
+    carregarStatus()
+    // Volta do fluxo "Conectar com BoraGerir Chat": mostra o resultado e limpa a URL
+    const params = new URLSearchParams(window.location.search)
+    if (params.get("chat") === "conectado") toast.success("BoraGerir Chat conectado!")
+    const erro = params.get("chat_erro")
+    if (erro) toast.error(erro)
+    if (params.has("chat") || erro) {
+      params.delete("chat")
+      params.delete("chat_erro")
+      const query = params.toString()
+      window.history.replaceState(null, "", window.location.pathname + (query ? `?${query}` : ""))
+    }
+  }, [])
 
   async function carregarStatus() {
     try {
@@ -143,30 +157,44 @@ export function IntegracaoChat() {
     <Card>
       {cabecalho}
       <CardContent className="space-y-4">
-        <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
-          <li>No BoraGerir Chat, abra <strong>Configurações → Integrações</strong>.</li>
-          <li>Crie (ou copie) uma API key — ela começa com <code>bgc_</code>.</li>
-          <li>Cole abaixo e clique em Conectar.</li>
-        </ol>
-        <div className="space-y-2">
-          <Label htmlFor="chat-api-key">API key do BoraGerir Chat</Label>
-          <Input
-            id="chat-api-key"
-            type="password"
-            autoComplete="off"
-            placeholder="bgc_..."
-            value={chave}
-            onChange={(e) => setChave(e.target.value)}
-          />
-        </div>
+        <p className="text-sm text-muted-foreground">
+          Você vai para o BoraGerir Chat, entra (ou cria sua conta) e autoriza a conexão.
+          Depois volta para cá já conectado{status.empresa_nome ? <> com <strong>{status.empresa_nome}</strong></> : null}.
+        </p>
+        <Button asChild className="gap-2">
+          <a href="/api/integracoes/chat/conectar">
+            <Link2 className="h-4 w-4" />
+            Conectar com BoraGerir Chat
+          </a>
+        </Button>
         <p className="text-xs text-muted-foreground">
-          Ao conectar, o Chat passa a consultar nome, telefone, aniversário e histórico de visitas dos seus clientes
+          O Chat passa a consultar nome, telefone, aniversário e histórico de visitas dos seus clientes
           para as automações. CPF, e-mail e dados financeiros da empresa não são compartilhados.
         </p>
-        <Button onClick={handleConectar} disabled={loading || !chave.trim()} className="gap-2">
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
-          Conectar
-        </Button>
+
+        <details className="rounded-lg border p-3 text-sm">
+          <summary className="cursor-pointer text-muted-foreground">Prefiro colar uma API key</summary>
+          <div className="mt-3 space-y-3">
+            <p className="text-xs text-muted-foreground">
+              No BoraGerir Chat, abra <strong>Configurações → Integrações</strong> e copie uma API key (começa com <code>bgc_</code>).
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="chat-api-key">API key do BoraGerir Chat</Label>
+              <Input
+                id="chat-api-key"
+                type="password"
+                autoComplete="off"
+                placeholder="bgc_..."
+                value={chave}
+                onChange={(e) => setChave(e.target.value)}
+              />
+            </div>
+            <Button variant="outline" onClick={handleConectar} disabled={loading || !chave.trim()} className="gap-2">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
+              Conectar com a API key
+            </Button>
+          </div>
+        </details>
       </CardContent>
     </Card>
   )

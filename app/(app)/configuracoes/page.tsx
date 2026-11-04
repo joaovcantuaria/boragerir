@@ -5,7 +5,10 @@ import { redirect } from "next/navigation"
 export const dynamic = "force-dynamic"
 export const metadata = { title: "Configurações" }
 
-export default async function ConfiguracoesPage() {
+const ABAS = ["negocio", "fidelidade", "plano", "categorias", "documentos", "acessos", "conta", "backup", "cora", "chat"]
+
+export default async function ConfiguracoesPage({ searchParams }: { searchParams: Promise<{ aba?: string }> }) {
+  const { aba } = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
@@ -28,6 +31,7 @@ export default async function ConfiguracoesPage() {
       empresa={empresa}
       userEmail={user.email ?? ""}
       categorias={categoriasEmpresa ?? []}
+      abaInicial={aba && ABAS.includes(aba) ? aba : "negocio"}
     />
   )
 }

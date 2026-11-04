@@ -70,6 +70,77 @@ export function desvincularNoChat(chatApiKey: string) {
   return chamarAppLink(chatApiKey, { method: "DELETE" })
 }
 
+// ─── Conexão da empresa (usada pelo botão "Conectar" e por colar a API key) ───
+
+// Vincula no Chat primeiro e só salva aqui se o Chat aceitou a key
+export async function conectarEmpresa(empresa: { id: string; nome: string }, chave: string): Promise<RespostaChat> {
+  const admin = createAdminClient()
+  const { data: anterior } = await admin
+    .from("integracoes_chat").select("chat_api_key_enc").eq("empresa_id", empresa.id).maybeSingle()
+
+  const token = gerarTokenApp()
+  const vinculo = await vincularNoChat(chave, token, empresa.nome)
+  if (!vinculo.ok) return vinculo
+
+  const { error } = await admin.from("integracoes_chat").upsert({
+    empresa_id: empresa.id,
+    chat_api_key_enc: criptografarChave(chave),
+    chat_api_key_final: chave.slice(-4),
+    app_token_hash: hashToken(token),
+    ativo: true,
+    conectado_em: new Date().toISOString(),
+    ultimo_uso_em: null,
+    total_requisicoes: 0,
+  }, { onConflict: "empresa_id" })
+
+  if (error) {
+    await desvincularNoChat(chave)
+    return { ok: false, erro: "Erro ao salvar a conexão.", status: 500 }
+  }
+
+  // Se trocou de conta do Chat, remove o vínculo da conta antiga (o token antigo já não vale)
+  if (anterior) {
+    try {
+      const chaveAntiga = descriptografarChave(anterior.chat_api_key_enc)
+      if (chaveAntiga !== chave) await desvincularNoChat(chaveAntiga)
+    } catch { /* vínculo antigo já não funciona sem o token; nada a fazer */ }
+  }
+  return { ok: true }
+}
+
+// ─── Fluxo "Conectar com BoraGerir Chat" (estilo OAuth + PKCE) ───
+
+export const CALLBACK_URL = `${APP_URL}/api/integracoes/chat/callback`
+export const COOKIE_CONEXAO = "chat_conexao"
+
+export function gerarPkce() {
+  const verifier = crypto.randomBytes(32).toString("base64url")
+  return {
+    state: crypto.randomBytes(24).toString("base64url"),
+    verifier,
+    challenge: crypto.createHash("sha256").update(verifier).digest("base64url"),
+  }
+}
+
+// Troca o código de uso único devolvido pelo Chat pela API key da empresa
+export async function trocarCodigoNoChat(codigo: string, verifier: string): Promise<{ ok: true; chave: string } | { ok: false; erro: string }> {
+  try {
+    const res = await fetch(`${CHAT_URL}/api/external/app-link/token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: codigo, code_verifier: verifier, redirect_uri: CALLBACK_URL }),
+      signal: AbortSignal.timeout(15000),
+    })
+    const corpo = await res.json().catch(() => null)
+    if (!res.ok || typeof corpo?.api_key !== "string") {
+      return { ok: false, erro: "A autorização expirou ou já foi usada. Clique em Conectar de novo." }
+    }
+    return { ok: true, chave: corpo.api_key }
+  } catch {
+    return { ok: false, erro: "Não foi possível conectar ao BoraGerir Chat." }
+  }
+}
+
 // ─── Autenticação Chat → App ─────────────────────────────────
 
 type AutenticacaoChat =

@@ -3,8 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { getEmpresaAtiva } from "@/lib/get-empresa-ativa"
 import { rateLimit } from "@/lib/security/rate-limit"
 import {
-  integracaoConfigurada, criptografarChave, descriptografarChave,
-  gerarTokenApp, hashToken, vincularNoChat, desvincularNoChat,
+  integracaoConfigurada, descriptografarChave, desvincularNoChat, conectarEmpresa,
 } from "@/lib/integracoes/chat"
 
 // Conexão da empresa ativa com o BoraGerir Chat (tela Configurações → Chat)
@@ -23,6 +22,7 @@ export async function GET() {
     .maybeSingle()
 
   return NextResponse.json({
+    empresa_nome: empresa.nome,
     configurado: integracaoConfigurada(),
     conectado: !!data,
     chave_final: data?.chat_api_key_final ?? null,
@@ -50,38 +50,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erro: "API key inválida. Ela começa com \"bgc_\" e fica no Chat em Configurações → Integrações." }, { status: 400 })
   }
 
-  const admin = createAdminClient()
-  const { data: anterior } = await admin
-    .from("integracoes_chat").select("chat_api_key_enc").eq("empresa_id", empresa.id).maybeSingle()
-
-  // Vincula primeiro no Chat; só salva aqui se o Chat aceitou a key
-  const token = gerarTokenApp()
-  const vinculo = await vincularNoChat(chave, token, empresa.nome)
-  if (!vinculo.ok) return NextResponse.json({ erro: vinculo.erro }, { status: vinculo.status })
-
-  const { error } = await admin.from("integracoes_chat").upsert({
-    empresa_id: empresa.id,
-    chat_api_key_enc: criptografarChave(chave),
-    chat_api_key_final: chave.slice(-4),
-    app_token_hash: hashToken(token),
-    ativo: true,
-    conectado_em: new Date().toISOString(),
-    ultimo_uso_em: null,
-    total_requisicoes: 0,
-  }, { onConflict: "empresa_id" })
-
-  if (error) {
-    await desvincularNoChat(chave)
-    return NextResponse.json({ erro: "Erro ao salvar a conexão." }, { status: 500 })
-  }
-
-  // Se trocou de conta do Chat, remove o vínculo da conta antiga (o token antigo já não vale)
-  if (anterior) {
-    try {
-      const chaveAntiga = descriptografarChave(anterior.chat_api_key_enc)
-      if (chaveAntiga !== chave) await desvincularNoChat(chaveAntiga)
-    } catch { /* vínculo antigo já não funciona sem o token; nada a fazer */ }
-  }
+  const resultado = await conectarEmpresa(empresa, chave)
+  if (!resultado.ok) return NextResponse.json({ erro: resultado.erro }, { status: resultado.status })
 
   return NextResponse.json({ sucesso: true })
 }

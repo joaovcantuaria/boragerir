@@ -46,9 +46,9 @@ const schemaNegocio = z.object({
 })
 
 export function ConfiguracoesClient({
-  empresa: empInit, userEmail, categorias: catInit,
+  empresa: empInit, userEmail, categorias: catInit, abaInicial = "negocio",
 }: {
-  empresa: Empresa; userEmail: string; categorias: Categoria[]
+  empresa: Empresa; userEmail: string; categorias: Categoria[]; abaInicial?: string
 }) {
   const [empresa, setEmpresa] = useState(empInit)
   const [categorias, setCategorias] = useState(catInit)
@@ -232,7 +232,7 @@ export function ConfiguracoesClient({
         <p className="text-xs text-muted-foreground mt-0.5">Gerencie todos os dados do seu estabelecimento</p>
       </div>
 
-      <Tabs defaultValue="negocio">
+      <Tabs defaultValue={abaInicial}>
         <TabsList className="grid grid-cols-10 w-full">
           <TabsTrigger value="negocio" className="gap-1.5 text-xs font-semibold">
             <Store className="w-3.5 h-3.5" /><span className="hidden sm:inline">Negócio</span>
