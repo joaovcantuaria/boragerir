@@ -1119,6 +1119,70 @@ export type Database = {
           },
         ]
       }
+      cupons_cliente: {
+        Row: {
+          id: string
+          empresa_id: string
+          cliente_id: string | null
+          codigo: string
+          tipo: "percentual" | "fixo"
+          valor: number
+          validade: string
+          origem: "aniversario" | "reativacao" | "manual"
+          usado_em: string | null
+          venda_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          empresa_id: string
+          cliente_id?: string | null
+          codigo: string
+          tipo: "percentual" | "fixo"
+          valor: number
+          validade: string
+          origem?: "aniversario" | "reativacao" | "manual"
+          usado_em?: string | null
+          venda_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          empresa_id?: string
+          cliente_id?: string | null
+          codigo?: string
+          tipo?: "percentual" | "fixo"
+          valor?: number
+          validade?: string
+          origem?: "aniversario" | "reativacao" | "manual"
+          usado_em?: string | null
+          venda_id?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cupons_cliente_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cupons_cliente_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cupons_cliente_venda_id_fkey"
+            columns: ["venda_id"]
+            isOneToOne: false
+            referencedRelation: "vendas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dashboard_layouts: {
         Row: {
           id: string

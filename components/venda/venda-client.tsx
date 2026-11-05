@@ -99,6 +99,10 @@ export function VendaClient({
   const [autoprint, setAutoprint] = useState(false)
   const [pinModalAberto, setPinModalAberto] = useState(false)
   const [descontoAutorizado, setDescontoAutorizado] = useState(false)
+  // Cupom do cliente (gerado pelo BoraGerir Chat no aniversário/reativação)
+  const [cupom, setCupom] = useState<{ codigo: string; tipo: "percentual" | "fixo"; valor: number } | null>(null)
+  const [codigoCupom, setCodigoCupom] = useState("")
+  const [validandoCupom, setValidandoCupom] = useState(false)
   const supabase = createClient()
   const { colaborador } = useColaborador()
   const inputBuscaRef = useRef<HTMLInputElement>(null)
@@ -282,7 +286,12 @@ export function VendaClient({
   const pontosPorReal = empresa.pontos_para_desconto ?? 100
   const descontoPontos = pontosUsar > 0 ? pontosUsar / pontosPorReal : 0
   const pontosResgateBrinde = recompensaSelecionada?.pontos_necessarios ?? 0
-  const total = Math.max(0, subtotal - descontoValor - descontoPontos)
+  // Cupom não conta para o limite de desconto do colaborador: foi concedido pela empresa
+  const descontoCupom = cupom
+    ? Math.round(Math.max(0, Math.min(cupom.tipo === "percentual" ? (subtotal * cupom.valor) / 100 : cupom.valor, subtotal - descontoValor)) * 100) / 100
+    : 0
+  const descontoTotal = descontoValor + descontoCupom
+  const total = Math.max(0, subtotal - descontoTotal - descontoPontos)
   const troco = formaPagamento === "dinheiro" && valorRecebido
     ? Math.max(0, (parseFloat(valorRecebido) || 0) - total)
     : null
@@ -347,6 +356,23 @@ export function VendaClient({
     setItens((prev) => prev.filter((i) => i.produto_servico_id !== id))
   }
 
+  async function aplicarCupom() {
+    if (!codigoCupom.trim()) return
+    setValidandoCupom(true)
+    try {
+      const params = new URLSearchParams({ codigo: codigoCupom.trim() })
+      if (clienteSelecionado) params.set("cliente_id", clienteSelecionado.id)
+      const res = await fetch(`/api/cupons-cliente/validar?${params}`)
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { toast.error(data.erro || "Cupom inválido"); return }
+      setCupom(data.cupom)
+      setCodigoCupom("")
+      toast.success(`Cupom ${data.cupom.codigo} aplicado!`)
+    } finally {
+      setValidandoCupom(false)
+    }
+  }
+
   async function finalizarVenda() {
     if (itens.length === 0) { toast.error("Adicione ao menos um item."); return }
     if (!formaPagamento) { toast.error("Selecione a forma de pagamento."); return }
@@ -389,6 +415,18 @@ export function VendaClient({
     }
     if (!caixaId) { toast.error("Abra o caixa antes de realizar vendas.", { action: { label: "Ir para o caixa", onClick: () => window.location.href = "/caixa" } }); return }
 
+    // Revalida o cupom com o cliente desta venda antes de gravar (pode ter trocado o cliente)
+    if (cupom) {
+      const params = new URLSearchParams({ codigo: cupom.codigo })
+      if (clienteSelecionado) params.set("cliente_id", clienteSelecionado.id)
+      const res = await fetch(`/api/cupons-cliente/validar?${params}`).catch(() => null)
+      if (!res?.ok) {
+        const data = await res?.json().catch(() => ({}))
+        toast.error(data?.erro || "O cupom não vale para esta venda. Remova-o ou troque o cliente.")
+        return
+      }
+    }
+
     setLoading(true)
 
     const isDebito = formaPagamento === "debito_cliente"
@@ -406,7 +444,7 @@ export function VendaClient({
         funcionario_id: funcionarioId || null,
         colaborador_id: colaborador?.id !== "owner" ? colaborador?.id : null,
         subtotal,
-        desconto: descontoValor,
+        desconto: descontoTotal,
         total,
         forma_pagamento: formaPagFinal,
         parcelas: parseInt(parcelas) || 1,
@@ -432,6 +470,15 @@ export function VendaClient({
     }))
 
     await supabase.from("itens_venda").insert(itensPayload)
+
+    if (cupom) {
+      const res = await fetch("/api/cupons-cliente/usar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ codigo: cupom.codigo, venda_id: venda.id }),
+      }).catch(() => null)
+      if (!res?.ok) toast.warning(`Venda registrada, mas o cupom ${cupom.codigo} não pôde ser marcado como usado.`)
+    }
 
     // Registrar movimentação no caixa — só se houve pagamento efetivo e não é boleto pendente
     const valorMovimentacao = isDebito ? valorPagoAgora : total
@@ -633,6 +680,8 @@ export function VendaClient({
     setFuncionarioId(match ? match.id : "")
     setDesconto("0")
     setDescontoAutorizado(false)
+    setCupom(null)
+    setCodigoCupom("")
     setPontosUsar(0)
     setRecompensaSelecionada(null)
     setFormaPagamento("")
@@ -694,7 +743,7 @@ export function VendaClient({
 
     recibo += sep + "\n"
     recibo += linha("Subtotal:", formatarMoeda(subtotal)) + "\n"
-    if (descontoValor > 0) recibo += linha("Desconto:", `-${formatarMoeda(descontoValor)}`) + "\n"
+    if (descontoTotal > 0) recibo += linha("Desconto:", `-${formatarMoeda(descontoTotal)}`) + "\n"
     if (descontoPontos > 0) recibo += linha("Desc. Pontos:", `-${formatarMoeda(descontoPontos)}`) + "\n"
     recibo += linha("TOTAL:", formatarMoeda(vendaFinalizada.total)) + "\n"
     recibo += sep + "\n"
@@ -758,7 +807,7 @@ export function VendaClient({
 
     recibo += sep + "\n"
     recibo += linha("Subtotal:", formatarMoeda(subtotal)) + "\n"
-    if (descontoValor > 0) recibo += linha("Desconto:", `-${formatarMoeda(descontoValor)}`) + "\n"
+    if (descontoTotal > 0) recibo += linha("Desconto:", `-${formatarMoeda(descontoTotal)}`) + "\n"
     if (descontoPontos > 0) recibo += linha("Desc. Pontos:", `-${formatarMoeda(descontoPontos)}`) + "\n"
     recibo += linha("TOTAL:", formatarMoeda(valorTotal)) + "\n"
     recibo += sep + "\n"
@@ -811,7 +860,7 @@ export function VendaClient({
           numero: vendaFinalizada.numero,
           total: vendaFinalizada.total,
           subtotal,
-          desconto: descontoValor,
+          desconto: descontoTotal,
           forma_pagamento: formaPagamento,
           parcelas: parseInt(parcelas),
           created_at: new Date().toISOString(),
@@ -909,7 +958,7 @@ export function VendaClient({
       recompensaSelecionada={recompensaSelecionada}
       setRecompensaSelecionada={setRecompensaSelecionada}
       subtotal={subtotal}
-      descontoValor={descontoValor}
+      descontoValor={descontoTotal}
       descontoPontos={descontoPontos}
       total={total}
       troco={troco}
@@ -1127,8 +1176,8 @@ export function VendaClient({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4 text-sm">
                 <span className="text-muted-foreground">{itens.length} {itens.length === 1 ? "item" : "itens"}</span>
-                {descontoValor > 0 && (
-                  <span className="text-red-500">Desc: -{formatarMoeda(descontoValor)}</span>
+                {descontoTotal > 0 && (
+                  <span className="text-red-500">Desc: -{formatarMoeda(descontoTotal)}</span>
                 )}
                 {descontoPontos > 0 && (
                   <span className="text-amber-600">Pontos: -{formatarMoeda(descontoPontos)}</span>
@@ -1260,6 +1309,32 @@ export function VendaClient({
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            {/* Cupom do cliente */}
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Cupom</label>
+              {cupom ? (
+                <div className="flex items-center justify-between rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-xs text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
+                  <span>
+                    🎟️ <strong>{cupom.codigo}</strong> · {cupom.tipo === "percentual" ? `${cupom.valor}%` : formatarMoeda(cupom.valor)} (-{formatarMoeda(descontoCupom)})
+                  </span>
+                  <button className="text-emerald-700 hover:underline" onClick={() => setCupom(null)}>remover</button>
+                </div>
+              ) : (
+                <div className="flex gap-1.5">
+                  <Input
+                    placeholder="Ex.: NIVER-AB12C"
+                    value={codigoCupom}
+                    onChange={(e) => setCodigoCupom(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); aplicarCupom() } }}
+                    className="h-8 text-sm flex-1 uppercase"
+                  />
+                  <Button type="button" variant="outline" className="h-8 text-xs" disabled={validandoCupom || !codigoCupom.trim()} onClick={aplicarCupom}>
+                    {validandoCupom ? "..." : "Aplicar"}
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Pontos de fidelidade */}
