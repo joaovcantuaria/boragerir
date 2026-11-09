@@ -132,3 +132,36 @@ export async function enviarWhatsAppTexto(telefone: string, mensagem: string): P
     return { sucesso: false, erro: "Falha de conexão" }
   }
 }
+
+/**
+ * Envia um template aprovado na conta do Bora Gerir (ex.: lembretes de tarefas).
+ * `botoes`: payloads dos botões de resposta rápida do template, na ordem (opcional).
+ * Retorna `descadastrado: true` quando a pessoa respondeu SAIR para o número do Bora Gerir.
+ */
+export async function enviarTemplateBoraGerir(
+  telefone: string,
+  template: string,
+  variaveis: string[],
+  botoes?: string[]
+): Promise<{ sucesso: boolean; erro?: string; descadastrado?: boolean }> {
+  if (!BORAGERIR_CHAT_APIKEY) return { sucesso: false, erro: "BORAGERIR_CHAT_APIKEY não configurada" }
+  const numero = normalizarTelefoneDDI(telefone)
+  if (!numero || numero.length < 12) return { sucesso: false, erro: "Telefone inválido" }
+
+  try {
+    const res = await fetch(BORAGERIR_CHAT_SEND_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": BORAGERIR_CHAT_APIKEY },
+      body: JSON.stringify({ phone: numero, template, variables: variaveis, language: "pt_BR", ...(botoes?.length ? { button_payloads: botoes } : {}) }),
+      signal: AbortSignal.timeout(15000),
+    })
+    if (res.status === 409) return { sucesso: false, erro: "A pessoa pediu para não receber (SAIR)", descadastrado: true }
+    if (!res.ok) {
+      const corpo = await res.json().catch(() => null)
+      return { sucesso: false, erro: corpo?.error || `HTTP ${res.status}` }
+    }
+    return { sucesso: true }
+  } catch {
+    return { sucesso: false, erro: "Falha de conexão com o BoraGerir Chat" }
+  }
+}

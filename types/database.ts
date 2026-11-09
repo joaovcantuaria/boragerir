@@ -1618,6 +1618,91 @@ export type Database = {
           },
         ]
       }
+      lembretes_tarefas_config: {
+        Row: {
+          empresa_id: string
+          ativo: boolean
+          telefone: string
+          nome: string
+          hora_resumo: string
+          resumo: boolean
+          vespera: boolean
+          atraso: boolean
+          aceite_em: string | null
+          updated_at: string
+        }
+        Insert: {
+          empresa_id: string
+          ativo?: boolean
+          telefone: string
+          nome: string
+          hora_resumo?: string
+          resumo?: boolean
+          vespera?: boolean
+          atraso?: boolean
+          aceite_em?: string | null
+          updated_at?: string
+        }
+        Update: {
+          empresa_id?: string
+          ativo?: boolean
+          telefone?: string
+          nome?: string
+          hora_resumo?: string
+          resumo?: boolean
+          vespera?: boolean
+          atraso?: boolean
+          aceite_em?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lembretes_tarefas_config_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: true
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lembretes_tarefas_envios: {
+        Row: {
+          id: string
+          empresa_id: string
+          tipo: "resumo" | "vespera" | "atraso" | "teste"
+          referencia: string
+          status: "enviando" | "enviado" | "falhou"
+          detalhe: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          empresa_id: string
+          tipo: "resumo" | "vespera" | "atraso" | "teste"
+          referencia: string
+          status: "enviando" | "enviado" | "falhou"
+          detalhe?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          empresa_id?: string
+          tipo?: "resumo" | "vespera" | "atraso" | "teste"
+          referencia?: string
+          status?: "enviando" | "enviado" | "falhou"
+          detalhe?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lembretes_tarefas_envios_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mensagens_mel: {
         Row: {
           id: string

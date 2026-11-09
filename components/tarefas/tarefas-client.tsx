@@ -8,7 +8,7 @@ import {
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import {
-  Plus, CheckCircle2, Circle, Clock, Trash2, Edit2, X, Calendar,
+  Plus, CheckCircle2, Circle, Clock, Trash2, Edit2, X, Calendar, BellRing,
   Paperclip, Upload, FileText, Image, Download, Filter,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -17,6 +17,7 @@ import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
+import { LembretesWhatsApp } from "@/components/tarefas/lembretes-whatsapp"
 
 // ── Types ────────────────────────────────────────────────
 export type StatusTarefa = "pendente" | "iniciado" | "concluido"
@@ -58,6 +59,7 @@ export function TarefasClient({ empresaId, blocosInit, tarefasInit }: Props) {
   const [tarefas, setTarefas] = useState(tarefasInit)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [modalBloco, setModalBloco] = useState(false)
+  const [modalLembretes, setModalLembretes] = useState(false)
   const [modalTarefa, setModalTarefa] = useState<{ aberto: boolean; blocoId?: string | null; tarefa?: Tarefa }>({ aberto: false })
   const [modalDetalhe, setModalDetalhe] = useState<Tarefa | null>(null)
   const [blocoEditando, setBlocoEditando] = useState<BlocoTarefa | null>(null)
@@ -173,6 +175,8 @@ export function TarefasClient({ empresaId, blocosInit, tarefasInit }: Props) {
   // ── Render ──
   return (
     <div className="space-y-6">
+      {modalLembretes && <LembretesWhatsApp onClose={() => setModalLembretes(false)} />}
+
       {/* Header premium com gradient laranja */}
       <div className="rounded-2xl bg-gradient-to-r from-[#F26E1D] to-[#ff8c42] p-6 shadow-lg shadow-orange-500/10">
         <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -181,6 +185,11 @@ export function TarefasClient({ empresaId, blocosInit, tarefasInit }: Props) {
             <p className="text-white/70 text-sm mt-1">Arraste os cards entre as colunas para alterar o status</p>
           </div>
           <div className="flex gap-2">
+            <button onClick={() => setModalLembretes(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-white/30 text-sm font-semibold text-white hover:bg-white/10 transition-all backdrop-blur-sm"
+              title="Lembretes no WhatsApp">
+              <BellRing className="w-3.5 h-3.5" /><span className="hidden sm:inline">Lembretes no WhatsApp</span>
+            </button>
             <button onClick={() => { setBlocoEditando(null); setNomeBlocoInput(""); setCorBlocoInput(CORES_BLOCO[0]); setModalBloco(true) }}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-white/30 text-sm font-semibold text-white hover:bg-white/10 transition-all backdrop-blur-sm">
               <Plus className="w-3.5 h-3.5" />Bloco
