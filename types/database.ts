@@ -2464,6 +2464,7 @@ export type Database = {
           created_at: string
           cora_boleto_id: string | null
           codigo_rastreio: string | null
+          valor_recebido: number
         }
         Insert: {
           id?: string
@@ -2476,6 +2477,7 @@ export type Database = {
           created_at?: string
           cora_boleto_id?: string | null
           codigo_rastreio?: string | null
+          valor_recebido?: number
         }
         Update: {
           id?: string
@@ -2488,6 +2490,7 @@ export type Database = {
           created_at?: string
           cora_boleto_id?: string | null
           codigo_rastreio?: string | null
+          valor_recebido?: number
         }
         Relationships: [
           {
@@ -2678,6 +2681,10 @@ export type Database = {
       get_empresa_id: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      receber_valor_parcial: {
+        Args: { p_id: string; p_valor: number }
+        Returns: Database["public"]["Tables"]["valores_receber"]["Row"]
       }
       verificar_usuario_admin: {
         Args: { p_email: string }

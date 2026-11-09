@@ -209,7 +209,7 @@ export function RelatoriosGestaoTab({ empresaId }: { empresaId: string }) {
             format(new Date(v.data_vencimento), "dd/MM/yyyy"),
             v.devedor,
             formatarMoeda(v.valor),
-            v.status === "recebido" ? "RECEBIDO" : "PENDENTE",
+            v.status === "recebido" ? "RECEBIDO" : Number(v.valor_recebido ?? 0) > 0 ? `PARCIAL (${formatarMoeda(Number(v.valor_recebido))})` : "PENDENTE",
             v.observacoes ?? "—",
           ]),
           styles: { fontSize: 8, cellPadding: 2 },
@@ -226,7 +226,7 @@ export function RelatoriosGestaoTab({ empresaId }: { empresaId: string }) {
       const totalCP = cp.reduce((s: number, c: any) => s + c.valor, 0)
       const totalCPPago = cp.filter((c: any) => c.status === "pago").reduce((s: number, c: any) => s + c.valor, 0)
       const totalVR = vr.reduce((s: number, v: any) => s + v.valor, 0)
-      const totalVRRecebido = vr.filter((v: any) => v.status === "recebido").reduce((s: number, v: any) => s + v.valor, 0)
+      const totalVRRecebido = vr.reduce((s: number, v: any) => s + (v.status === "recebido" ? Number(v.valor) : Number(v.valor_recebido ?? 0)), 0)
 
       doc.setFontSize(9)
       doc.setFont("helvetica", "normal")
@@ -320,7 +320,7 @@ export function RelatoriosGestaoTab({ empresaId }: { empresaId: string }) {
       })
       conteudo += `\nVALORES A RECEBER\n${separador}\n`
       vr.forEach((v: any) => {
-        conteudo += `  ${format(new Date(v.data_vencimento), "dd/MM/yyyy")} | ${formatarMoeda(v.valor)} | ${v.devedor} | ${v.status === "recebido" ? "✓ RECEBIDO" : "○ PENDENTE"}\n`
+        conteudo += `  ${format(new Date(v.data_vencimento), "dd/MM/yyyy")} | ${formatarMoeda(v.valor)} | ${v.devedor} | ${v.status === "recebido" ? "✓ RECEBIDO" : Number(v.valor_recebido ?? 0) > 0 ? `◐ PARCIAL (${formatarMoeda(Number(v.valor_recebido))} recebido)` : "○ PENDENTE"}\n`
         if (v.observacoes) conteudo += `    Obs: ${v.observacoes}\n`
       })
       conteudo += `\n${linha}\n  BALANÇO\n${linha}\n`

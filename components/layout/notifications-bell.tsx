@@ -77,19 +77,20 @@ export function NotificationsBell({ empresaId }: { empresaId?: string }) {
     try {
       const { data: receber } = await supabase
         .from("valores_receber")
-        .select("id, devedor, valor, data_vencimento, status")
+        .select("*")
         .eq("empresa_id", empresaId)
         .eq("status", "pendente")
         .lte("data_vencimento", format(em3dias, "yyyy-MM-dd"))
         .order("data_vencimento")
       ;(receber ?? []).forEach((v: any) => {
         const venc = new Date(v.data_vencimento + "T12:00:00")
+        const aberto = Math.max(0, Number(v.valor) - Number(v.valor_recebido ?? 0))
         let urgencia: Notificacao["urgencia"] = "proximos_dias"
         let desc = ""
-        if (isBefore(venc, hoje)) { urgencia = "atrasado"; desc = `Deveria receber em ${format(venc, "dd/MM")} · ${formatarMoeda(v.valor)}` }
-        else if (isToday(venc)) { urgencia = "hoje"; desc = `Cobrar HOJE · ${formatarMoeda(v.valor)}` }
-        else if (isTomorrow(venc)) { urgencia = "amanha"; desc = `Cobrar amanhã · ${formatarMoeda(v.valor)}` }
-        else { desc = `Vence em ${format(venc, "dd/MM")} · ${formatarMoeda(v.valor)}` }
+        if (isBefore(venc, hoje)) { urgencia = "atrasado"; desc = `Deveria receber em ${format(venc, "dd/MM")} · ${formatarMoeda(aberto)}` }
+        else if (isToday(venc)) { urgencia = "hoje"; desc = `Cobrar HOJE · ${formatarMoeda(aberto)}` }
+        else if (isTomorrow(venc)) { urgencia = "amanha"; desc = `Cobrar amanhã · ${formatarMoeda(aberto)}` }
+        else { desc = `Vence em ${format(venc, "dd/MM")} · ${formatarMoeda(aberto)}` }
         notifs.push({ id: `vr_${v.id}`, tipo: "conta_receber", titulo: v.devedor, descricao: desc, urgencia })
       })
     } catch {}

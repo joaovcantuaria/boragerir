@@ -35,6 +35,12 @@ import { GerarBoletoModal } from "@/components/financeiro/gerar-boleto-modal"
 import { PinProtected } from "@/components/ui/pin-protected"
 import { PinModal } from "@/components/ui/pin-modal"
 
+/** Quanto ainda falta receber (valor - já recebido em baixas parciais). */
+function saldoReceber(v: { valor: number; valor_recebido?: number | null; status?: string }) {
+  if (v.status === "recebido") return 0
+  return Math.max(0, Math.round((Number(v.valor) - Number(v.valor_recebido ?? 0)) * 100) / 100)
+}
+
 const CORES = ["#10B981", "#3B82F6", "#F59E0B", "#8B5CF6", "#EF4444"]
 
 type Venda = {
@@ -108,7 +114,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   const [loadingCancel, setLoadingCancel] = useState<string | null>(null)
   const [mesSelecionado, setMesSelecionado] = useState(format(new Date(), "yyyy-MM"))
   // Valores a receber manual (plano gestão)
-  const [valoresReceber, setValoresReceber] = useState<{ id: string; devedor: string; valor: number; data_vencimento: string; observacoes: string | null; status: string }[]>([])
+  const [valoresReceber, setValoresReceber] = useState<{ id: string; devedor: string; valor: number; valor_recebido?: number | null; data_vencimento: string; observacoes: string | null; status: string }[]>([])
   const [modalNovoReceber, setModalNovoReceber] = useState(false)
   const [editandoReceberId, setEditandoReceberId] = useState<string | null>(null)
   const [formReceber, setFormReceber] = useState({ devedor: "", valor: "", data_vencimento: "", observacoes: "" })
@@ -118,7 +124,8 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   const [clienteSelecionado, setClienteSelecionado] = useState("")
   const [loadingReceber, setLoadingReceber] = useState(false)
   // Baixa modal — pergunta de qual caixa
-  const [modalBaixa, setModalBaixa] = useState<{ tipo: "receber" | "pagar"; id: string; valor: number; descricao: string } | null>(null)
+  const [modalBaixa, setModalBaixa] = useState<{ tipo: "receber" | "pagar"; id: string; valor: number; descricao: string; total?: number; recebido?: number; devedor?: string } | null>(null)
+  const [baixaValor, setBaixaValor] = useState("")
   const [baixaCaixaTipo, setBaixaCaixaTipo] = useState<"especie" | "banco">("especie")
   const [baixaFormaPag, setBaixaFormaPag] = useState<string>("")
   const [baixaDataRetroativa, setBaixaDataRetroativa] = useState<string>("")
@@ -283,7 +290,9 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
     if (!item) return
     if (isGestao) {
       // Abrir modal para selecionar caixa destino
-      setModalBaixa({ tipo: "receber", id, valor: item.valor, descricao: `Recebimento: ${item.devedor}` })
+      const saldo = saldoReceber(item)
+      setModalBaixa({ tipo: "receber", id, valor: saldo, total: Number(item.valor), recebido: Number(item.valor_recebido ?? 0), devedor: item.devedor, descricao: `Recebimento: ${item.devedor}` })
+      setBaixaValor(saldo.toFixed(2))
     } else {
       // Planos não-gestão: registrar no caixa automaticamente (primeiro caixa aberto)
       const { data: caixaAberto } = await supabase
@@ -304,7 +313,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
           tipo: "entrada",
           categoria: "suprimento",
           descricao: `Recebimento: ${item.devedor}`,
-          valor: item.valor,
+          valor: saldoReceber(item),
         })
       }
 
@@ -315,6 +324,13 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
 
   async function confirmarBaixa() {
     if (!modalBaixa) return
+    // Recebimento: pode ser parcial (ex.: deve 1.500, pagou 750)
+    const valorAgora = modalBaixa.tipo === "receber" ? Math.round(parseFloat(baixaValor.replace(",", ".")) * 100) / 100 : modalBaixa.valor
+    if (modalBaixa.tipo === "receber" && (!(valorAgora > 0) || valorAgora > modalBaixa.valor)) {
+      toast.error(`Informe um valor entre R$ 0,01 e ${formatarMoeda(modalBaixa.valor)}.`)
+      return
+    }
+    const parcial = modalBaixa.tipo === "receber" && valorAgora < modalBaixa.valor
     setLoadingReceber(true)
 
     // Buscar caixa aberto do tipo selecionado
@@ -348,27 +364,39 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
       return
     }
 
+    const descBase = parcial
+      ? `Recebimento parcial: ${modalBaixa.devedor} (${formatarMoeda(valorAgora)} de ${formatarMoeda(modalBaixa.total ?? modalBaixa.valor)})`
+      : modalBaixa.descricao
     const descComPag = baixaCaixaTipo === "banco" && baixaFormaPag
-      ? `${modalBaixa.descricao} [${baixaFormaPag}]`
+      ? `${descBase} [${baixaFormaPag}]`
       : baixaCaixaTipo === "especie"
-        ? `${modalBaixa.descricao} [dinheiro]`
-        : modalBaixa.descricao
+        ? `${descBase} [dinheiro]`
+        : descBase
 
     if (modalBaixa.tipo === "receber") {
-      // Marcar como recebido + registrar entrada no caixa
-      await supabase.from("valores_receber").update({ status: "recebido" }).eq("id", modalBaixa.id)
+      // Soma o pagamento (parcial ou total) no banco; quitou tudo → vira "recebido"
+      const { data: atualizado, error: erroBaixa } = await supabase.rpc("receber_valor_parcial", { p_id: modalBaixa.id, p_valor: valorAgora })
+      if (erroBaixa || !atualizado) {
+        const semMigration = /receber_valor_parcial|function|schema cache/i.test(erroBaixa?.message ?? "")
+        toast.error(semMigration ? "Baixa parcial ainda não ativada no banco (migration 20261112_receber_parcial.sql)." : (erroBaixa?.message ?? "Erro ao registrar recebimento."))
+        setLoadingReceber(false)
+        return
+      }
       const insertData: any = {
         empresa_id: empresaId,
         caixa_id: caixaId,
         tipo: "entrada",
         categoria: "suprimento",
         descricao: descComPag,
-        valor: modalBaixa.valor,
+        valor: valorAgora,
       }
       if (baixaDataRetroativa) insertData.created_at = new Date(baixaDataRetroativa + "T12:00:00").toISOString()
       await supabase.from("movimentacoes_caixa").insert(insertData)
-      setValoresReceber((prev) => prev.map((v) => v.id === modalBaixa.id ? { ...v, status: "recebido" } : v))
-      toast.success("Recebimento registrado no caixa!")
+      const linha = atualizado as { status: string; valor_recebido: number }
+      setValoresReceber((prev) => prev.map((v) => v.id === modalBaixa.id ? { ...v, status: linha.status, valor_recebido: Number(linha.valor_recebido) } : v))
+      toast.success(parcial
+        ? `Recebido ${formatarMoeda(valorAgora)}. Ainda faltam ${formatarMoeda(Math.round((modalBaixa.valor - valorAgora) * 100) / 100)}.`
+        : "Recebimento registrado no caixa!")
     } else {
       // Conta a pagar — registrar saída no caixa + marcar como paga
       const insertData: any = {
@@ -393,6 +421,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
     setModalBaixa(null)
     setBaixaFormaPag("")
     setBaixaDataRetroativa("")
+    setBaixaValor("")
     setLoadingReceber(false)
   }
 
@@ -469,7 +498,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   // Para plano gestão: calcular com base nas movimentações e valores_receber
   const totalReceitasGestao = movimentacoes.filter((m) => m.tipo === "entrada").reduce((s, m) => s + m.valor, 0)
   const totalDespesasGestao = movimentacoes.filter((m) => m.tipo === "saida").reduce((s, m) => s + m.valor, 0)
-  const totalAReceberGestao = valoresReceber.filter((v) => v.status === "pendente").reduce((s, v) => s + v.valor, 0)
+  const totalAReceberGestao = valoresReceber.filter((v) => v.status === "pendente").reduce((s, v) => s + saldoReceber(v), 0)
 
   const totalReceitas = isGestao ? totalReceitasGestao : totalRecebido
   const totalDespesas = isGestao
@@ -849,7 +878,14 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
                 return (
                   <div key={v.id} className="grid grid-cols-5 gap-2 px-4 py-3 border-t border-border text-sm items-center">
                     <span className="truncate font-medium">{v.devedor}</span>
-                    <span className="font-bold text-amber-500">{formatarMoeda(v.valor)}</span>
+                    <span className="flex flex-col">
+                      <span className="font-bold text-amber-500">{formatarMoeda(saldoReceber(v))}</span>
+                      {Number(v.valor_recebido ?? 0) > 0 && (
+                        <span className="text-[10px] text-emerald-600">
+                          recebido {formatarMoeda(Number(v.valor_recebido))} de {formatarMoeda(v.valor)}
+                        </span>
+                      )}
+                    </span>
                     <span className={`text-xs ${vencido ? "text-red-500 font-bold" : "text-muted-foreground"}`}>
                       {format(parseISO(v.data_vencimento), "dd/MM/yyyy")}
                       {vencido && " ⚠️"}
@@ -859,7 +895,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
                       <button onClick={() => editarValorReceber(v)} className="p-1.5 rounded-md hover:bg-blue-50 text-blue-500" title="Editar">
                         <Edit className="w-4 h-4" />
                       </button>
-                      <button onClick={() => marcarRecebido(v.id)} className="p-1.5 rounded-md hover:bg-emerald-50 text-emerald-500" title="Dar baixa">
+                      <button onClick={() => marcarRecebido(v.id)} className="p-1.5 rounded-md hover:bg-emerald-50 text-emerald-500" title="Dar baixa (total ou parcial)">
                         <CheckCircle2 className="w-4 h-4" />
                       </button>
                       <button onClick={() => excluirValorReceber(v.id)} className="p-1.5 rounded-md hover:bg-red-50 text-red-400" title="Excluir">
@@ -872,7 +908,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
                           className="text-[10px] font-bold px-2 py-0.5 h-auto border-teal-400 text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/20"
                           onClick={() => setModalGerarBoleto({
                             valorReceberId: v.id,
-                            valor: v.valor,
+                            valor: saldoReceber(v),
                             descricao: v.observacoes || v.devedor,
                             dataVencimento: v.data_vencimento,
                             clienteNome: v.devedor,
@@ -1134,7 +1170,37 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
             <div className="rounded-lg bg-muted/50 p-3">
               <p className="text-xs text-muted-foreground">{modalBaixa?.descricao}</p>
               <p className="text-lg font-bold text-primary mt-1">{formatarMoeda(modalBaixa?.valor ?? 0)}</p>
+              {modalBaixa?.tipo === "receber" && (modalBaixa.recebido ?? 0) > 0 && (
+                <p className="text-[11px] text-muted-foreground">
+                  em aberto · já recebido {formatarMoeda(modalBaixa.recebido ?? 0)} de {formatarMoeda(modalBaixa.total ?? 0)}
+                </p>
+              )}
             </div>
+            {modalBaixa?.tipo === "receber" && (
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Valor recebido agora</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0.01"
+                    max={modalBaixa.valor}
+                    value={baixaValor}
+                    onChange={(e) => setBaixaValor(e.target.value)}
+                  />
+                  <Button type="button" variant="outline" size="sm" onClick={() => setBaixaValor(modalBaixa.valor.toFixed(2))}>Tudo</Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setBaixaValor((Math.round(modalBaixa.valor * 50) / 100).toFixed(2))}>Metade</Button>
+                </div>
+                {(() => {
+                  const v = parseFloat(baixaValor.replace(",", "."))
+                  if (!(v > 0)) return null
+                  if (v > modalBaixa.valor) return <p className="text-[11px] text-red-500">Maior que o valor em aberto.</p>
+                  if (v < modalBaixa.valor) return <p className="text-[11px] text-amber-600">Baixa parcial: continuam em aberto {formatarMoeda(Math.round((modalBaixa.valor - v) * 100) / 100)}.</p>
+                  return <p className="text-[11px] text-emerald-600">Quita o valor por completo.</p>
+                })()}
+              </div>
+            )}
             <div className="space-y-2">
               <Label className="text-sm font-semibold">
                 {modalBaixa?.tipo === "receber"
@@ -1214,7 +1280,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setModalBaixa(null); setBaixaFormaPag(""); setBaixaDataRetroativa("") }}>Cancelar</Button>
+            <Button variant="outline" onClick={() => { setModalBaixa(null); setBaixaFormaPag(""); setBaixaDataRetroativa(""); setBaixaValor("") }}>Cancelar</Button>
             <Button onClick={confirmarBaixa} disabled={loadingReceber || (baixaCaixaTipo === "banco" && !baixaFormaPag)} className="gap-2">
               {loadingReceber ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               Confirmar
@@ -2093,7 +2159,7 @@ function FluxoCaixaTab({
   vendas: Venda[]
   contasPagar: ContaPagar[]
   agendamentosFuturos: { id: string; data_hora: string; status: string; produtos_servicos?: { preco: number; nome: string } | null }[]
-  valoresReceber?: { id: string; devedor: string; valor: number; data_vencimento: string; status: string }[]
+  valoresReceber?: { id: string; devedor: string; valor: number; valor_recebido?: number | null; data_vencimento: string; status: string }[]
 }) {
   const [periodo, setPeriodo] = useState<"hoje" | "semana" | "mes" | "custom">("mes")
   const [dataCustom, setDataCustom] = useState("")
@@ -2128,7 +2194,7 @@ function FluxoCaixaTab({
       const dv = v.data_vencimento
       return dv >= fmtDate(inicio) && dv <= fmtDate(fim)
     })
-    .reduce((s, v) => s + v.valor, 0)
+    .reduce((s, v) => s + saldoReceber(v), 0)
 
   const receitasPrevistas = receitasAgendamentos + receitasValoresReceber
   const totalReceitas = receitasConfirmadas + receitasPrevistas
