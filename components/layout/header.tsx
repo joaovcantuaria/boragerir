@@ -25,6 +25,7 @@ const rotaLabels: Record<string, string> = {
   "/tarefas":           "Tarefas",
   "/funcionarios":      "Colaboradores",
   "/financeiro":        "Financeiro",
+  "/fornecedores":      "Fornecedores",
   "/planos":            "Planos",
   "/suporte":           "Suporte",
   "/configuracoes":     "Configurações",

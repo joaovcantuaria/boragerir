@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from "framer-motion"
 import {
   LayoutDashboard, Wallet, Users, ShoppingBag, ShoppingCart,
   FileText, Calendar, UserCheck, BarChart3, Settings, CreditCard,
-  ChevronLeft, ChevronRight, HeadphonesIcon, CheckSquare, ClipboardList,
+  ChevronLeft, ChevronRight, HeadphonesIcon, CheckSquare, ClipboardList, Truck,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { LogoIcon } from "@/components/ui/logo"
@@ -36,6 +36,7 @@ const navGroups = [
     label: "Financeiro",
     items: [
       { path: "/financeiro", icon: BarChart3, label: "Financeiro" },
+      { path: "/fornecedores", icon: Truck, label: "Fornecedores" },
     ],
   },
   {

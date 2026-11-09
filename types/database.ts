@@ -532,6 +532,7 @@ export type Database = {
           status: string
           recorrencia: string
           recorrencia_grupo: string | null
+          fornecedor_id: string | null
           data_pagamento: string | null
           observacoes: string | null
           created_at: string
@@ -546,6 +547,7 @@ export type Database = {
           status?: string
           recorrencia?: string
           recorrencia_grupo?: string | null
+          fornecedor_id?: string | null
           data_pagamento?: string | null
           observacoes?: string | null
           created_at?: string
@@ -560,6 +562,7 @@ export type Database = {
           status?: string
           recorrencia?: string
           recorrencia_grupo?: string | null
+          fornecedor_id?: string | null
           data_pagamento?: string | null
           observacoes?: string | null
           created_at?: string
@@ -1118,6 +1121,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      fornecedores: {
+        Row: {
+          id: string
+          empresa_id: string
+          nome: string
+          documento: string | null
+          contato: string | null
+          telefone: string | null
+          email: string | null
+          categoria: string
+          chave_pix: string | null
+          endereco: string | null
+          observacoes: string | null
+          ativo: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          empresa_id: string
+          nome: string
+          documento?: string | null
+          contato?: string | null
+          telefone?: string | null
+          email?: string | null
+          categoria?: string
+          chave_pix?: string | null
+          endereco?: string | null
+          observacoes?: string | null
+          ativo?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          empresa_id?: string
+          nome?: string
+          documento?: string | null
+          contato?: string | null
+          telefone?: string | null
+          email?: string | null
+          categoria?: string
+          chave_pix?: string | null
+          endereco?: string | null
+          observacoes?: string | null
+          ativo?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       cupons_cliente: {
         Row: {

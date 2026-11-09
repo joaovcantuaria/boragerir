@@ -160,7 +160,7 @@ export async function updateSession(request: NextRequest) {
     }
 
     if (empresa.plano === "gestao" && empresa.plano_ativo) {
-      const rotasPermitidas = ["/dashboard", "/caixa", "/financeiro", "/funcionarios", "/tarefas", "/configuracoes", "/empresas"]
+      const rotasPermitidas = ["/dashboard", "/caixa", "/financeiro", "/fornecedores", "/funcionarios", "/tarefas", "/configuracoes", "/empresas"]
       const eRotaPermitida = rotasPermitidas.some(
         (r) => pathname === r || pathname.startsWith(r + "/")
       )

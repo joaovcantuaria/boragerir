@@ -64,6 +64,14 @@ export default async function FinanceiroPage() {
     contasPagar = cp ?? []
   } catch { /* tabela ainda não criada no banco */ }
 
+  // Fornecedores ativos (para lançar conta a pagar) — tolerante se a tabela ainda não existir
+  let fornecedores: { id: string; nome: string; categoria: string }[] = []
+  try {
+    const { data: fs } = await supabase.from("fornecedores")
+      .select("id, nome, categoria").eq("empresa_id", empresa.id).eq("ativo", true).order("nome")
+    fornecedores = fs ?? []
+  } catch { /* tabela ainda não criada */ }
+
   // Agendamentos futuros — tolerante a erro
   let agendamentosFuturos: any[] = []
   try {
@@ -107,6 +115,7 @@ export default async function FinanceiroPage() {
       saldoCaixa={saldoCaixa}
       caixaAberto={caixasAbertosArr.length > 0}
       contasPagar={contasPagar ?? []}
+      fornecedores={fornecedores}
       agendamentosFuturos={(agendamentosFuturos ?? []) as any[]}
       pinGerente={empresa.pin_gerente ?? null}
       restricoesAcesso={empresa.restricoes_acesso ?? null}

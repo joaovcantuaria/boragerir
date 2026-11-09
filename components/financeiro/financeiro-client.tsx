@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
@@ -9,7 +10,7 @@ import {
 import {
   TrendingUp, TrendingDown, DollarSign, BarChart3, Search, Edit, XCircle, Loader2, Clock,
   Wallet, Download, FileText, FileBarChart, Users, Calendar, ChevronDown,
-  Plus, AlertTriangle, CheckCircle2, Trash2, Receipt, ArrowRightLeft
+  Plus, AlertTriangle, CheckCircle2, Trash2, Receipt, ArrowRightLeft, Truck
 } from "lucide-react"
 import { format, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, subMonths, addDays, isBefore, isToday } from "date-fns"
 import { ptBR } from "date-fns/locale"
@@ -49,6 +50,7 @@ type Venda = {
 
 type ContaPagar = {
   id: string
+  fornecedor_id?: string | null
   descricao: string
   valor: number
   data_vencimento: string
@@ -61,6 +63,8 @@ type ContaPagar = {
   created_at: string
 }
 
+type Fornecedor = { id: string; nome: string; categoria: string }
+
 const CATEGORIAS_CONTA = [
   { value: "aluguel", label: "Aluguel", emoji: "🏠" },
   { value: "energia", label: "Energia", emoji: "⚡" },
@@ -72,7 +76,7 @@ const CATEGORIAS_CONTA = [
   { value: "outros", label: "Outros", emoji: "📋" },
 ]
 
-export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, movimentacoes: movimentacoesIniciais, funcionarios, debitos, saldoCaixa = 0, caixaAberto = false, contasPagar: contasPagarIniciais = [], agendamentosFuturos = [], pinGerente, restricoesAcesso }: {
+export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, movimentacoes: movimentacoesIniciais, funcionarios, debitos, saldoCaixa = 0, caixaAberto = false, contasPagar: contasPagarIniciais = [], fornecedores = [], agendamentosFuturos = [], pinGerente, restricoesAcesso }: {
   empresaId: string; plano: string
   vendas: Venda[]
   movimentacoes: { id: string; tipo: string; categoria: string; descricao: string; valor: number; created_at: string }[]
@@ -81,6 +85,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   saldoCaixa?: number
   caixaAberto?: boolean
   contasPagar?: ContaPagar[]
+  fornecedores?: Fornecedor[]
   agendamentosFuturos?: { id: string; data_hora: string; status: string; produtos_servicos?: { preco: number; nome: string } | null }[]
   pinGerente?: string | null
   restricoesAcesso?: { areas_protegidas?: string[]; limite_desconto_sem_pin?: number } | null
@@ -946,6 +951,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
             empresaId={empresaId}
             contas={contasPagar}
             setContas={setContasPagar}
+            fornecedores={fornecedores}
             isGestao={isGestao}
             onBaixaGestao={(id, valor, descricao) => setModalBaixa({ tipo: "pagar", id, valor, descricao })}
           />
@@ -1604,12 +1610,14 @@ function ContasPagarTab({
   empresaId,
   contas,
   setContas,
+  fornecedores = [],
   isGestao = false,
   onBaixaGestao,
 }: {
   empresaId: string
   contas: ContaPagar[]
   setContas: React.Dispatch<React.SetStateAction<ContaPagar[]>>
+  fornecedores?: Fornecedor[]
   isGestao?: boolean
   onBaixaGestao?: (id: string, valor: number, descricao: string) => void
 }) {
@@ -1625,10 +1633,43 @@ function ContasPagarTab({
   const [modalJuros, setModalJuros] = useState<{ id: string; valorOriginal: number; descricao: string } | null>(null)
   const [valorComJuros, setValorComJuros] = useState("")
   const [formaPagBaixa, setFormaPagBaixa] = useState<string>("dinheiro")
-  const [form, setForm] = useState({
+  const formVazio = () => ({
     descricao: "", valor: "", data_vencimento: format(new Date(), "yyyy-MM-dd"),
-    categoria: "outros", recorrencia: "avulso", observacoes: "", qtd_parcelas: "12",
+    categoria: "outros", recorrencia: "avulso", observacoes: "", qtd_parcelas: "12", fornecedor_id: "",
   })
+  const [form, setForm] = useState(formVazio)
+  const [filtroFornecedor, setFiltroFornecedor] = useState<string>("todos")
+  const nomeFornecedor = (id?: string | null) => (id ? fornecedores.find((f) => f.id === id)?.nome : undefined)
+
+  // Vindo da aba Fornecedores (?fornecedor=<id>): abre "Nova conta" já com o fornecedor
+  const paramsUrl = useSearchParams()
+  const fornecedorDaUrl = paramsUrl.get("fornecedor")
+  const [urlAplicada, setUrlAplicada] = useState<string | null>(null)
+  if (fornecedorDaUrl && fornecedorDaUrl !== urlAplicada) {
+    const f = fornecedores.find((x) => x.id === fornecedorDaUrl)
+    setUrlAplicada(fornecedorDaUrl)
+    if (f) {
+      setForm({ ...formVazio(), fornecedor_id: f.id, descricao: f.nome, categoria: CATEGORIAS_CONTA.some((c) => c.value === f.categoria) ? f.categoria : "fornecedor" })
+      setFiltroFornecedor(f.id)
+      setModalAberto(true)
+    }
+  }
+
+  function escolherFornecedor(id: string) {
+    if (id === "avulso") { setForm((p) => ({ ...p, fornecedor_id: "" })); return }
+    const f = fornecedores.find((x) => x.id === id)
+    if (!f) return
+    const nomeAnterior = nomeFornecedor(form.fornecedor_id)
+    setForm((p) => ({
+      ...p,
+      fornecedor_id: f.id,
+      // Preenche a descrição só se estiver vazia (ou ainda com o nome do fornecedor anterior)
+      descricao: !p.descricao || p.descricao === nomeAnterior ? f.nome : p.descricao,
+      categoria: p.categoria === "outros" || p.categoria === "fornecedor"
+        ? (CATEGORIAS_CONTA.some((c) => c.value === f.categoria) ? f.categoria : "fornecedor")
+        : p.categoria,
+    }))
+  }
 
   // Calcular status real (atrasado se pendente e vencida)
   const contasComStatus = contas.map((c) => ({
@@ -1640,7 +1681,13 @@ function ContasPagarTab({
 
   const contasFiltradas = contasComStatus.filter((c) => {
     if (filtroStatus !== "todos" && c.status !== filtroStatus) return false
-    if (busca && !c.descricao.toLowerCase().includes(busca.toLowerCase())) return false
+    if (filtroFornecedor === "avulso" && c.fornecedor_id) return false
+    if (filtroFornecedor !== "todos" && filtroFornecedor !== "avulso" && c.fornecedor_id !== filtroFornecedor) return false
+    if (busca) {
+      const termo = busca.toLowerCase()
+      const fornecedorNome = nomeFornecedor(c.fornecedor_id)?.toLowerCase() ?? ""
+      if (!c.descricao.toLowerCase().includes(termo) && !fornecedorNome.includes(termo)) return false
+    }
     if (filtroPeriodo === "hoje") return c.data_vencimento === format(hoje, "yyyy-MM-dd")
     if (filtroPeriodo === "semana") {
       const ini = format(startOfWeek(hoje, { locale: ptBR }), "yyyy-MM-dd")
@@ -1676,7 +1723,7 @@ function ContasPagarTab({
     toast.success(form.recorrencia === "avulso" ? "Conta cadastrada!" : `Conta recorrente criada!`)
     setContas((prev) => [...(data.data ?? []), ...prev].sort((a, b) => a.data_vencimento.localeCompare(b.data_vencimento)))
     setModalAberto(false)
-    setForm({ descricao: "", valor: "", data_vencimento: format(new Date(), "yyyy-MM-dd"), categoria: "outros", recorrencia: "avulso", observacoes: "", qtd_parcelas: "12" })
+    setForm(formVazio())
     setLoading(false)
   }
 
@@ -1794,6 +1841,18 @@ function ContasPagarTab({
         >
           {ordenacao === "vencimento" ? "📅 Vencimento" : "🔤 A-Z"}
         </button>
+        {fornecedores.length > 0 && (
+          <select value={filtroFornecedor} onChange={(e) => setFiltroFornecedor(e.target.value)}
+            className="h-8 rounded-lg border border-input bg-background px-2 text-xs max-w-[200px]" title="Filtrar por fornecedor">
+            <option value="todos">Todos os fornecedores</option>
+            <option value="avulso">Sem fornecedor (avulso)</option>
+            {fornecedores.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
+          </select>
+        )}
+        <Link href="/fornecedores"
+          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-muted text-muted-foreground hover:text-foreground transition-all inline-flex items-center gap-1">
+          <Truck className="w-3.5 h-3.5" />Fornecedores
+        </Link>
       </div>
       <div className="flex flex-wrap gap-2">
         <div className="flex gap-1">
@@ -1841,6 +1900,11 @@ function ContasPagarTab({
                       {isToday(parseISO(conta.data_vencimento)) && <span className="ml-1 text-primary font-bold">· Hoje!</span>}
                     </span>
                     <span className="text-xs text-muted-foreground">{cat?.label}</span>
+                    {nomeFornecedor(conta.fornecedor_id) && (
+                      <span className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary rounded font-medium inline-flex items-center gap-1 truncate max-w-[160px]">
+                        <Truck className="w-3 h-3 shrink-0" />{nomeFornecedor(conta.fornecedor_id)}
+                      </span>
+                    )}
                     {conta.recorrencia !== "avulso" && (
                       <span className="text-[10px] px-1.5 py-0.5 bg-muted rounded font-medium capitalize">{conta.recorrencia}</span>
                     )}
@@ -1875,6 +1939,23 @@ function ContasPagarTab({
         <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader><DialogTitle>Nova Conta a Pagar</DialogTitle></DialogHeader>
           <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Fornecedor</Label>
+              <Select value={form.fornecedor_id || "avulso"} onValueChange={escolherFornecedor}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="avulso">Avulso (sem fornecedor)</SelectItem>
+                  {fornecedores.map((f) => (
+                    <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {fornecedores.length === 0 && (
+                <p className="text-[11px] text-muted-foreground">
+                  Nenhum fornecedor cadastrado. <Link href="/fornecedores" className="text-primary font-semibold hover:underline">Cadastrar fornecedores</Link>
+                </p>
+              )}
+            </div>
             <div className="space-y-1.5">
               <Label>Descrição *</Label>
               <Input placeholder="Ex: Aluguel do salão" value={form.descricao} onChange={(e) => setForm((p) => ({ ...p, descricao: e.target.value }))} />

@@ -128,6 +128,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erro: "Descrição, valor e data de vencimento são obrigatórios" }, { status: 400 })
   }
 
+  // Fornecedor é opcional (sem ele = lançamento avulso); se vier, precisa ser desta empresa
+  let fornecedorId: string | null = null
+  if (typeof body.fornecedor_id === "string" && body.fornecedor_id) {
+    const { data: fornecedor } = await supabase.from("fornecedores")
+      .select("id").eq("id", body.fornecedor_id).eq("empresa_id", empresa.id).maybeSingle()
+    if (!fornecedor) return NextResponse.json({ erro: "Fornecedor não encontrado" }, { status: 400 })
+    fornecedorId = fornecedor.id
+  }
+
   const grupoId = crypto.randomUUID()
   const registros: TablesInsert<"contas_pagar">[] = []
   const dataBase = new Date(data_vencimento + "T12:00:00")
@@ -147,6 +156,7 @@ export async function POST(req: NextRequest) {
         recorrencia_grupo: grupoId,
         status: "pendente",
         observacoes: observacoes || null,
+        fornecedor_id: fornecedorId,
       })
     }
   } else if (recorrencia === "semanal") {
@@ -163,6 +173,7 @@ export async function POST(req: NextRequest) {
         recorrencia_grupo: grupoId,
         status: "pendente",
         observacoes: observacoes || null,
+        fornecedor_id: fornecedorId,
       })
     }
   } else {
@@ -176,6 +187,7 @@ export async function POST(req: NextRequest) {
       recorrencia_grupo: null,
       status: "pendente",
       observacoes: observacoes || null,
+      fornecedor_id: fornecedorId,
     })
   }
 

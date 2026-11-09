@@ -4,13 +4,14 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import {
   Search, LayoutDashboard, Wallet, BarChart3, UserCheck,
-  CheckSquare, Settings, Building2, X
+  CheckSquare, Settings, Building2, X, Truck
 } from "lucide-react"
 
 const PAGINAS = [
   { path: "/dashboard", label: "Dashboard", desc: "Página inicial", icon: LayoutDashboard },
   { path: "/caixa", label: "Caixa", desc: "Abrir, fechar e movimentações", icon: Wallet },
   { path: "/financeiro", label: "Financeiro", desc: "A receber, contas, fluxo de caixa", icon: BarChart3 },
+  { path: "/fornecedores", label: "Fornecedores", desc: "Cadastro de fornecedores e contas a pagar", icon: Truck },
   { path: "/funcionarios", label: "Colaboradores", desc: "Equipe e comissões", icon: UserCheck },
   { path: "/tarefas", label: "Tarefas", desc: "Organização e pendências", icon: CheckSquare },
   { path: "/empresas", label: "Empresas", desc: "Gerenciar suas empresas", icon: Building2 },

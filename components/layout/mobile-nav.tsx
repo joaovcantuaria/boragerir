@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation"
 import {
   LayoutDashboard, Wallet, ShoppingCart, Calendar,
   Users, ShoppingBag, FileText, UserCheck, BarChart3,
-  CreditCard, Settings, X, CheckSquare, ClipboardList, Landmark, MoreHorizontal, LogOut, Building2
+  CreditCard, Settings, X, CheckSquare, ClipboardList, Landmark, MoreHorizontal, LogOut, Building2, Truck
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState } from "react"
@@ -30,6 +30,7 @@ const navExtras = [
   { href: "/tarefas",           icon: CheckSquare,  label: "Tarefas" },
   { href: "/funcionarios",      icon: UserCheck,    label: "Colaboradores" },
   { href: "/financeiro",        icon: BarChart3,    label: "Financeiro" },
+  { href: "/fornecedores",      icon: Truck,        label: "Fornecedores" },
   { href: "/planos",            icon: CreditCard,   label: "Planos" },
   { href: "/configuracoes",     icon: Settings,     label: "Configurações" },
 ]

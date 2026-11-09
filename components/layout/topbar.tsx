@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Wallet, ShoppingCart, Calendar, Users,
   ShoppingBag, FileText, UserCheck, BarChart3, Settings,
   CreditCard, HeadphonesIcon, CheckSquare, ClipboardList, Landmark,
-  ChevronDown, Moon, Sun, Bell, Search, LogOut, Grid3X3, Building2,
+  ChevronDown, Moon, Sun, Bell, Search, LogOut, Grid3X3, Building2, Truck,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { cn } from "@/lib/utils"
@@ -33,6 +33,7 @@ const navSecundario = [
   { path: "/orcamentos",        icon: FileText,       label: "Orçamentos",        color: "#8b5cf6" },
   { path: "/contratos",         icon: ClipboardList,  label: "Contratos",         color: "#0ea5e9" },
   { path: "/boletos",           icon: Landmark,       label: "Boletos",           color: "#0ea5e9" },
+  { path: "/fornecedores",      icon: Truck,          label: "Fornecedores",      color: "#f97316" },
   { path: "/tarefas",           icon: CheckSquare,    label: "Tarefas",           color: "#ec4899" },
   { path: "/funcionarios",      icon: UserCheck,      label: "Colaboradores",     color: "#14b8a6" },
   { path: "/planos",            icon: CreditCard,     label: "Planos",            color: "#6366f1" },
@@ -151,6 +152,7 @@ export function Topbar({ empresaNome = "Bora Gerir", empresaLogoUrl, plano, empr
         { path: "/dashboard",    icon: LayoutDashboard, label: "Dashboard",    shortcut: "D" },
         { path: "/caixa",        icon: Wallet,          label: "Caixa",        shortcut: "C" },
         { path: "/financeiro",   icon: BarChart3,       label: "Financeiro",   shortcut: "F" },
+        { path: "/fornecedores", icon: Truck,           label: "Fornecedores", shortcut: "" },
         { path: "/funcionarios", icon: UserCheck,       label: "Colaboradores", shortcut: "" },
         { path: "/tarefas",      icon: CheckSquare,     label: "Tarefas",      shortcut: "" },
       ]
