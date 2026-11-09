@@ -93,7 +93,7 @@ export function VendaClient({
   const [loading, setLoading] = useState(false)
   const [loadingRecibo, setLoadingRecibo] = useState(false)
   const [modalSucesso, setModalSucesso] = useState(false)
-  const [vendaFinalizada, setVendaFinalizada] = useState<{ id: string; numero: number; total: number } | null>(null)
+  const [vendaFinalizada, setVendaFinalizada] = useState<{ id: string; numero: number; total: number; codigo?: string | null } | null>(null)
   const [valorRecebido, setValorRecebido] = useState("")
   const [formaPagEntrada, setFormaPagEntrada] = useState<string>("dinheiro")
   const [autoprint, setAutoprint] = useState(false)
@@ -601,10 +601,10 @@ export function VendaClient({
         })
         setShowBoletoResult(true)
         setModalSucesso(false)
-        setVendaFinalizada({ id: venda.id, numero: venda.numero_venda, total })
+        setVendaFinalizada({ id: venda.id, numero: venda.numero_venda, total, codigo: venda.codigo_rastreio ?? null })
         setLoading(false)
         if (autoprint) {
-          setTimeout(() => imprimirReciboSilencioso(venda.numero_venda, total), 500)
+          setTimeout(() => imprimirReciboSilencioso(venda.numero_venda, total, venda.codigo_rastreio ?? null), 500)
         }
         return
       } catch {
@@ -649,7 +649,7 @@ export function VendaClient({
           copiaCola: pixData.copiaCola || "",
           vendaIdTemp: venda.id,
         })
-        setVendaFinalizada({ id: venda.id, numero: venda.numero_venda, total })
+        setVendaFinalizada({ id: venda.id, numero: venda.numero_venda, total, codigo: venda.codigo_rastreio ?? null })
         setModalSucesso(false)
         setLoading(false)
         return
@@ -661,13 +661,13 @@ export function VendaClient({
       }
     }
 
-    setVendaFinalizada({ id: venda.id, numero: venda.numero_venda, total })
+    setVendaFinalizada({ id: venda.id, numero: venda.numero_venda, total, codigo: venda.codigo_rastreio ?? null })
     setModalSucesso(true)
     setLoading(false)
 
     // Autoprint — imprime recibo térmico automaticamente
     if (autoprint) {
-      setTimeout(() => imprimirReciboSilencioso(venda.numero_venda, total), 500)
+      setTimeout(() => imprimirReciboSilencioso(venda.numero_venda, total, venda.codigo_rastreio ?? null), 500)
     }
   }
 
@@ -726,6 +726,7 @@ export function VendaClient({
     recibo += centro("CUPOM NÃO FISCAL") + "\n"
     recibo += sep + "\n"
     recibo += `Venda #${vendaFinalizada.numero}\n`
+    if (vendaFinalizada.codigo) recibo += `Rastreio: ${vendaFinalizada.codigo}\n`
     recibo += `Data: ${dataStr} ${horaStr}\n`
     if (clienteSelecionado) recibo += `Cliente: ${clienteSelecionado.nome_completo}\n`
     if (funcionarioId) {
@@ -766,7 +767,7 @@ export function VendaClient({
   }
 
   // Impressão silenciosa via iframe oculto (autoprint)
-  function imprimirReciboSilencioso(numero: number, valorTotal: number) {
+  function imprimirReciboSilencioso(numero: number, valorTotal: number, codigo: string | null = null) {
     const largura = 48
     const sep = "-".repeat(largura)
     const centro = (txt: string) => {
@@ -790,6 +791,7 @@ export function VendaClient({
     recibo += centro("CUPOM NÃO FISCAL") + "\n"
     recibo += sep + "\n"
     recibo += `Venda #${numero}\n`
+    if (codigo) recibo += `Rastreio: ${codigo}\n`
     recibo += `Data: ${dataStr} ${horaStr}\n`
     if (clienteSelecionado) recibo += `Cliente: ${clienteSelecionado.nome_completo}\n`
     if (funcionarioId) {
@@ -858,6 +860,7 @@ export function VendaClient({
         empresa,
         venda: {
           numero: vendaFinalizada.numero,
+          codigo_rastreio: vendaFinalizada.codigo ?? null,
           total: vendaFinalizada.total,
           subtotal,
           desconto: descontoTotal,
@@ -1652,6 +1655,7 @@ export function VendaClient({
           <div className="py-4 text-center space-y-2">
             <p className="text-3xl font-black text-orange-600">{formatarMoeda(vendaFinalizada?.total ?? 0)}</p>
             <p className="text-muted-foreground text-sm">Venda #{vendaFinalizada?.numero}</p>
+            {vendaFinalizada?.codigo && <p className="text-[11px] font-mono text-muted-foreground">Rastreio: {vendaFinalizada.codigo}</p>}
             {clienteSelecionado && (
               <p className="text-sm">Cliente: <span className="font-medium">{clienteSelecionado.nome_completo}</span></p>
             )}

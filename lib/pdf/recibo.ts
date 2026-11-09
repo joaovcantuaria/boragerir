@@ -20,6 +20,7 @@ interface GerarReciboParams {
   }
   venda: {
     numero: number
+    codigo_rastreio?: string | null
     total: number
     subtotal: number
     desconto: number
@@ -109,6 +110,10 @@ export async function gerarReciboPDF({ empresa, venda, cliente, itens }: GerarRe
   doc.setTextColor(255, 220, 190)
   doc.text(`#${String(venda.numero).padStart(4, "0")}`, 195, 24, { align: "right" })
   doc.text(formatarDataHora(venda.created_at), 195, 30, { align: "right" })
+  if (venda.codigo_rastreio) {
+    doc.setFontSize(7)
+    doc.text(`Rastreio: ${venda.codigo_rastreio}`, 195, 35, { align: "right" })
+  }
 
   // ── DADOS DO CLIENTE ──
   doc.setFontSize(9)

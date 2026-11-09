@@ -27,6 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { createClient } from "@/lib/supabase/client"
 import type { TablesInsert } from "@/types/database"
 import { formatarMoeda, formatarDataHora } from "@/lib/utils"
+import { CodigoRastreio } from "@/components/ui/codigo-rastreio"
 import { useColaborador } from "@/contexts/colaborador-context"
 
 type CaixaAnterior = {
@@ -43,6 +44,7 @@ type CaixaAnterior = {
 
 type Movimentacao = {
   id: string; tipo: string; categoria: string; descricao: string; valor: number; created_at: string; data_movimento?: string | null
+  codigo_rastreio?: string | null
 }
 
 interface CaixaClientProps {
@@ -126,6 +128,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
   }
 
   // Movimentações filtradas e ordenadas por data de criação (mais recentes primeiro)
+  const [buscaCodigo, setBuscaCodigo] = useState("")
   const movimentacoesFiltradas = [...movimentacoes]
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .filter((mov) => {
@@ -136,6 +139,8 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
       }
       // Filtro por tipo
       if (filtroMovTipo !== "todos" && mov.tipo !== filtroMovTipo) return false
+      // Busca por código de rastreio
+      if (buscaCodigo.trim() && !(mov.codigo_rastreio ?? "").toUpperCase().includes(buscaCodigo.trim().toUpperCase())) return false
       // Filtro por forma de pagamento
       if (filtroMovForma !== "todos") {
         const forma = extrairFormaPagamento(mov.descricao)
@@ -183,11 +188,20 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
           <option value="transferencia">Transferência</option>
         </select>
       </div>
-      {(filtroMovData || filtroMovTipo !== "todos" || filtroMovForma !== "todos") && (
+      <div className="space-y-1">
+        <Label className="text-xs">Código de rastreio</Label>
+        <Input
+          value={buscaCodigo}
+          onChange={(e) => setBuscaCodigo(e.target.value)}
+          placeholder="Ex: EN-261109-00001"
+          className="h-8 text-xs w-[170px] font-mono"
+        />
+      </div>
+      {(filtroMovData || filtroMovTipo !== "todos" || filtroMovForma !== "todos" || buscaCodigo) && (
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => { setFiltroMovData(""); setFiltroMovTipo("todos"); setFiltroMovForma("todos") }}
+          onClick={() => { setFiltroMovData(""); setFiltroMovTipo("todos"); setFiltroMovForma("todos"); setBuscaCodigo("") }}
           className="h-8 text-xs"
         >
           Limpar filtros
@@ -663,6 +677,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
                             {format(new Date(mov.created_at), "HH:mm")} • {mov.categoria}
                             {mov.descricao.match(/\[(.*?)\]/) && <span className="ml-1 text-primary">• {mov.descricao.match(/\[(.*?)\]/)?.[1]?.replace("_", " ")}</span>}
                           </p>
+                          <CodigoRastreio codigo={mov.codigo_rastreio} />
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -848,6 +863,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
                             {format(new Date(mov.created_at), "HH:mm")} • {mov.categoria}
                             {mov.descricao.match(/\[(.*?)\]/) && <span className="ml-1 text-primary">• {mov.descricao.match(/\[(.*?)\]/)?.[1]?.replace("_", " ")}</span>}
                           </p>
+                          <CodigoRastreio codigo={mov.codigo_rastreio} />
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -970,6 +986,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
                             <p className="text-[10px] text-muted-foreground">
                               {format(new Date(mov.created_at), "HH:mm")} · {mov.categoria}
                             </p>
+                            <CodigoRastreio codigo={mov.codigo_rastreio} />
                           </div>
                         </div>
                         <span className={`text-xs font-semibold ${mov.tipo === "entrada" ? "text-emerald-500" : "text-red-500"}`}>

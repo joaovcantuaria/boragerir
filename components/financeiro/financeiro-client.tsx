@@ -29,6 +29,8 @@ import type { Tables } from "@/types/database"
 import { formatarMoeda, labelsFormaPagamento, coresStatus, labelsStatus } from "@/lib/utils"
 import { RelatoriosGestaoTab } from "@/components/financeiro/relatorios-gestao"
 import { CoraCobrancasTab } from "@/components/cora/cora-cobrancas-tab"
+import { CodigoRastreio } from "@/components/ui/codigo-rastreio"
+import { RastrearCodigo } from "@/components/financeiro/rastrear-codigo"
 import { GerarBoletoModal } from "@/components/financeiro/gerar-boleto-modal"
 import { PinProtected } from "@/components/ui/pin-protected"
 import { PinModal } from "@/components/ui/pin-modal"
@@ -38,6 +40,7 @@ const CORES = ["#10B981", "#3B82F6", "#F59E0B", "#8B5CF6", "#EF4444"]
 type Venda = {
   id: string
   numero_venda: number
+  codigo_rastreio?: string | null
   total: number
   subtotal: number
   desconto: number
@@ -50,6 +53,7 @@ type Venda = {
 
 type ContaPagar = {
   id: string
+  codigo_rastreio?: string | null
   fornecedor_id?: string | null
   descricao: string
   valor: number
@@ -508,6 +512,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
     const t = busca.toLowerCase()
     return (
       String(v.numero_venda).includes(t) ||
+      (v.codigo_rastreio ?? "").toLowerCase().includes(t) ||
       (v.clientes?.nome_completo ?? "").toLowerCase().includes(t) ||
       (labelsFormaPagamento[v.forma_pagamento] ?? "").toLowerCase().includes(t)
     )
@@ -521,6 +526,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
           <p className="text-xs text-muted-foreground mt-0.5">Resumo do mês de {format(new Date(), "MMMM yyyy", { locale: ptBR })}</p>
         </div>
         <div className="flex items-center gap-2">
+          <RastrearCodigo />
           <Label className="text-xs text-muted-foreground whitespace-nowrap">Mês:</Label>
           <Input
             type="month"
@@ -745,7 +751,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
             <div className="space-y-3">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input placeholder="Buscar por nº, cliente ou pagamento..." className="pl-9" value={busca} onChange={(e) => setBusca(e.target.value)} />
+                <Input placeholder="Buscar por nº, código, cliente ou pagamento..." className="pl-9" value={busca} onChange={(e) => setBusca(e.target.value)} />
               </div>
               {vendasFiltradas.length > 0 ? (
                 <div className="border border-border rounded-xl overflow-hidden">
@@ -754,7 +760,10 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
                   </div>
                   {vendasFiltradas.map((v) => (
                     <div key={v.id} className={`grid grid-cols-6 gap-2 px-4 py-3 border-t border-border text-sm items-center ${v.status === "cancelada" ? "opacity-50" : ""}`}>
-                      <span className="text-muted-foreground">{String(v.numero_venda).padStart(4, "0")}</span>
+                      <span className="text-muted-foreground flex flex-col">
+                        {String(v.numero_venda).padStart(4, "0")}
+                        <CodigoRastreio codigo={v.codigo_rastreio} className="justify-start" />
+                      </span>
                       <span className="truncate">{v.clientes?.nome_completo ?? "—"}</span>
                       <span className="truncate text-xs">{labelsFormaPagamento[v.forma_pagamento] ?? v.forma_pagamento}</span>
                       <span>
@@ -1686,7 +1695,7 @@ function ContasPagarTab({
     if (busca) {
       const termo = busca.toLowerCase()
       const fornecedorNome = nomeFornecedor(c.fornecedor_id)?.toLowerCase() ?? ""
-      if (!c.descricao.toLowerCase().includes(termo) && !fornecedorNome.includes(termo)) return false
+      if (!c.descricao.toLowerCase().includes(termo) && !fornecedorNome.includes(termo) && !(c.codigo_rastreio ?? "").toLowerCase().includes(termo)) return false
     }
     if (filtroPeriodo === "hoje") return c.data_vencimento === format(hoje, "yyyy-MM-dd")
     if (filtroPeriodo === "semana") {
@@ -1894,6 +1903,7 @@ function ContasPagarTab({
                 <div className="text-xl shrink-0">{cat?.emoji ?? "📋"}</div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate">{conta.descricao}</p>
+                  <CodigoRastreio codigo={conta.codigo_rastreio} />
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-xs text-muted-foreground">
                       {format(parseISO(conta.data_vencimento), "dd/MM/yyyy", { locale: ptBR })}

@@ -307,6 +307,7 @@ export type Database = {
           tipo_conta: string | null
           colaborador_id: string | null
           colaborador_fechou_id: string | null
+          codigo_rastreio: string | null
         }
         Insert: {
           id?: string
@@ -328,6 +329,7 @@ export type Database = {
           tipo_conta?: string | null
           colaborador_id?: string | null
           colaborador_fechou_id?: string | null
+          codigo_rastreio?: string | null
         }
         Update: {
           id?: string
@@ -349,6 +351,7 @@ export type Database = {
           tipo_conta?: string | null
           colaborador_id?: string | null
           colaborador_fechou_id?: string | null
+          codigo_rastreio?: string | null
         }
         Relationships: [
           {
@@ -536,6 +539,7 @@ export type Database = {
           data_pagamento: string | null
           observacoes: string | null
           created_at: string
+          codigo_rastreio: string | null
         }
         Insert: {
           id?: string
@@ -551,6 +555,7 @@ export type Database = {
           data_pagamento?: string | null
           observacoes?: string | null
           created_at?: string
+          codigo_rastreio?: string | null
         }
         Update: {
           id?: string
@@ -566,6 +571,7 @@ export type Database = {
           data_pagamento?: string | null
           observacoes?: string | null
           created_at?: string
+          codigo_rastreio?: string | null
         }
         Relationships: [
           {
@@ -682,6 +688,7 @@ export type Database = {
           venda_id: string | null
           observacoes: string | null
           created_at: string | null
+          codigo_rastreio: string | null
         }
         Insert: {
           id?: string
@@ -695,6 +702,7 @@ export type Database = {
           venda_id?: string | null
           observacoes?: string | null
           created_at?: string | null
+          codigo_rastreio?: string | null
         }
         Update: {
           id?: string
@@ -708,6 +716,7 @@ export type Database = {
           venda_id?: string | null
           observacoes?: string | null
           created_at?: string | null
+          codigo_rastreio?: string | null
         }
         Relationships: [
           {
@@ -1282,6 +1291,7 @@ export type Database = {
           status: string
           created_at: string
           updated_at: string
+          codigo_rastreio: string | null
         }
         Insert: {
           id?: string
@@ -1295,6 +1305,7 @@ export type Database = {
           status?: string
           created_at?: string
           updated_at?: string
+          codigo_rastreio?: string | null
         }
         Update: {
           id?: string
@@ -1308,6 +1319,7 @@ export type Database = {
           status?: string
           created_at?: string
           updated_at?: string
+          codigo_rastreio?: string | null
         }
         Relationships: [
           {
@@ -1812,6 +1824,7 @@ export type Database = {
           created_at: string
           colaborador_id: string | null
           data_movimento: string | null
+          codigo_rastreio: string | null
         }
         Insert: {
           id?: string
@@ -1825,6 +1838,7 @@ export type Database = {
           created_at?: string
           colaborador_id?: string | null
           data_movimento?: string | null
+          codigo_rastreio?: string | null
         }
         Update: {
           id?: string
@@ -1838,6 +1852,7 @@ export type Database = {
           created_at?: string
           colaborador_id?: string | null
           data_movimento?: string | null
+          codigo_rastreio?: string | null
         }
         Relationships: [
           {
@@ -2448,6 +2463,7 @@ export type Database = {
           status: string
           created_at: string
           cora_boleto_id: string | null
+          codigo_rastreio: string | null
         }
         Insert: {
           id?: string
@@ -2459,6 +2475,7 @@ export type Database = {
           status?: string
           created_at?: string
           cora_boleto_id?: string | null
+          codigo_rastreio?: string | null
         }
         Update: {
           id?: string
@@ -2470,6 +2487,7 @@ export type Database = {
           status?: string
           created_at?: string
           cora_boleto_id?: string | null
+          codigo_rastreio?: string | null
         }
         Relationships: [
           {
@@ -2505,6 +2523,7 @@ export type Database = {
           observacoes: string | null
           created_at: string
           colaborador_id: string | null
+          codigo_rastreio: string | null
         }
         Insert: {
           id?: string
@@ -2522,6 +2541,7 @@ export type Database = {
           observacoes?: string | null
           created_at?: string
           colaborador_id?: string | null
+          codigo_rastreio?: string | null
         }
         Update: {
           id?: string
@@ -2539,6 +2559,7 @@ export type Database = {
           observacoes?: string | null
           created_at?: string
           colaborador_id?: string | null
+          codigo_rastreio?: string | null
         }
         Relationships: [
           {
