@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -8,7 +8,7 @@ import { z } from "zod"
 import {
   Wallet, Plus, Minus, ArrowDownCircle, ArrowUpCircle,
   DollarSign, Loader2, X, TrendingUp, TrendingDown,
-  History, Search, ChevronDown, ChevronUp, RefreshCw, Clock, Edit2, Trash2
+  History, Search, ChevronDown, ChevronUp, RefreshCw, Clock, Edit2, Ban
 } from "lucide-react"
 import { toast } from "sonner"
 import { format } from "date-fns"
@@ -45,6 +45,10 @@ type CaixaAnterior = {
 type Movimentacao = {
   id: string; tipo: string; categoria: string; descricao: string; valor: number; created_at: string; data_movimento?: string | null
   codigo_rastreio?: string | null
+  caixa_id?: string | null
+  venda_id?: string | null
+  valor_receber_id?: string | null
+  conta_pagar_id?: string | null
 }
 
 interface CaixaClientProps {
@@ -78,6 +82,21 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
   const [caixaIdMovimentacao, setCaixaIdMovimentacao] = useState<string>("")
   const [formaPagMovimentacao, setFormaPagMovimentacao] = useState<string>("")
   const [editandoMov, setEditandoMov] = useState<Movimentacao | null>(null)
+  const [cancelandoMov, setCancelandoMov] = useState<Movimentacao | null>(null)
+  const [motivoCancelamento, setMotivoCancelamento] = useState("")
+  const [loadingCancelamento, setLoadingCancelamento] = useState(false)
+  // Aba atual (Caixa Atual / Caixas Anteriores) — lembrada para voltar nela depois de editar/cancelar
+  const [abaCaixa, setAbaCaixa] = useState("atual")
+  useEffect(() => {
+    try {
+      const salva = sessionStorage.getItem(`caixa_aba_${empresaId}`)
+      if (salva === "atual" || salva === "anteriores") setAbaCaixa(salva)
+    } catch {}
+  }, [empresaId])
+  function trocarAba(aba: string) {
+    setAbaCaixa(aba)
+    try { sessionStorage.setItem(`caixa_aba_${empresaId}`, aba) } catch {}
+  }
   const [loading, setLoading] = useState(false)
   const [valorFechamento, setValorFechamento] = useState("")
   const [pinModalCaixa, setPinModalCaixa] = useState(false)
@@ -390,13 +409,57 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
     setLoading(false)
   }
 
-  async function excluirMovimentacao(id: string) {
-    const mov = movimentacoes.find((m) => m.id === id)
-    if (!mov) return
-    if (!confirm("Excluir esta movimentação?")) return
+  function pedirCancelamento(mov: Movimentacao) {
+    if (mov.venda_id) {
+      toast.error("Este lançamento é de uma venda. Para cancelar, use Financeiro → Vendas → Cancelar venda.")
+      return
+    }
+    setMotivoCancelamento("")
+    setCancelandoMov(mov)
+  }
 
-    await supabase.from("movimentacoes_caixa").delete().eq("id", id)
-    setMovimentacoes((prev) => prev.filter((m) => m.id !== id))
+  async function confirmarCancelamento() {
+    const mov = cancelandoMov
+    if (!mov) return
+    setLoadingCancelamento(true)
+    const { data, error } = await supabase.rpc("cancelar_movimentacao", { p_id: mov.id, p_motivo: motivoCancelamento.trim() || undefined })
+    setLoadingCancelamento(false)
+    if (error) {
+      const semMigration = /cancelar_movimentacao|function|schema cache/i.test(error.message)
+      toast.error(semMigration ? "Cancelamento ainda não ativado no banco (migration 20261113_baixas_e_estornos.sql)." : error.message)
+      return
+    }
+    setMovimentacoes((prev) => prev.filter((m) => m.id !== mov.id))
+    setCancelandoMov(null)
+    const revertido = (data as { revertido?: string | null } | null)?.revertido
+    if (revertido === "receber") { toast.success("Lançamento cancelado. O valor voltou para A Receber."); return }
+    if (revertido === "pagar") { toast.success("Lançamento cancelado. A conta voltou para Contas a Pagar."); return }
+    await estornarContaAntiga(mov)
+  }
+
+  /** Lançamentos antigos (sem vínculo): tenta achar a conta pela descrição e reabrir. */
+  async function estornarContaAntiga(mov: Movimentacao) {
+    // Recebimento antigo de "A Receber" → reabre o valor recebido por completo
+    if (mov.descricao.startsWith("Recebimento:")) {
+      const devedor = mov.descricao.replace(/^Recebimento:\s*/, "").replace(/\s*\[.*?\]\s*$/, "").trim()
+      const { data: vr } = await supabase
+        .from("valores_receber")
+        .select("id")
+        .eq("empresa_id", empresaId)
+        .eq("status", "recebido")
+        .eq("devedor", devedor)
+        .eq("valor", mov.valor)
+        .order("data_vencimento", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (vr) {
+        await supabase.from("valores_receber").update({ status: "pendente", valor_recebido: 0 }).eq("id", vr.id)
+        toast.success("Lançamento cancelado. O valor voltou para A Receber.")
+      } else {
+        toast.success("Lançamento cancelado!")
+      }
+      return
+    }
 
     // Se for um pagamento de conta a pagar, reverter o status para "pendente"
     if (mov.descricao.startsWith("Pagamento:")) {
@@ -418,12 +481,12 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
         await supabase.from("contas_pagar")
           .update({ status: "pendente", data_pagamento: null })
           .eq("id", contaEncontrada.id)
-        toast.success("Movimentação excluída e conta revertida para pendente!")
+        toast.success("Lançamento cancelado. A conta voltou para Contas a Pagar.")
       } else {
-        toast.success("Movimentação excluída!")
+        toast.success("Lançamento cancelado!")
       }
     } else {
-      toast.success("Movimentação excluída!")
+      toast.success("Lançamento cancelado!")
     }
   }
 
@@ -440,7 +503,8 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
     setLoading(true)
 
     // Determinar descrição com forma de pagamento
-    let descFinal = data.descricao
+    const tagOriginal = editandoMov.descricao.match(/\s*\[.*?\]\s*$/)?.[0] ?? ""
+    let descFinal = data.descricao + tagOriginal
     if (formaPagMovimentacao) {
       descFinal = `${data.descricao} [${formaPagMovimentacao}]`
     } else if (plano === "gestao") {
@@ -452,13 +516,28 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
       }
     }
 
+    // Valor: passa pelo banco, que valida e ajusta a conta a receber/pagar vinculada
+    const novoValor = Math.round(parseFloat(data.valor) * 100) / 100
+    if (!(novoValor > 0)) { toast.error("Informe um valor válido."); setLoading(false); return }
+    if (Math.abs(novoValor - Number(editandoMov.valor)) > 0.001) {
+      const { error: erroValor } = await supabase.rpc("alterar_valor_movimentacao", { p_id: editandoMov.id, p_valor: novoValor })
+      if (erroValor) {
+        const semMigration = /alterar_valor_movimentacao|function|schema cache/i.test(erroValor.message)
+        toast.error(semMigration ? "Edição de valor ainda não ativada no banco (migration 20261113_baixas_e_estornos.sql)." : erroValor.message)
+        setLoading(false)
+        return
+      }
+    }
+
     // Atualizar incluindo caixa_id se foi alterado
-    const updateData: any = { descricao: descFinal, valor: parseFloat(data.valor) }
+    const updateData: any = { descricao: descFinal, valor: novoValor }
     if (caixaIdMovimentacao && caixaIdMovimentacao !== (editandoMov as any).caixa_id) {
       updateData.caixa_id = caixaIdMovimentacao
     }
     // Data retroativa (plano gestão) — salva em data_movimento E tenta created_at
-    if (data.data && plano === "gestao") {
+    if (plano !== "gestao") {
+      // outros planos não escolhem data: mantém a data original do lançamento
+    } else if (data.data) {
       const dataLimpa = data.data.trim()
       const anoMatch = dataLimpa.match(/^(\d{4})-(\d{2})-(\d{2})$/)
       if (anoMatch && parseInt(anoMatch[1]) >= 2020) {
@@ -471,7 +550,10 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
       updateData.data_movimento = new Date().toISOString().split("T")[0]
     }
 
-    await supabase.from("movimentacoes_caixa").update(updateData).eq("id", editandoMov.id)
+    const { valor: _valorJaSalvo, ...semValor } = updateData
+    void _valorJaSalvo
+    const { error: erroEdicao } = await supabase.from("movimentacoes_caixa").update(semValor).eq("id", editandoMov.id)
+    if (erroEdicao) { toast.error("Erro ao salvar o lançamento."); setLoading(false); return }
     setMovimentacoes((prev) => prev.map((m) => m.id === editandoMov.id
       ? { ...m, ...updateData }
       : m))
@@ -482,7 +564,8 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
     formMovimentacao.reset()
     toast.success("Movimentação atualizada!")
     setLoading(false)
-    window.location.reload()
+    // Atualiza os dados do servidor sem recarregar: continua na mesma aba
+    router.refresh()
   }
 
   const temCaixasAnteriores = ["basico", "profissional", "gestao"].includes(plano)
@@ -517,7 +600,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
         ))}
       </div>
 
-      <Tabs defaultValue="atual">
+      <Tabs value={abaCaixa} onValueChange={trocarAba}>
         <TabsList>
           <TabsTrigger value="atual" className="gap-2">
             <Wallet className="w-4 h-4" />
@@ -685,11 +768,11 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
                           {mov.tipo === "entrada" ? "+" : "-"}{formatarMoeda(mov.valor)}
                         </span>
                         <div className="flex items-center gap-0.5 ml-2">
-                          <button onClick={() => iniciarEdicaoMov(mov)} className="p-1 rounded hover:bg-muted" title="Editar">
+                          <button onClick={() => executarComPin("caixa_editar_lancamento", () => iniciarEdicaoMov(mov))} className="p-1 rounded hover:bg-muted" title="Editar">
                             <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
                           </button>
-                          <button onClick={() => excluirMovimentacao(mov.id)} className="p-1 rounded hover:bg-red-50" title="Excluir">
-                            <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                          <button onClick={() => executarComPin("caixa_editar_lancamento", () => pedirCancelamento(mov))} className="p-1 rounded hover:bg-red-50" title="Cancelar lançamento">
+                            <Ban className="w-3.5 h-3.5 text-red-400" />
                           </button>
                         </div>
                       </div>
@@ -870,13 +953,13 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
                         <span className={`font-semibold ${mov.tipo === "entrada" ? "text-emerald-500" : "text-red-500"}`}>
                           {mov.tipo === "entrada" ? "+" : "-"}{formatarMoeda(mov.valor)}
                         </span>
-                        {plano === "gestao" && (
+                        {(
                           <div className="flex items-center gap-0.5 ml-2">
-                            <button onClick={() => iniciarEdicaoMov(mov)} className="p-1 rounded hover:bg-muted" title="Editar">
+                            <button onClick={() => executarComPin("caixa_editar_lancamento", () => iniciarEdicaoMov(mov))} className="p-1 rounded hover:bg-muted" title="Editar">
                               <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
                             </button>
-                            <button onClick={() => excluirMovimentacao(mov.id)} className="p-1 rounded hover:bg-red-50" title="Excluir">
-                              <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                            <button onClick={() => executarComPin("caixa_editar_lancamento", () => pedirCancelamento(mov))} className="p-1 rounded hover:bg-red-50" title="Cancelar lançamento">
+                              <Ban className="w-3.5 h-3.5 text-red-400" />
                             </button>
                           </div>
                         )}
@@ -1158,7 +1241,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
       </Dialog>
 
       {/* Modal movimentação */}
-      <Dialog open={!!modalMovimentacao} onOpenChange={() => setModalMovimentacao(null)}>
+      <Dialog open={!!modalMovimentacao} onOpenChange={(aberto) => { if (!aberto) { setModalMovimentacao(null); setEditandoMov(null); setFormaPagMovimentacao("") } }}>
         <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>
@@ -1267,6 +1350,43 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancelar lançamento */}
+      <Dialog open={!!cancelandoMov} onOpenChange={(aberto) => { if (!aberto) setCancelandoMov(null) }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Cancelar lançamento</DialogTitle></DialogHeader>
+          {cancelandoMov && (
+            <div className="space-y-4">
+              <div className="rounded-lg bg-muted/50 p-3 space-y-1">
+                <p className="text-sm font-medium">{cancelandoMov.descricao.replace(/\s*\[.*?\]\s*$/, "")}</p>
+                <p className={`text-lg font-bold ${cancelandoMov.tipo === "entrada" ? "text-emerald-500" : "text-red-500"}`}>
+                  {cancelandoMov.tipo === "entrada" ? "+" : "-"}{formatarMoeda(cancelandoMov.valor)}
+                </p>
+                <CodigoRastreio codigo={cancelandoMov.codigo_rastreio} />
+              </div>
+              {(cancelandoMov.valor_receber_id || cancelandoMov.conta_pagar_id || /^(Recebimento|Pagamento)/.test(cancelandoMov.descricao)) && (
+                <p className="text-xs text-amber-600">
+                  {cancelandoMov.tipo === "entrada"
+                    ? "O valor volta a ficar em aberto no A Receber."
+                    : "O valor volta a ficar em aberto no Contas a Pagar."}
+                </p>
+              )}
+              <div className="space-y-1.5">
+                <Label>Motivo (opcional)</Label>
+                <Input value={motivoCancelamento} onChange={(e) => setMotivoCancelamento(e.target.value)} placeholder="Ex: lançado em duplicidade" maxLength={200} />
+                <p className="text-[10px] text-muted-foreground">O lançamento sai do caixa e fica guardado no histórico de cancelados com o código de rastreio.</p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCancelandoMov(null)}>Voltar</Button>
+            <Button variant="destructive" onClick={confirmarCancelamento} disabled={loadingCancelamento} className="gap-2">
+              {loadingCancelamento ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
+              Cancelar lançamento
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

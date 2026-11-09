@@ -224,7 +224,7 @@ export function RelatoriosGestaoTab({ empresaId }: { empresaId: string }) {
       if (Y > 240) { doc.addPage(); Y = 20 }
       addSection("Balanco do Periodo")
       const totalCP = cp.reduce((s: number, c: any) => s + c.valor, 0)
-      const totalCPPago = cp.filter((c: any) => c.status === "pago").reduce((s: number, c: any) => s + c.valor, 0)
+      const totalCPPago = cp.reduce((s: number, c: any) => s + (c.status === "pago" ? Number(c.valor) : Number(c.valor_pago ?? 0)), 0)
       const totalVR = vr.reduce((s: number, v: any) => s + v.valor, 0)
       const totalVRRecebido = vr.reduce((s: number, v: any) => s + (v.status === "recebido" ? Number(v.valor) : Number(v.valor_recebido ?? 0)), 0)
 

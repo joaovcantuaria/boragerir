@@ -35,6 +35,12 @@ import { GerarBoletoModal } from "@/components/financeiro/gerar-boleto-modal"
 import { PinProtected } from "@/components/ui/pin-protected"
 import { PinModal } from "@/components/ui/pin-modal"
 
+/** Quanto ainda falta pagar (valor - já pago em baixas parciais). */
+function saldoPagar(c: { valor: number; valor_pago?: number | null; status?: string }) {
+  if (c.status === "pago") return 0
+  return Math.max(0, Math.round((Number(c.valor) - Number(c.valor_pago ?? 0)) * 100) / 100)
+}
+
 /** Quanto ainda falta receber (valor - já recebido em baixas parciais). */
 function saldoReceber(v: { valor: number; valor_recebido?: number | null; status?: string }) {
   if (v.status === "recebido") return 0
@@ -60,6 +66,7 @@ type Venda = {
 type ContaPagar = {
   id: string
   codigo_rastreio?: string | null
+  valor_pago?: number | null
   fornecedor_id?: string | null
   descricao: string
   valor: number
@@ -124,7 +131,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   const [clienteSelecionado, setClienteSelecionado] = useState("")
   const [loadingReceber, setLoadingReceber] = useState(false)
   // Baixa modal — pergunta de qual caixa
-  const [modalBaixa, setModalBaixa] = useState<{ tipo: "receber" | "pagar"; id: string; valor: number; descricao: string; total?: number; recebido?: number; devedor?: string } | null>(null)
+  const [modalBaixa, setModalBaixa] = useState<{ tipo: "receber" | "pagar"; id: string; valor: number; descricao: string; total?: number; recebido?: number; devedor?: string; saldo?: number } | null>(null)
   const [baixaValor, setBaixaValor] = useState("")
   const [baixaCaixaTipo, setBaixaCaixaTipo] = useState<"especie" | "banco">("especie")
   const [baixaFormaPag, setBaixaFormaPag] = useState<string>("")
@@ -288,38 +295,12 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   async function marcarRecebido(id: string) {
     const item = valoresReceber.find((v) => v.id === id)
     if (!item) return
-    if (isGestao) {
-      // Abrir modal para selecionar caixa destino
-      const saldo = saldoReceber(item)
-      setModalBaixa({ tipo: "receber", id, valor: saldo, total: Number(item.valor), recebido: Number(item.valor_recebido ?? 0), devedor: item.devedor, descricao: `Recebimento: ${item.devedor}` })
-      setBaixaValor(saldo.toFixed(2))
-    } else {
-      // Planos não-gestão: registrar no caixa automaticamente (primeiro caixa aberto)
-      const { data: caixaAberto } = await supabase
-        .from("caixas")
-        .select("id")
-        .eq("empresa_id", empresaId)
-        .eq("status", "aberto")
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle()
-
-      await supabase.from("valores_receber").update({ status: "recebido" }).eq("id", id)
-
-      if (caixaAberto) {
-        await supabase.from("movimentacoes_caixa").insert({
-          empresa_id: empresaId,
-          caixa_id: caixaAberto.id,
-          tipo: "entrada",
-          categoria: "suprimento",
-          descricao: `Recebimento: ${item.devedor}`,
-          valor: saldoReceber(item),
-        })
-      }
-
-      setValoresReceber((prev) => prev.map((v) => v.id === id ? { ...v, status: "recebido" } : v))
-      toast.success(caixaAberto ? "Recebido e registrado no caixa!" : "Marcado como recebido! (Abra o caixa para registrar a movimentação)")
-    }
+    // Sempre abre a janela: quanto recebeu agora (total ou parcial) e como recebeu
+    const saldo = saldoReceber(item)
+    setModalBaixa({ tipo: "receber", id, valor: saldo, total: Number(item.valor), recebido: Number(item.valor_recebido ?? 0), devedor: item.devedor, descricao: `Recebimento: ${item.devedor}` })
+    setBaixaValor(saldo.toFixed(2))
+    setBaixaCaixaTipo("especie")
+    setBaixaFormaPag("")
   }
 
   async function confirmarBaixa() {
@@ -364,9 +345,12 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
       return
     }
 
+    const parcialPagar = modalBaixa.tipo === "pagar" && modalBaixa.saldo != null && modalBaixa.valor < modalBaixa.saldo - 0.001
     const descBase = parcial
       ? `Recebimento parcial: ${modalBaixa.devedor} (${formatarMoeda(valorAgora)} de ${formatarMoeda(modalBaixa.total ?? modalBaixa.valor)})`
-      : modalBaixa.descricao
+      : parcialPagar
+        ? `Pagamento parcial: ${modalBaixa.devedor} (${formatarMoeda(modalBaixa.valor)} de ${formatarMoeda(modalBaixa.total ?? modalBaixa.valor)})`
+        : modalBaixa.descricao
     const descComPag = baixaCaixaTipo === "banco" && baixaFormaPag
       ? `${descBase} [${baixaFormaPag}]`
       : baixaCaixaTipo === "especie"
@@ -389,6 +373,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
         categoria: "suprimento",
         descricao: descComPag,
         valor: valorAgora,
+        valor_receber_id: modalBaixa.id,
       }
       if (baixaDataRetroativa) insertData.created_at = new Date(baixaDataRetroativa + "T12:00:00").toISOString()
       await supabase.from("movimentacoes_caixa").insert(insertData)
@@ -398,7 +383,17 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
         ? `Recebido ${formatarMoeda(valorAgora)}. Ainda faltam ${formatarMoeda(Math.round((modalBaixa.valor - valorAgora) * 100) / 100)}.`
         : "Recebimento registrado no caixa!")
     } else {
-      // Conta a pagar — registrar saída no caixa + marcar como paga
+      // Conta a pagar — primeiro registra o pagamento (total ou parcial), depois a saída no caixa
+      const resPag = await fetch("/api/financeiro/contas-pagar", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ _acao: "pagar", id: modalBaixa.id, skipMovimentacao: true, valor_pago: modalBaixa.valor }),
+      })
+      const dPag = await resPag.json().catch(() => ({}))
+      if (!resPag.ok) {
+        toast.error(dPag.erro ?? "Erro ao registrar pagamento.")
+        setLoadingReceber(false)
+        return
+      }
       const insertData: any = {
         empresa_id: empresaId,
         caixa_id: caixaId,
@@ -406,16 +401,17 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
         categoria: "despesa",
         descricao: descComPag,
         valor: modalBaixa.valor,
+        conta_pagar_id: modalBaixa.id,
       }
       if (baixaDataRetroativa) insertData.created_at = new Date(baixaDataRetroativa + "T12:00:00").toISOString()
       await supabase.from("movimentacoes_caixa").insert(insertData)
-      // Marcar a conta como paga na API (skipMovimentacao pois já inseriu acima)
-      await fetch("/api/financeiro/contas-pagar", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ _acao: "pagar", id: modalBaixa.id, skipMovimentacao: true }),
-      })
-      setContasPagar((prev) => prev.map((c) => c.id === modalBaixa.id ? { ...c, status: "pago", data_pagamento: new Date().toISOString() } : c))
-      toast.success("Pagamento registrado no caixa!")
+      const contaAtual = dPag.conta as Partial<ContaPagar> | undefined
+      setContasPagar((prev) => prev.map((c) => c.id === modalBaixa.id
+        ? (contaAtual ? { ...c, ...contaAtual } : { ...c, status: "pago", data_pagamento: new Date().toISOString() })
+        : c))
+      toast.success(parcialPagar
+        ? `Pago ${formatarMoeda(modalBaixa.valor)}. Ainda faltam ${formatarMoeda(Math.round(((modalBaixa.saldo ?? 0) - modalBaixa.valor) * 100) / 100)}.`
+        : "Pagamento registrado no caixa!")
     }
 
     setModalBaixa(null)
@@ -998,7 +994,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
             setContas={setContasPagar}
             fornecedores={fornecedores}
             isGestao={isGestao}
-            onBaixaGestao={(id, valor, descricao) => setModalBaixa({ tipo: "pagar", id, valor, descricao })}
+            onBaixaGestao={(id, valor, descricao, extra) => setModalBaixa({ tipo: "pagar", id, valor, descricao, saldo: extra?.saldo, total: extra?.total, devedor: extra?.nome })}
           />
         </TabsContent>
 
@@ -1694,7 +1690,7 @@ function ContasPagarTab({
   setContas: React.Dispatch<React.SetStateAction<ContaPagar[]>>
   fornecedores?: Fornecedor[]
   isGestao?: boolean
-  onBaixaGestao?: (id: string, valor: number, descricao: string) => void
+  onBaixaGestao?: (id: string, valor: number, descricao: string, extra?: { saldo: number; total: number; nome: string }) => void
 }) {
   const hoje = new Date()
   hoje.setHours(0, 0, 0, 0)
@@ -1705,7 +1701,7 @@ function ContasPagarTab({
   const [filtroPeriodo, setFiltroPeriodo] = useState<"todos" | "hoje" | "semana" | "mes">("mes")
   const [busca, setBusca] = useState("")
   const [ordenacao, setOrdenacao] = useState<"vencimento" | "alfabetica">("vencimento")
-  const [modalJuros, setModalJuros] = useState<{ id: string; valorOriginal: number; descricao: string } | null>(null)
+  const [modalJuros, setModalJuros] = useState<{ id: string; valorOriginal: number; total: number; pago: number; descricao: string } | null>(null)
   const [valorComJuros, setValorComJuros] = useState("")
   const [formaPagBaixa, setFormaPagBaixa] = useState<string>("dinheiro")
   const formVazio = () => ({
@@ -1780,8 +1776,8 @@ function ContasPagarTab({
     return a.data_vencimento.localeCompare(b.data_vencimento)
   })
 
-  const totalPendente = contasFiltradas.filter((c) => c.status === "pendente" || c.status === "atrasado").reduce((s, c) => s + c.valor, 0)
-  const totalAtrasado = contasFiltradas.filter((c) => c.status === "atrasado").reduce((s, c) => s + c.valor, 0)
+  const totalPendente = contasFiltradas.filter((c) => c.status === "pendente" || c.status === "atrasado").reduce((s, c) => s + saldoPagar(c), 0)
+  const totalAtrasado = contasFiltradas.filter((c) => c.status === "atrasado").reduce((s, c) => s + saldoPagar(c), 0)
 
   async function salvar() {
     if (!form.descricao || !form.valor || !form.data_vencimento) {
@@ -1806,26 +1802,33 @@ function ContasPagarTab({
     const conta = contas.find((c) => c.id === id)
     if (!conta) return
 
-    // Sempre abrir modal para escolher forma de pagamento
-    setModalJuros({ id, valorOriginal: conta.valor, descricao: conta.descricao })
-    setValorComJuros("")
+    // Sempre abrir modal: quanto pagou agora (total, parcial ou com juros) e a forma
+    const saldo = saldoPagar(conta)
+    setModalJuros({ id, valorOriginal: saldo, total: Number(conta.valor), pago: Number(conta.valor_pago ?? 0), descricao: conta.descricao })
+    setValorComJuros(saldo.toFixed(2))
     setFormaPagBaixa("dinheiro")
   }
 
   async function confirmarPagamentoComJuros() {
     if (!modalJuros) return
-    const valorFinal = valorComJuros ? parseFloat(valorComJuros) : modalJuros.valorOriginal
+    const saldo = modalJuros.valorOriginal
+    const valorFinal = valorComJuros ? Math.round(parseFloat(valorComJuros.replace(",", ".")) * 100) / 100 : saldo
+    if (!(valorFinal > 0)) { toast.error("Informe quanto foi pago."); return }
 
-    // Atualizar o valor da conta se houve juros
-    if (valorComJuros && valorFinal !== modalJuros.valorOriginal) {
+    // Pagou mais que o saldo → juros/multa: aumenta o valor da conta (e quita)
+    let total = modalJuros.total
+    if (valorFinal > saldo + 0.001) {
+      total = Math.round((modalJuros.pago + valorFinal) * 100) / 100
       const supabase = (await import("@/lib/supabase/client")).createClient()
-      await supabase.from("contas_pagar").update({ valor: valorFinal }).eq("id", modalJuros.id)
-      setContas((prev) => prev.map((c) => c.id === modalJuros.id ? { ...c, valor: valorFinal } : c))
+      await supabase.from("contas_pagar").update({ valor: total }).eq("id", modalJuros.id)
+      setContas((prev) => prev.map((c) => c.id === modalJuros.id ? { ...c, valor: total } : c))
     }
+    const saldoBaixa = Math.max(saldo, valorFinal)
+    const parcial = valorFinal < saldoBaixa - 0.001
 
     // Para plano gestão: abrir modal para selecionar caixa
     if (isGestao && onBaixaGestao) {
-      onBaixaGestao(modalJuros.id, valorFinal, `Pagamento: ${modalJuros.descricao}`)
+      onBaixaGestao(modalJuros.id, valorFinal, `Pagamento: ${modalJuros.descricao}`, { saldo: saldoBaixa, total, nome: modalJuros.descricao })
       setModalJuros(null)
       setValorComJuros("")
       setFormaPagBaixa("dinheiro")
@@ -1834,12 +1837,20 @@ function ContasPagarTab({
 
     const res = await fetch("/api/financeiro/contas-pagar", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ _acao: "pagar", id: modalJuros.id, forma_pagamento: formaPagBaixa }),
+      body: JSON.stringify({ _acao: "pagar", id: modalJuros.id, forma_pagamento: formaPagBaixa, valor_pago: valorFinal }),
     })
-    if (res.ok) {
-      setContas((prev) => prev.map((c) => c.id === modalJuros.id ? { ...c, status: "pago", valor: valorFinal, data_pagamento: new Date().toISOString() } : c))
-      toast.success(`Conta paga via ${formaPagBaixa === "dinheiro" ? "espécie" : "banco"}!`)
+    const dados = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      toast.error(dados.erro ?? "Erro ao registrar pagamento.")
+      return
     }
+    const contaAtual = dados.conta as Partial<ContaPagar> | undefined
+    setContas((prev) => prev.map((c) => c.id === modalJuros.id
+      ? (contaAtual ? { ...c, ...contaAtual } : { ...c, status: "pago", data_pagamento: new Date().toISOString() })
+      : c))
+    toast.success(parcial
+      ? `Pago ${formatarMoeda(valorFinal)}. Ainda faltam ${formatarMoeda(Math.round((saldoBaixa - valorFinal) * 100) / 100)}.`
+      : `Conta paga via ${formaPagBaixa === "dinheiro" ? "espécie" : "banco"}!`)
     setModalJuros(null)
     setValorComJuros("")
     setFormaPagBaixa("dinheiro")
@@ -1987,14 +1998,17 @@ function ContasPagarTab({
                   </div>
                 </div>
                 <div className="text-right shrink-0 space-y-1">
-                  <p className="text-sm font-black">{formatarMoeda(conta.valor)}</p>
+                  <p className="text-sm font-black">{formatarMoeda(conta.status === "pago" ? conta.valor : saldoPagar(conta))}</p>
+                  {conta.status !== "pago" && Number(conta.valor_pago ?? 0) > 0 && (
+                    <p className="text-[10px] text-emerald-600">pago {formatarMoeda(Number(conta.valor_pago))} de {formatarMoeda(conta.valor)}</p>
+                  )}
                   <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${statusCor}`}>
                     {conta.status === "atrasado" ? "Atrasado" : conta.status === "pago" ? "Pago" : "Pendente"}
                   </span>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   {conta.status !== "pago" && (
-                    <button onClick={() => pagar(conta.id)} title="Marcar como pago"
+                    <button onClick={() => pagar(conta.id)} title="Dar baixa (total ou parcial)"
                       className="p-1.5 rounded-lg text-emerald-500 hover:bg-emerald-500/10 transition-colors">
                       <CheckCircle2 className="w-4 h-4" />
                     </button>
@@ -2108,20 +2122,36 @@ function ContasPagarTab({
         <DialogContent>
           <DialogHeader><DialogTitle>Confirmar pagamento</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Conta: <strong>{modalJuros?.descricao}</strong> — Valor: <strong>{formatarMoeda(modalJuros?.valorOriginal ?? 0)}</strong>
-            </p>
+            <div className="rounded-lg bg-muted/50 p-3">
+              <p className="text-xs text-muted-foreground">{modalJuros?.descricao}</p>
+              <p className="text-lg font-bold text-primary mt-1">{formatarMoeda(modalJuros?.valorOriginal ?? 0)} <span className="text-xs font-normal text-muted-foreground">em aberto</span></p>
+              {(modalJuros?.pago ?? 0) > 0 && (
+                <p className="text-[11px] text-muted-foreground">já pago {formatarMoeda(modalJuros?.pago ?? 0)} de {formatarMoeda(modalJuros?.total ?? 0)}</p>
+              )}
+            </div>
             <div className="space-y-1.5">
-              <Label>Valor pago (altere se houve juros/multa)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                min="0.01"
-                placeholder={String(modalJuros?.valorOriginal ?? "")}
-                value={valorComJuros}
-                onChange={(e) => setValorComJuros(e.target.value)}
-              />
-              <p className="text-[11px] text-muted-foreground">Deixe vazio para usar o valor original (sem juros).</p>
+              <Label>Valor pago agora</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  min="0.01"
+                  placeholder={String(modalJuros?.valorOriginal ?? "")}
+                  value={valorComJuros}
+                  onChange={(e) => setValorComJuros(e.target.value)}
+                />
+                <Button type="button" variant="outline" size="sm" onClick={() => setValorComJuros((modalJuros?.valorOriginal ?? 0).toFixed(2))}>Tudo</Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => setValorComJuros((Math.round((modalJuros?.valorOriginal ?? 0) * 50) / 100).toFixed(2))}>Metade</Button>
+              </div>
+              {(() => {
+                const v = parseFloat((valorComJuros || "").replace(",", "."))
+                const s = modalJuros?.valorOriginal ?? 0
+                if (!(v > 0)) return <p className="text-[11px] text-muted-foreground">Informe quanto foi pago agora.</p>
+                if (v < s - 0.001) return <p className="text-[11px] text-amber-600">Pagamento parcial: continuam em aberto {formatarMoeda(Math.round((s - v) * 100) / 100)}.</p>
+                if (v > s + 0.001) return <p className="text-[11px] text-blue-600">Inclui juros/multa de {formatarMoeda(Math.round((v - s) * 100) / 100)} e quita a conta.</p>
+                return <p className="text-[11px] text-emerald-600">Quita a conta por completo.</p>
+              })()}
             </div>
             <div className="space-y-1.5">
               <Label>Forma de pagamento</Label>
@@ -2205,7 +2235,7 @@ function FluxoCaixaTab({
       const dv = c.data_vencimento
       return (c.status === "pendente" || c.status === "atrasado") && dv >= fmtDate(inicio) && dv <= fmtDate(fim)
     })
-    .reduce((s, c) => s + c.valor, 0)
+    .reduce((s, c) => s + saldoPagar(c), 0)
 
   const saldoProjetado = totalReceitas - despesasPrevistas
 
@@ -2218,7 +2248,7 @@ function FluxoCaixaTab({
       const diaStr = fmtDate(dia)
       const rec = vendas.filter((v) => v.status === "concluida" && v.created_at.substring(0, 10) === diaStr).reduce((s, v) => s + v.total, 0)
         + agendamentosFuturos.filter((a) => a.data_hora.substring(0, 10) === diaStr && a.produtos_servicos?.preco).reduce((s, a) => s + (a.produtos_servicos?.preco ?? 0), 0)
-      const desp = contasPagar.filter((c) => c.data_vencimento === diaStr && (c.status === "pendente" || c.status === "atrasado")).reduce((s, c) => s + c.valor, 0)
+      const desp = contasPagar.filter((c) => c.data_vencimento === diaStr && (c.status === "pendente" || c.status === "atrasado")).reduce((s, c) => s + saldoPagar(c), 0)
       dadosGrafico.push({ label: format(dia, "EEE", { locale: ptBR }), receita: rec, despesa: desp })
     }
   } else if (periodo === "mes" || periodo === "custom") {
@@ -2239,7 +2269,7 @@ function FluxoCaixaTab({
       const desp = contasPagar.filter((c) => {
         const dv = c.data_vencimento
         return (c.status === "pendente" || c.status === "atrasado") && dv >= fmtDate(iniSem) && dv <= fmtDate(fimSem)
-      }).reduce((s, c) => s + c.valor, 0)
+      }).reduce((s, c) => s + saldoPagar(c), 0)
       dadosGrafico.push({ label: `Sem ${semana + 1}`, receita: rec, despesa: desp })
     }
   }

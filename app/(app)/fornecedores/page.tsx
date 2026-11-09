@@ -17,7 +17,7 @@ export default async function FornecedoresPage() {
   let tabelaPronta = true
   const [{ data, error }, { data: contas }] = await Promise.all([
     supabase.from("fornecedores").select(CAMPOS_FORNECEDOR).eq("empresa_id", empresa.id).order("nome"),
-    supabase.from("contas_pagar").select("fornecedor_id, valor, status, data_vencimento")
+    supabase.from("contas_pagar").select("fornecedor_id, valor, valor_pago, status, data_vencimento")
       .eq("empresa_id", empresa.id).not("fornecedor_id", "is", null).limit(5000),
   ])
   if (error) tabelaPronta = false // migration ainda não aplicada

@@ -540,6 +540,7 @@ export type Database = {
           observacoes: string | null
           created_at: string
           codigo_rastreio: string | null
+          valor_pago: number
         }
         Insert: {
           id?: string
@@ -556,6 +557,7 @@ export type Database = {
           observacoes?: string | null
           created_at?: string
           codigo_rastreio?: string | null
+          valor_pago?: number
         }
         Update: {
           id?: string
@@ -572,6 +574,7 @@ export type Database = {
           observacoes?: string | null
           created_at?: string
           codigo_rastreio?: string | null
+          valor_pago?: number
         }
         Relationships: [
           {
@@ -1811,6 +1814,57 @@ export type Database = {
           },
         ]
       }
+      movimentacoes_canceladas: {
+        Row: {
+          id: string
+          empresa_id: string
+          caixa_id: string | null
+          codigo_rastreio: string | null
+          tipo: string
+          categoria: string | null
+          descricao: string | null
+          valor: number
+          lancado_em: string | null
+          valor_receber_id: string | null
+          conta_pagar_id: string | null
+          motivo: string | null
+          cancelado_por: string | null
+          cancelado_em: string
+        }
+        Insert: {
+          id: string
+          empresa_id: string
+          caixa_id?: string | null
+          codigo_rastreio?: string | null
+          tipo: string
+          categoria?: string | null
+          descricao?: string | null
+          valor: number
+          lancado_em?: string | null
+          valor_receber_id?: string | null
+          conta_pagar_id?: string | null
+          motivo?: string | null
+          cancelado_por?: string | null
+          cancelado_em?: string
+        }
+        Update: {
+          id?: string
+          empresa_id?: string
+          caixa_id?: string | null
+          codigo_rastreio?: string | null
+          tipo?: string
+          categoria?: string | null
+          descricao?: string | null
+          valor?: number
+          lancado_em?: string | null
+          valor_receber_id?: string | null
+          conta_pagar_id?: string | null
+          motivo?: string | null
+          cancelado_por?: string | null
+          cancelado_em?: string
+        }
+        Relationships: []
+      }
       movimentacoes_caixa: {
         Row: {
           id: string
@@ -1825,6 +1879,8 @@ export type Database = {
           colaborador_id: string | null
           data_movimento: string | null
           codigo_rastreio: string | null
+          valor_receber_id: string | null
+          conta_pagar_id: string | null
         }
         Insert: {
           id?: string
@@ -1839,6 +1895,8 @@ export type Database = {
           colaborador_id?: string | null
           data_movimento?: string | null
           codigo_rastreio?: string | null
+          valor_receber_id?: string | null
+          conta_pagar_id?: string | null
         }
         Update: {
           id?: string
@@ -1853,6 +1911,8 @@ export type Database = {
           colaborador_id?: string | null
           data_movimento?: string | null
           codigo_rastreio?: string | null
+          valor_receber_id?: string | null
+          conta_pagar_id?: string | null
         }
         Relationships: [
           {
@@ -2681,6 +2741,18 @@ export type Database = {
       get_empresa_id: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      pagar_conta_parcial: {
+        Args: { p_id: string; p_valor: number }
+        Returns: Database["public"]["Tables"]["contas_pagar"]["Row"]
+      }
+      cancelar_movimentacao: {
+        Args: { p_id: string; p_motivo?: string }
+        Returns: Json
+      }
+      alterar_valor_movimentacao: {
+        Args: { p_id: string; p_valor: number }
+        Returns: Database["public"]["Tables"]["movimentacoes_caixa"]["Row"]
       }
       receber_valor_parcial: {
         Args: { p_id: string; p_valor: number }

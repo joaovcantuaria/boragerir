@@ -89,7 +89,7 @@ export const TOTAIS_VAZIOS: TotaisFornecedor = { em_aberto: 0, pago: 0, contas: 
 
 /** Soma as contas a pagar de cada fornecedor: em aberto, pago e o próximo vencimento pendente. */
 export function somarContasPorFornecedor(
-  contas: { fornecedor_id: string | null; valor: number | string; status: string; data_vencimento: string }[],
+  contas: { fornecedor_id: string | null; valor: number | string; valor_pago?: number | string | null; status: string; data_vencimento: string }[],
 ): Map<string, TotaisFornecedor> {
   const totais = new Map<string, TotaisFornecedor>()
   for (const conta of contas) {
@@ -98,7 +98,9 @@ export function somarContasPorFornecedor(
     t.contas++
     if (conta.status === "pago") t.pago += Number(conta.valor) || 0
     else {
-      t.em_aberto += Number(conta.valor) || 0
+      const jaPago = Number(conta.valor_pago) || 0
+      t.pago += jaPago
+      t.em_aberto += Math.max(0, (Number(conta.valor) || 0) - jaPago)
       if (!t.proximo_vencimento || conta.data_vencimento < t.proximo_vencimento) t.proximo_vencimento = conta.data_vencimento
     }
     totais.set(conta.fornecedor_id, t)

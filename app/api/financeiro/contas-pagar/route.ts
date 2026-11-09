@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import type { TablesInsert } from "@/types/database"
+import { formatarMoeda } from "@/lib/utils"
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient()
@@ -75,20 +76,40 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ sucesso: true })
   }
 
-  // Marcar como pago
+  // Dar baixa: total (padrão) ou parcial (valor_pago menor que o saldo em aberto)
   if (body._acao === "pagar") {
     // Buscar dados da conta para registrar no caixa
     const { data: conta } = await supabase.from("contas_pagar")
-      .select("descricao, valor")
+      .select("*")
       .eq("id", body.id)
       .eq("empresa_id", empresa.id)
       .single()
+    if (!conta) return NextResponse.json({ erro: "Conta não encontrada" }, { status: 404 })
+    if (conta.status === "pago") return NextResponse.json({ erro: "Esta conta já está paga" }, { status: 400 })
 
-    const { error } = await supabase.from("contas_pagar")
-      .update({ status: "pago", data_pagamento: new Date().toISOString() })
-      .eq("id", body.id)
-      .eq("empresa_id", empresa.id)
-    if (error) return NextResponse.json({ erro: error.message }, { status: 500 })
+    const saldo = Math.round((Number(conta.valor) - Number(conta.valor_pago ?? 0)) * 100) / 100
+    const informado = Number(body.valor_pago)
+    const valorAgora = Number.isFinite(informado) && informado > 0 ? Math.round(informado * 100) / 100 : saldo
+    if (valorAgora > saldo + 0.001) {
+      return NextResponse.json({ erro: `Valor maior que o saldo em aberto (${saldo.toFixed(2)})` }, { status: 400 })
+    }
+    const parcial = valorAgora < saldo - 0.001
+
+    let contaAtualizada = null
+    if (parcial) {
+      const { data, error } = await supabase.rpc("pagar_conta_parcial", { p_id: body.id, p_valor: valorAgora })
+      if (error) return NextResponse.json({ erro: error.message }, { status: 400 })
+      contaAtualizada = data
+    } else {
+      const { data, error } = await supabase.from("contas_pagar")
+        .update({ status: "pago", data_pagamento: new Date().toISOString() })
+        .eq("id", body.id)
+        .eq("empresa_id", empresa.id)
+        .select()
+        .single()
+      if (error) return NextResponse.json({ erro: error.message }, { status: 500 })
+      contaAtualizada = data
+    }
 
     // Registrar movimentação no caixa (se houver caixa aberto)
     // skipMovimentacao: true quando o frontend já inseriu a movimentação (plano gestão via modal)
@@ -103,9 +124,10 @@ export async function POST(req: NextRequest) {
         .maybeSingle()
 
       if (caixaAberto) {
-        const descricaoMov = body.forma_pagamento
-          ? `Pagamento: ${conta.descricao} [${body.forma_pagamento}]`
+        const base = parcial
+          ? `Pagamento parcial: ${conta.descricao} (${formatarMoeda(valorAgora)} de ${formatarMoeda(Number(conta.valor))})`
           : `Pagamento: ${conta.descricao}`
+        const descricaoMov = body.forma_pagamento ? `${base} [${body.forma_pagamento}]` : base
 
         await supabase.from("movimentacoes_caixa").insert({
           empresa_id: empresa.id,
@@ -113,12 +135,13 @@ export async function POST(req: NextRequest) {
           tipo: "saida",
           categoria: "despesa",
           descricao: descricaoMov,
-          valor: conta.valor,
+          valor: valorAgora,
+          conta_pagar_id: body.id,
         })
       }
     }
 
-    return NextResponse.json({ sucesso: true })
+    return NextResponse.json({ sucesso: true, parcial, conta: contaAtualizada })
   }
 
   // Criar nova conta

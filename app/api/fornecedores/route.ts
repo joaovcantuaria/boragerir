@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 
   // Totais por fornecedor (em aberto / pago / próximo vencimento)
   const { data: contas } = await c.supabase.from("contas_pagar")
-    .select("fornecedor_id, valor, status, data_vencimento")
+    .select("fornecedor_id, valor, valor_pago, status, data_vencimento")
     .eq("empresa_id", c.empresaId)
     .not("fornecedor_id", "is", null)
     .limit(5000)

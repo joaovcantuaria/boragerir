@@ -34,7 +34,18 @@ export async function GET(req: NextRequest) {
       const { data } = await supabase.from("movimentacoes_caixa")
         .select("tipo, categoria, descricao, valor, created_at")
         .eq("empresa_id", empresa.id).eq("codigo_rastreio", leitura.codigo).maybeSingle()
-      if (!data) return naoEncontrado
+      if (!data) {
+        // Lançamento cancelado: sai do caixa, mas o código continua rastreável
+        const { data: cancelado } = await supabase.from("movimentacoes_canceladas")
+          .select("descricao, valor, lancado_em, cancelado_em, motivo")
+          .eq("empresa_id", empresa.id).eq("codigo_rastreio", leitura.codigo).maybeSingle()
+        if (!cancelado) return naoEncontrado
+        return NextResponse.json({
+          ...base, valor: cancelado.valor, data: cancelado.lancado_em ?? cancelado.cancelado_em, status: "cancelado",
+          descricao: cancelado.descricao,
+          detalhe: `Cancelado em ${new Date(cancelado.cancelado_em).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}${cancelado.motivo ? ` — ${cancelado.motivo}` : ""}`,
+        })
+      }
       return NextResponse.json({ ...base, valor: data.valor, data: data.created_at, status: data.tipo, descricao: data.descricao, detalhe: data.categoria })
     }
     case "caixas": {
