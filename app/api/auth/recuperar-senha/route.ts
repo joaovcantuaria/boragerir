@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { enviarEmail, templateBase } from "@/lib/email/brevo"
 import crypto from "crypto"
+import { buscarUsuarioPorEmail } from "@/lib/supabase/buscar-usuario"
 
 /**
  * API Route de recuperação de senha.
@@ -21,13 +22,11 @@ export async function POST(req: NextRequest) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.boragerir.com"
 
     // Buscar usuário pelo email
-    const { data: listData } = await admin.auth.admin.listUsers()
-    const usuario = listData?.users?.find(
-      (u) => u.email?.toLowerCase() === email.toLowerCase()
-    )
+    const usuario = await buscarUsuarioPorEmail(admin, email)
 
     // Não revelar se o email existe ou não (segurança)
     if (!usuario) {
+      console.warn("[api/auth/recuperar-senha] E-mail não cadastrado:", email)
       return NextResponse.json({ ok: true })
     }
 
@@ -62,11 +61,15 @@ export async function POST(req: NextRequest) {
       </p>
     `)
 
-    await enviarEmail({
+    const envio = await enviarEmail({
       para: { email },
       assunto: "Redefinir senha — Bora Gerir",
       html,
     })
+    if (!envio.sucesso) {
+      // Não revela ao visitante, mas fica registrado nos logs da Vercel para diagnóstico
+      console.error("[api/auth/recuperar-senha] Falha ao enviar e-mail:", envio.erro)
+    }
 
     return NextResponse.json({ ok: true })
   } catch (err: unknown) {

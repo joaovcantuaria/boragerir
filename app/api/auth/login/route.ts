@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { buscarUsuarioPorEmail } from "@/lib/supabase/buscar-usuario"
 import { createClient } from "@supabase/supabase-js"
 import { createServerClient } from "@supabase/ssr"
 
@@ -50,8 +51,7 @@ export async function POST(req: NextRequest) {
       })
 
       // Buscar o usuário pelo email
-      const { data: listData } = await adminClient.auth.admin.listUsers()
-      const usuario = listData?.users?.find((u) => u.email === email)
+      const usuario = await buscarUsuarioPorEmail(adminClient, email)
 
       if (usuario && !usuario.email_confirmed_at) {
         // Confirmar o email automaticamente

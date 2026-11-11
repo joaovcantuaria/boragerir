@@ -12,7 +12,54 @@ interface EmailParams {
   anexos?: { nome: string; conteudo: string; tipo: string }[] // base64
 }
 
-export async function enviarEmail({ para, assunto, html, anexos }: EmailParams): Promise<{ sucesso: boolean; erro?: string }> {
+/**
+ * Envia e-mail transacional. Usa o Resend quando RESEND_API_KEY estiver configurada
+ * (com a Brevo como reserva se o Resend falhar); sem ela, usa só a Brevo, como antes.
+ */
+export async function enviarEmail(params: EmailParams): Promise<{ sucesso: boolean; erro?: string }> {
+  if (process.env.RESEND_API_KEY) {
+    const viaResend = await enviarViaResend(params)
+    if (viaResend.sucesso) return viaResend
+    if (!process.env.BREVO_API_KEY) return viaResend
+    console.warn("⚠️ Resend falhou, tentando Brevo:", viaResend.erro)
+  }
+  return enviarViaBrevo(params)
+}
+
+const RESEND_API_URL = "https://api.resend.com/emails"
+
+async function enviarViaResend({ para, assunto, html, anexos }: EmailParams): Promise<{ sucesso: boolean; erro?: string }> {
+  const remetente = process.env.EMAIL_REMETENTE || "Bora Gerir <noreply@boragerir.com>"
+  const payload: Record<string, unknown> = {
+    from: remetente,
+    to: [para.email],
+    subject: assunto,
+    html,
+  }
+  if (anexos && anexos.length > 0) {
+    payload.attachments = anexos.map((a) => ({ filename: a.nome, content: a.conteudo, content_type: a.tipo }))
+  }
+  try {
+    const response = await fetch(RESEND_API_URL, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+    if (!response.ok) {
+      const erro = await response.text()
+      console.error("Erro Resend:", response.status, erro)
+      return { sucesso: false, erro: `Resend retornou ${response.status}: ${erro}` }
+    }
+    console.log(`✅ E-mail enviado via Resend para ${para.email}`)
+    return { sucesso: true }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error("Erro ao enviar via Resend:", msg)
+    return { sucesso: false, erro: msg }
+  }
+}
+
+async function enviarViaBrevo({ para, assunto, html, anexos }: EmailParams): Promise<{ sucesso: boolean; erro?: string }> {
   const apiKey = process.env.BREVO_API_KEY
   if (!apiKey) {
     console.warn("⚠️ BREVO_API_KEY não configurada. E-mail não enviado.")

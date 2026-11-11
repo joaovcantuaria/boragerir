@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { buscarUsuarioPorEmail } from "@/lib/supabase/buscar-usuario"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 /**
@@ -20,10 +21,7 @@ export async function POST(req: NextRequest) {
     const admin = createAdminClient()
 
     // Buscar usuário pelo email
-    const { data: listData } = await admin.auth.admin.listUsers()
-    const usuario = listData?.users?.find(
-      (u) => u.email?.toLowerCase() === email.toLowerCase()
-    )
+    const usuario = await buscarUsuarioPorEmail(admin, email)
 
     if (!usuario) {
       return NextResponse.json({ error: "Link inválido ou expirado" }, { status: 400 })
