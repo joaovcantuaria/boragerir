@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { getEmpresaAtiva } from "@/lib/get-empresa-ativa"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 export interface CoraAccessResult {
@@ -17,8 +17,8 @@ export interface CoraAccessResult {
  * ou NextResponse com erro 401/403 caso contrário.
  */
 export async function validateCoraAccess(): Promise<CoraAccessResult | NextResponse> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  // Empresa ativa (cookie empresa_ativa_id) — funciona para quem tem mais de uma empresa
+  const { user, empresa } = await getEmpresaAtiva()
 
   if (!user) {
     return NextResponse.json(
@@ -26,12 +26,6 @@ export async function validateCoraAccess(): Promise<CoraAccessResult | NextRespo
       { status: 401 }
     )
   }
-
-  const { data: empresa } = await supabase
-    .from("empresas")
-    .select("id, plano")
-    .eq("user_id", user.id)
-    .single()
 
   if (!empresa) {
     return NextResponse.json(

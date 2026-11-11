@@ -17,11 +17,14 @@ interface CoraContaRow {
   cora_account_id: string
   status: string
   created_at: string
+  token_expires_at: string | null
+  updated_at: string | null
 }
 
 export function CoraConfig({ empresa }: { empresa: Empresa }) {
   const [status, setStatus] = useState<CoraStatus>("carregando")
   const [coraAccountId, setCoraAccountId] = useState<string | null>(null)
+  const [sessao, setSessao] = useState<{ conectadaEm: string; expiraEm: string | null; atualizadaEm: string | null } | null>(null)
   const [loading, setLoading] = useState(false)
   const supabase = createClient()
 
@@ -40,7 +43,7 @@ export function CoraConfig({ empresa }: { empresa: Empresa }) {
     try {
       const { data, error } = await supabase
         .from("cora_contas")
-        .select("id, empresa_id, cora_account_id, status, created_at")
+        .select("id, empresa_id, cora_account_id, status, created_at, token_expires_at, updated_at")
         .eq("empresa_id", empresa.id)
         .single()
 
@@ -50,6 +53,7 @@ export function CoraConfig({ empresa }: { empresa: Empresa }) {
       }
 
       const conta = data as CoraContaRow
+      setSessao({ conectadaEm: conta.created_at, expiraEm: conta.token_expires_at, atualizadaEm: conta.updated_at })
 
       if (conta.status === "ativo") {
         setStatus("ativo")
@@ -274,6 +278,15 @@ export function CoraConfig({ empresa }: { empresa: Empresa }) {
               Ativa
             </Badge>
           </div>
+          {sessao && (
+            <div className="rounded-lg border border-border p-3 text-xs text-muted-foreground space-y-1">
+              <p>Conectada em {new Date(sessao.conectadaEm).toLocaleString("pt-BR")}</p>
+              {sessao.expiraEm && (
+                <p>Acesso seguro válido até {new Date(sessao.expiraEm).toLocaleString("pt-BR")} — renovado automaticamente pelo sistema antes de vencer</p>
+              )}
+              {sessao.atualizadaEm && <p>Última renovação: {new Date(sessao.atualizadaEm).toLocaleString("pt-BR")}</p>}
+            </div>
+          )}
           <Button
             variant="destructive"
             onClick={handleDesconectar}

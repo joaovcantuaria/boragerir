@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { getEmpresaAtiva } from "@/lib/get-empresa-ativa"
 import { storeTokens } from "@/lib/cora/tokens"
 import { CoraClient } from "@/lib/cora/client"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -33,21 +33,14 @@ export async function GET(req: NextRequest) {
   }
 
   // 3. Validar sessão do usuário
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  // 4. Obter a empresa ativa do usuário (a mesma que iniciou a conexão)
+  const { user, empresa } = await getEmpresaAtiva()
 
   if (!user) {
     return NextResponse.redirect(
       `${NEXT_PUBLIC_APP_URL}/login`
     )
   }
-
-  // 4. Obter empresa do usuário
-  const { data: empresa } = await supabase
-    .from("empresas")
-    .select("id, plano")
-    .eq("user_id", user.id)
-    .single()
 
   if (!empresa || empresa.plano !== "profissional") {
     return NextResponse.redirect(
