@@ -31,6 +31,7 @@ import { RelatoriosGestaoTab } from "@/components/financeiro/relatorios-gestao"
 import { CoraCobrancasTab } from "@/components/cora/cora-cobrancas-tab"
 import { CodigoRastreio } from "@/components/ui/codigo-rastreio"
 import { RastrearCodigo } from "@/components/financeiro/rastrear-codigo"
+import { VincularLancamento, EscolhaModoBaixa, type LancamentoCaixa } from "@/components/financeiro/vincular-lancamento"
 import { GerarBoletoModal } from "@/components/financeiro/gerar-boleto-modal"
 import { PinProtected } from "@/components/ui/pin-protected"
 import { PinModal } from "@/components/ui/pin-modal"
@@ -133,6 +134,9 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
   // Baixa modal — pergunta de qual caixa
   const [modalBaixa, setModalBaixa] = useState<{ tipo: "receber" | "pagar"; id: string; valor: number; descricao: string; total?: number; recebido?: number; devedor?: string; saldo?: number } | null>(null)
   const [baixaValor, setBaixaValor] = useState("")
+  // Baixa usando um lançamento que já está no caixa (ex.: importado do extrato)
+  const [baixaModo, setBaixaModo] = useState<"novo" | "existente">("novo")
+  const [baixaMovExistente, setBaixaMovExistente] = useState<LancamentoCaixa | null>(null)
   const [baixaCaixaTipo, setBaixaCaixaTipo] = useState<"especie" | "banco">("especie")
   const [baixaFormaPag, setBaixaFormaPag] = useState<string>("")
   const [baixaDataRetroativa, setBaixaDataRetroativa] = useState<string>("")
@@ -301,10 +305,45 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
     setBaixaValor(saldo.toFixed(2))
     setBaixaCaixaTipo("especie")
     setBaixaFormaPag("")
+    setBaixaModo("novo")
+    setBaixaMovExistente(null)
+  }
+
+  /** Baixa com um lançamento que já está no caixa: não cria lançamento novo, só vincula. */
+  async function confirmarComLancamentoExistente() {
+    if (!modalBaixa) return
+    if (!baixaMovExistente) { toast.error("Escolha o lançamento do caixa."); return }
+    setLoadingReceber(true)
+    const { data, error } = await supabase.rpc("vincular_movimentacao_baixa", modalBaixa.tipo === "receber"
+      ? { p_mov_id: baixaMovExistente.id, p_valor_receber_id: modalBaixa.id }
+      : { p_mov_id: baixaMovExistente.id, p_conta_pagar_id: modalBaixa.id })
+    setLoadingReceber(false)
+    if (error) {
+      const semMigration = /vincular_movimentacao_baixa|function|schema cache/i.test(error.message)
+      toast.error(semMigration ? "Opção ainda não ativada no banco (migration 20261115_baixa_com_lancamento_existente.sql)." : error.message)
+      return
+    }
+    const r = (data ?? {}) as { status?: string; valor?: number; valor_recebido?: number; valor_pago?: number; data_pagamento?: string | null }
+    const quitou = r.status === "recebido" || r.status === "pago"
+    if (modalBaixa.tipo === "receber") {
+      setValoresReceber((prev) => prev.map((v) => v.id === modalBaixa.id ? { ...v, status: r.status ?? v.status, valor_recebido: Number(r.valor_recebido ?? v.valor_recebido ?? 0) } : v))
+    } else {
+      setContasPagar((prev) => prev.map((c) => c.id === modalBaixa.id
+        ? { ...c, status: (r.status ?? c.status) as ContaPagar["status"], valor: Number(r.valor ?? c.valor), valor_pago: Number(r.valor_pago ?? c.valor_pago ?? 0), data_pagamento: r.data_pagamento ?? c.data_pagamento }
+        : c))
+    }
+    const restante = Math.round((modalBaixa.valor - Number(baixaMovExistente.valor)) * 100) / 100
+    toast.success(quitou
+      ? "Baixa feita com o lançamento que já estava no caixa. Nada foi lançado em duplicidade."
+      : `Baixa parcial de ${formatarMoeda(Number(baixaMovExistente.valor))} com o lançamento do caixa. Ainda faltam ${formatarMoeda(restante)}.`)
+    setModalBaixa(null)
+    setBaixaModo("novo")
+    setBaixaMovExistente(null)
   }
 
   async function confirmarBaixa() {
     if (!modalBaixa) return
+    if (baixaModo === "existente") { await confirmarComLancamentoExistente(); return }
     // Recebimento: pode ser parcial (ex.: deve 1.500, pagou 750)
     const valorAgora = modalBaixa.tipo === "receber" ? Math.round(parseFloat(baixaValor.replace(",", ".")) * 100) / 100 : modalBaixa.valor
     if (modalBaixa.tipo === "receber" && (!(valorAgora > 0) || valorAgora > modalBaixa.valor)) {
@@ -994,7 +1033,7 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
             setContas={setContasPagar}
             fornecedores={fornecedores}
             isGestao={isGestao}
-            onBaixaGestao={(id, valor, descricao, extra) => setModalBaixa({ tipo: "pagar", id, valor, descricao, saldo: extra?.saldo, total: extra?.total, devedor: extra?.nome })}
+            onBaixaGestao={(id, valor, descricao, extra) => { setBaixaModo("novo"); setBaixaMovExistente(null); setModalBaixa({ tipo: "pagar", id, valor, descricao, saldo: extra?.saldo, total: extra?.total, devedor: extra?.nome }) }}
           />
         </TabsContent>
 
@@ -1173,6 +1212,21 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
               )}
             </div>
             {modalBaixa?.tipo === "receber" && (
+              <EscolhaModoBaixa modo={baixaModo} onMudar={(m) => { setBaixaModo(m); setBaixaMovExistente(null) }} />
+            )}
+            {baixaModo === "existente" && modalBaixa && (
+              <VincularLancamento
+                empresaId={empresaId}
+                tipo={modalBaixa.tipo === "receber" ? "entrada" : "saida"}
+                saldo={modalBaixa.valor}
+                nome={modalBaixa.devedor ?? modalBaixa.descricao}
+                permitirMaior={modalBaixa.tipo === "pagar"}
+                selecionado={baixaMovExistente}
+                onSelecionar={setBaixaMovExistente}
+              />
+            )}
+            {baixaModo === "novo" && (<>
+            {modalBaixa?.tipo === "receber" && (
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Valor recebido agora</Label>
                 <div className="flex gap-2">
@@ -1274,10 +1328,11 @@ export function FinanceiroClient({ empresaId, plano, vendas: vendasIniciais, mov
               />
               <p className="text-[10px] text-muted-foreground">Deixe vazio para usar a data de hoje.</p>
             </div>
+            </>)}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setModalBaixa(null); setBaixaFormaPag(""); setBaixaDataRetroativa(""); setBaixaValor("") }}>Cancelar</Button>
-            <Button onClick={confirmarBaixa} disabled={loadingReceber || (baixaCaixaTipo === "banco" && !baixaFormaPag)} className="gap-2">
+            <Button onClick={confirmarBaixa} disabled={loadingReceber || (baixaModo === "novo" && baixaCaixaTipo === "banco" && !baixaFormaPag) || (baixaModo === "existente" && !baixaMovExistente)} className="gap-2">
               {loadingReceber ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               Confirmar
             </Button>
@@ -1704,6 +1759,9 @@ function ContasPagarTab({
   const [modalJuros, setModalJuros] = useState<{ id: string; valorOriginal: number; total: number; pago: number; descricao: string } | null>(null)
   const [valorComJuros, setValorComJuros] = useState("")
   const [formaPagBaixa, setFormaPagBaixa] = useState<string>("dinheiro")
+  const [pagModo, setPagModo] = useState<"novo" | "existente">("novo")
+  const [pagMovExistente, setPagMovExistente] = useState<LancamentoCaixa | null>(null)
+  const [pagVinculando, setPagVinculando] = useState(false)
   const formVazio = () => ({
     descricao: "", valor: "", data_vencimento: format(new Date(), "yyyy-MM-dd"),
     categoria: "outros", recorrencia: "avulso", observacoes: "", qtd_parcelas: "12", fornecedor_id: "",
@@ -1807,11 +1865,39 @@ function ContasPagarTab({
     setModalJuros({ id, valorOriginal: saldo, total: Number(conta.valor), pago: Number(conta.valor_pago ?? 0), descricao: conta.descricao })
     setValorComJuros(saldo.toFixed(2))
     setFormaPagBaixa("dinheiro")
+    setPagModo("novo")
+    setPagMovExistente(null)
   }
 
   async function confirmarPagamentoComJuros() {
     if (!modalJuros) return
     const saldo = modalJuros.valorOriginal
+
+    // Já está no caixa (ex.: veio do extrato): só vincula, sem lançar de novo
+    if (pagModo === "existente") {
+      if (!pagMovExistente) { toast.error("Escolha o lançamento do caixa."); return }
+      setPagVinculando(true)
+      const { data, error } = await createClient().rpc("vincular_movimentacao_baixa", { p_mov_id: pagMovExistente.id, p_conta_pagar_id: modalJuros.id })
+      setPagVinculando(false)
+      if (error) {
+        const semMigration = /vincular_movimentacao_baixa|function|schema cache/i.test(error.message)
+        toast.error(semMigration ? "Opção ainda não ativada no banco (migration 20261115_baixa_com_lancamento_existente.sql)." : error.message)
+        return
+      }
+      const r = (data ?? {}) as { status?: string; valor?: number; valor_pago?: number; data_pagamento?: string | null }
+      setContas((prev) => prev.map((c) => c.id === modalJuros.id
+        ? { ...c, status: (r.status ?? c.status) as ContaPagar["status"], valor: Number(r.valor ?? c.valor), valor_pago: Number(r.valor_pago ?? c.valor_pago ?? 0), data_pagamento: r.data_pagamento ?? c.data_pagamento }
+        : c))
+      toast.success(r.status === "pago"
+        ? "Conta paga com o lançamento que já estava no caixa. Nada foi lançado em duplicidade."
+        : `Baixa parcial de ${formatarMoeda(Number(pagMovExistente.valor))} com o lançamento do caixa. Ainda faltam ${formatarMoeda(Math.round((saldo - Number(pagMovExistente.valor)) * 100) / 100)}.`)
+      setModalJuros(null)
+      setValorComJuros("")
+      setFormaPagBaixa("dinheiro")
+      setPagModo("novo")
+      setPagMovExistente(null)
+      return
+    }
     const valorFinal = valorComJuros ? Math.round(parseFloat(valorComJuros.replace(",", ".")) * 100) / 100 : saldo
     if (!(valorFinal > 0)) { toast.error("Informe quanto foi pago."); return }
 
@@ -2129,6 +2215,19 @@ function ContasPagarTab({
                 <p className="text-[11px] text-muted-foreground">já pago {formatarMoeda(modalJuros?.pago ?? 0)} de {formatarMoeda(modalJuros?.total ?? 0)}</p>
               )}
             </div>
+            <EscolhaModoBaixa modo={pagModo} onMudar={(m) => { setPagModo(m); setPagMovExistente(null) }} />
+            {pagModo === "existente" && modalJuros && (
+              <VincularLancamento
+                empresaId={empresaId}
+                tipo="saida"
+                saldo={modalJuros.valorOriginal}
+                nome={modalJuros.descricao}
+                permitirMaior
+                selecionado={pagMovExistente}
+                onSelecionar={setPagMovExistente}
+              />
+            )}
+            {pagModo === "novo" && (<>
             <div className="space-y-1.5">
               <Label>Valor pago agora</Label>
               <div className="flex gap-2">
@@ -2167,10 +2266,11 @@ function ContasPagarTab({
                 {formaPagBaixa === "dinheiro" ? "Sai do caixa em espécie" : "Sai do banco"}
               </p>
             </div>
+            </>)}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setModalJuros(null); setValorComJuros(""); setFormaPagBaixa("dinheiro") }}>Cancelar</Button>
-            <Button onClick={confirmarPagamentoComJuros}>Confirmar pagamento</Button>
+            <Button onClick={confirmarPagamentoComJuros} disabled={pagVinculando || (pagModo === "existente" && !pagMovExistente)}>Confirmar pagamento</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

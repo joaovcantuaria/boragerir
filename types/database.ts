@@ -2757,6 +2757,10 @@ export type Database = {
         Args: { p_id: string; p_valor: number }
         Returns: Database["public"]["Tables"]["movimentacoes_caixa"]["Row"]
       }
+      vincular_movimentacao_baixa: {
+        Args: { p_mov_id: string; p_valor_receber_id?: string; p_conta_pagar_id?: string }
+        Returns: Json
+      }
       receber_valor_parcial: {
         Args: { p_id: string; p_valor: number }
         Returns: Database["public"]["Tables"]["valores_receber"]["Row"]
