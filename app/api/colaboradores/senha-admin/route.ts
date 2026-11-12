@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { createAdminClient } from "@/lib/supabase/admin"
-import crypto from "crypto"
-
-function hashSenha(senha: string): string {
-  return crypto.createHash("sha256").update(senha).digest("hex")
-}
+import { gerarHash, salvarSegredosEmpresa } from "@/lib/security/senhas"
 
 // Configurar/atualizar senha do admin
 export async function POST(req: NextRequest) {
@@ -38,15 +33,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erro: "Empresa não encontrada" }, { status: 404 })
   }
 
-  const admin = createAdminClient()
-
-  const { error } = await admin
-    .from("empresas")
-    .update({ senha_admin: hashSenha(senha) })
-    .eq("id", empresa_id)
-
-  if (error) {
-    return NextResponse.json({ erro: error.message }, { status: 500 })
+  try {
+    await salvarSegredosEmpresa(empresa_id, { senhaAdminHash: await gerarHash(senha) })
+  } catch {
+    return NextResponse.json({ erro: "Erro ao salvar a senha" }, { status: 500 })
   }
 
   return NextResponse.json({ sucesso: true })

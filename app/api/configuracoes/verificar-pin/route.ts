@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
+import { conferirHash, gerarHash, lerSegredosEmpresa, salvarSegredosEmpresa } from "@/lib/security/senhas"
 import { consumirLimite, limparLimite, limiteBloqueadoAte, mensagemBloqueio } from "@/lib/security/limite-tentativas"
-import crypto from "crypto"
-
-function hashPin(pin: string): string {
-  return crypto.createHash("sha256").update(pin).digest("hex")
-}
 
 export async function POST(req: NextRequest) {
   const { empresa_id, pin } = await req.json()
@@ -31,25 +26,14 @@ export async function POST(req: NextRequest) {
   const bloqueio = await limiteBloqueadoAte(chave)
   if (bloqueio) return NextResponse.json({ valido: false, erro: mensagemBloqueio(bloqueio) }, { status: 429 })
 
-  const admin = createAdminClient()
-
-  const { data: empresa, error } = await admin
-    .from("empresas")
-    .select("pin_gerente")
-    .eq("id", empresa_id)
-    .single()
-
-  if (error || !empresa) {
-    return NextResponse.json({ valido: false, erro: "Empresa não encontrada" }, { status: 404 })
-  }
-
-  if (!empresa.pin_gerente) {
+  const { pinHash } = await lerSegredosEmpresa(empresa_id)
+  if (!pinHash) {
     return NextResponse.json({ valido: false, erro: "PIN de gerente não configurado" }, { status: 400 })
   }
 
-  const pinHash = Buffer.from(hashPin(pin))
-  const salvo = Buffer.from(String(empresa.pin_gerente))
-  const valido = pinHash.length === salvo.length && crypto.timingSafeEqual(pinHash, salvo)
+  const { ok: valido, atualizar } = await conferirHash(pin, pinHash)
+  // PIN antigo (SHA-256): regrava no formato forte
+  if (valido && atualizar) await salvarSegredosEmpresa(empresa_id, { pinHash: await gerarHash(pin) }).catch(() => {})
 
   if (!valido) {
     const r = await consumirLimite(chave, 5, 900, 900)

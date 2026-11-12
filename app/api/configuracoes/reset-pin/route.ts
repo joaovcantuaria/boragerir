@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { enviarEmail, templateBase } from "@/lib/email/brevo"
 import crypto from "crypto"
 import { createClient } from "@/lib/supabase/server"
+import { conferirHash, gerarHash, lerSegredosEmpresa, salvarSegredosEmpresa } from "@/lib/security/senhas"
 import { consumirLimite, limparLimite, mensagemBloqueio } from "@/lib/security/limite-tentativas"
 
 export async function POST(req: NextRequest) {
@@ -37,21 +38,9 @@ export async function POST(req: NextRequest) {
     // no máximo 3 códigos por hora
     const lim = await consumirLimite(`reset-pin-envio:${empresa_id}`, 3, 3600, 3600)
     if (!lim.permitido) return NextResponse.json({ erro: mensagemBloqueio(lim.bloqueadoAte) }, { status: 429 })
-    const codigoReset = Math.floor(100000 + Math.random() * 900000).toString()
-    const codigoHash = crypto.createHash("sha256").update(codigoReset).digest("hex")
-    const expira = Date.now() + 10 * 60 * 1000 // 10 minutos
-
-    // Salvar código no banco (dentro de restricoes_acesso como campo temporário)
-    const restricoesAtuais = empresa.restricoes_acesso || {}
-    await admin
-      .from("empresas")
-      .update({
-        restricoes_acesso: {
-          ...restricoesAtuais,
-          _reset_pin: { hash: codigoHash, expira },
-        },
-      })
-      .eq("id", empresa_id)
+    const codigoReset = crypto.randomInt(100000, 1000000).toString()
+    // Código guardado só no servidor (hash forte), válido por 10 minutos
+    await salvarSegredosEmpresa(empresa_id, { reset: { hash: await gerarHash(codigoReset), expira: new Date(Date.now() + 10 * 60 * 1000) } })
 
     // Buscar email do usuário dono
     const { data: userData } = await admin.auth.admin.getUserById(empresa.user_id)
@@ -97,33 +86,25 @@ export async function POST(req: NextRequest) {
     const lim = await consumirLimite(`reset-pin-codigo:${empresa_id}`, 5, 900, 900)
     if (!lim.permitido) return NextResponse.json({ valido: false, erro: mensagemBloqueio(lim.bloqueadoAte) }, { status: 429 })
 
-    const restricoes = empresa.restricoes_acesso as Record<string, unknown> || {}
-    const resetData = restricoes._reset_pin as { hash: string; expira: number } | undefined
+    const { reset } = await lerSegredosEmpresa(empresa_id)
 
-    if (!resetData) {
+    if (!reset) {
       return NextResponse.json({ valido: false, erro: "Nenhum código pendente. Solicite novamente." }, { status: 400 })
     }
 
-    if (Date.now() > resetData.expira) {
-      // Limpar código expirado
-      const { _reset_pin, ...resto } = restricoes
-      await admin.from("empresas").update({ restricoes_acesso: resto }).eq("id", empresa_id)
+    if (Date.now() > reset.expira.getTime()) {
+      await salvarSegredosEmpresa(empresa_id, { reset: null })
       return NextResponse.json({ valido: false, erro: "Código expirado. Solicite novamente." }, { status: 400 })
     }
 
-    const codigoHash = crypto.createHash("sha256").update(codigo).digest("hex")
-
-    if (codigoHash !== resetData.hash) {
+    const { ok } = await conferirHash(String(codigo), reset.hash)
+    if (!ok) {
       return NextResponse.json({ valido: false, erro: "Código incorreto" }, { status: 400 })
     }
 
     // Código correto — resetar PIN e limpar código temporário
     await limparLimite(`reset-pin-codigo:${empresa_id}`)
-    const { _reset_pin, ...restoRestricoes } = restricoes
-    await admin
-      .from("empresas")
-      .update({ pin_gerente: null, restricoes_acesso: restoRestricoes })
-      .eq("id", empresa_id)
+    await salvarSegredosEmpresa(empresa_id, { pinHash: null, reset: null })
 
     return NextResponse.json({ valido: true, sucesso: true })
   }

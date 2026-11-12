@@ -28,7 +28,7 @@ Legenda: ✅ ok · 🔧 corrigido nesta auditoria · ⚠️ pendente (precisa de
 
 ## Pendências recomendadas (em ordem)
 
-1. **PIN de gerente e senhas de colaborador** — hoje usam SHA-256 sem "sal" e o hash do PIN chega ao navegador (quem tiver acesso ao computador logado e souber usar o DevTools descobre um PIN de 4–6 dígitos em segundos). Correção: trocar para bcrypt/scrypt e mandar para a tela só "tem PIN: sim/não".
+1. ~~**PIN de gerente e senhas de colaborador**~~ 🔧 Corrigido (migration `20261117_segredos_protegidos.sql`): hash forte scrypt com sal, guardado em tabelas que só o servidor lê; na tela só chega "configurado". Hashes antigos funcionam e são trocados no próximo uso.
 2. **Supabase → Authentication**: ligar *Leaked password protection*, senha mínima de 8 caracteres e conferir os limites de taxa do Auth.
 3. **MFA (2 fatores)** para as contas de admin.
 4. **Login sem confirmar e-mail**: decidir se mantém a confirmação automática.

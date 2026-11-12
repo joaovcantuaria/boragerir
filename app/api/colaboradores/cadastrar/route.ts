@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import crypto from "crypto"
+import { salvarSenhaFuncionario } from "@/lib/security/senhas"
 
-function hashSenha(senha: string): string {
-  return crypto.createHash("sha256").update(senha).digest("hex")
-}
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -64,7 +61,7 @@ export async function POST(req: NextRequest) {
     .from("funcionarios")
     .update({
       usuario: usuario.toLowerCase().trim(),
-      senha_hash: hashSenha(senha),
+      senha_hash: await salvarSenhaFuncionario(funcionario_id, empresa_id, senha),
       perfil: perfil || "colaborador",
       permissoes: permissoes || {},
     })
@@ -109,7 +106,10 @@ export async function PUT(req: NextRequest) {
 
   if (perfil) updateData.perfil = perfil
   if (permissoes !== undefined) updateData.permissoes = permissoes
-  if (senha) updateData.senha_hash = hashSenha(senha)
+  if (senha) {
+    if (String(senha).length < 4) return NextResponse.json({ erro: "Senha deve ter no mínimo 4 caracteres" }, { status: 400 })
+    updateData.senha_hash = await salvarSenhaFuncionario(funcionario_id, empresa_id, String(senha))
+  }
 
   if (Object.keys(updateData).length === 0) {
     return NextResponse.json({ erro: "Nenhum dado para atualizar" }, { status: 400 })

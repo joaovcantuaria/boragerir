@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { gerarHash, salvarSegredosEmpresa } from "@/lib/security/senhas"
 import { createClient } from "@/lib/supabase/server"
-import crypto from "crypto"
-
-function hashPin(pin: string): string {
-  return crypto.createHash("sha256").update(pin).digest("hex")
-}
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -42,7 +38,12 @@ export async function POST(req: NextRequest) {
     if (pin.length < 4 || pin.length > 6 || !/^\d+$/.test(pin)) {
       return NextResponse.json({ erro: "PIN deve ter entre 4 e 6 dígitos numéricos" }, { status: 400 })
     }
-    updateData.pin_gerente = hashPin(pin)
+    // hash forte guardado só no servidor; em empresas.pin_gerente fica só o marcador
+    try {
+      await salvarSegredosEmpresa(empresa_id, { pinHash: await gerarHash(pin) })
+    } catch {
+      return NextResponse.json({ erro: "Erro ao salvar o PIN" }, { status: 500 })
+    }
   }
 
   // Se restricoes_acesso foi enviado, salva
@@ -51,6 +52,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (Object.keys(updateData).length === 0) {
+    if (pin) return NextResponse.json({ sucesso: true })
     return NextResponse.json({ erro: "Nenhum dado para atualizar" }, { status: 400 })
   }
 

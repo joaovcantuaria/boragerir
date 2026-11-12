@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { createAdminClient } from "@/lib/supabase/admin"
-import crypto from "crypto"
+import { conferirHash, gerarHash, lerSegredosEmpresa, salvarSegredosEmpresa } from "@/lib/security/senhas"
 import { consumirLimite, limparLimite, limiteBloqueadoAte, mensagemBloqueio } from "@/lib/security/limite-tentativas"
 
-function hashSenha(senha: string): string {
-  return crypto.createHash("sha256").update(senha).digest("hex")
-}
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -43,9 +39,11 @@ export async function POST(req: NextRequest) {
   const bloqueio = await limiteBloqueadoAte(chaveLimite)
   if (bloqueio) return NextResponse.json({ sucesso: false, erro: mensagemBloqueio(bloqueio) }, { status: 429 })
 
-  // Verificar senha
-  const senhaHash = hashSenha(senha)
-  if (senhaHash !== empresa.senha_admin) {
+  // Verificar senha (hash fica só no servidor)
+  const { senhaAdminHash } = await lerSegredosEmpresa(empresa_id)
+  const { ok, atualizar } = await conferirHash(String(senha), senhaAdminHash)
+  if (ok && atualizar) await salvarSegredosEmpresa(empresa_id, { senhaAdminHash: await gerarHash(String(senha)) }).catch(() => {})
+  if (!ok) {
     const r = await consumirLimite(chaveLimite, 5, 900, 900)
     if (!r.permitido) return NextResponse.json({ sucesso: false, erro: mensagemBloqueio(r.bloqueadoAte) }, { status: 429 })
     return NextResponse.json({ sucesso: false, erro: "Senha incorreta" }, { status: 401 })

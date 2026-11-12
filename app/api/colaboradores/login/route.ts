@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import crypto from "crypto"
+import { conferirHash, lerSenhaFuncionario, salvarSenhaFuncionario } from "@/lib/security/senhas"
 import { consumirLimite, limparLimite, limiteBloqueadoAte, mensagemBloqueio } from "@/lib/security/limite-tentativas"
 
-function hashSenha(senha: string): string {
-  return crypto.createHash("sha256").update(senha).digest("hex")
-}
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -61,9 +58,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erro: "Colaborador sem senha configurada" }, { status: 400 })
   }
 
-  // Verificar senha
-  const senhaHash = hashSenha(senha)
-  if (senhaHash !== colaborador.senha_hash) {
+  // Verificar senha (hash fica só no servidor)
+  const salvo = await lerSenhaFuncionario(colaborador.id, colaborador.senha_hash)
+  const { ok, atualizar } = await conferirHash(String(senha), salvo)
+  if (ok && atualizar) {
+    const marcador = await salvarSenhaFuncionario(colaborador.id, empresa_id, String(senha)).catch(() => null)
+    if (marcador) await admin.from("funcionarios").update({ senha_hash: marcador }).eq("id", colaborador.id)
+  }
+  if (!ok) {
     const r = await consumirLimite(chaveLimite, 5, 900, 900)
     if (!r.permitido) return NextResponse.json({ erro: mensagemBloqueio(r.bloqueadoAte) }, { status: 429 })
     return NextResponse.json({ erro: "Usuário ou senha incorretos" }, { status: 401 })
