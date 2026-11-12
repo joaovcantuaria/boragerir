@@ -46,9 +46,11 @@ const DialogContent = React.forwardRef<
         }
       }}
       className={cn(
-        "fixed left-[50%] top-[50%] z-[9999] grid w-full max-w-lg",
+        // grid-cols-1 (= minmax(0,1fr)): textos longos (ex.: descrições do extrato) são cortados com "…"
+        // em vez de alargar a janela e criar rolagem para o lado
+        "fixed left-[50%] top-[50%] z-[9999] grid grid-cols-1 w-[calc(100%-2rem)] max-w-lg",
         "translate-x-[-50%] translate-y-[-50%] gap-4 p-6 shadow-2xl",
-        "max-h-[92vh] overflow-y-auto rounded-2xl",
+        "max-h-[92vh] overflow-y-auto overflow-x-hidden rounded-2xl",
         "bg-white text-gray-900 border border-gray-200",
         "dark:bg-[#16192a] dark:text-gray-100 dark:border-[#2d3148]",
         "data-[state=open]:animate-in data-[state=closed]:animate-out",
