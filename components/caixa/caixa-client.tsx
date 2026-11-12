@@ -84,6 +84,9 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
   const [formaPagMovimentacao, setFormaPagMovimentacao] = useState<string>("")
   const [editandoMov, setEditandoMov] = useState<Movimentacao | null>(null)
   const [cancelandoMov, setCancelandoMov] = useState<Movimentacao | null>(null)
+  const [editandoAbertura, setEditandoAbertura] = useState<{ id: string; valorAtual: number } | null>(null)
+  const [novoValorAbertura, setNovoValorAbertura] = useState("")
+  const [salvandoAbertura, setSalvandoAbertura] = useState(false)
   const [motivoCancelamento, setMotivoCancelamento] = useState("")
   const [loadingCancelamento, setLoadingCancelamento] = useState(false)
   // Aba atual (Caixa Atual / Caixas Anteriores) — lembrada para voltar nela depois de editar/cancelar
@@ -412,6 +415,43 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
     setLoading(false)
   }
 
+  function abrirEdicaoAbertura(cx: { id: string; valor_abertura: number }) {
+    setNovoValorAbertura(Number(cx.valor_abertura ?? 0).toFixed(2))
+    setEditandoAbertura({ id: cx.id, valorAtual: Number(cx.valor_abertura ?? 0) })
+  }
+
+  async function salvarValorAbertura() {
+    if (!editandoAbertura) return
+    const valor = Math.round(parseFloat(novoValorAbertura.replace(",", ".")) * 100) / 100
+    if (!(valor >= 0)) { toast.error("Informe um valor válido (pode ser 0)."); return }
+    setSalvandoAbertura(true)
+    const { error } = await supabase
+      .from("caixas")
+      .update({ valor_abertura: valor })
+      .eq("id", editandoAbertura.id)
+      .eq("empresa_id", empresaId)
+    setSalvandoAbertura(false)
+    if (error) { toast.error("Erro ao alterar o valor de abertura."); return }
+    const id = editandoAbertura.id
+    setCaixa((prev) => (prev && prev.id === id ? { ...prev, valor_abertura: valor } : prev))
+    setCaixasAbertos((prev) => prev.map((c) => (c.id === id ? { ...c, valor_abertura: valor } : c)))
+    setEditandoAbertura(null)
+    toast.success(`Valor de abertura alterado para ${formatarMoeda(valor)}.`)
+  }
+
+  function botaoAbertura(cx: { id: string; valor_abertura: number }) {
+    return (
+      <button
+        type="button"
+        onClick={() => executarComPin("caixa_editar_lancamento", () => abrirEdicaoAbertura(cx))}
+        className="ml-auto inline-flex items-center gap-1 text-muted-foreground hover:text-primary"
+        title="Alterar valor de abertura"
+      >
+        Abertura {formatarMoeda(cx.valor_abertura)} <Edit2 className="w-3 h-3" />
+      </button>
+    )
+  }
+
   function pedirCancelamento(mov: Movimentacao) {
     if (mov.venda_id) {
       toast.error("Este lançamento é de uma venda. Para cancelar, use Financeiro → Vendas → Cancelar venda.")
@@ -692,6 +732,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
                       <div className="flex gap-4 mt-2 text-xs">
                         <span className="text-emerald-500">↑ {formatarMoeda(entradas)}</span>
                         <span className="text-red-500">↓ {formatarMoeda(saidas)}</span>
+                        {botaoAbertura(cxAberto)}
                       </div>
                     </CardContent>
                   </Card>
@@ -869,6 +910,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
                       <div className="flex gap-4 mt-2 text-xs">
                         <span className="text-emerald-500">↑ {formatarMoeda(entradas)}</span>
                         <span className="text-red-500">↓ {formatarMoeda(saidas)}</span>
+                        {botaoAbertura(cx)}
                       </div>
                     </CardContent>
                   </Card>
@@ -912,7 +954,19 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
             ].map((item) => (
               <Card key={item.label}>
                 <CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground">{item.label}</p>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    {item.label}
+                    {item.label === "Valor de abertura" && (
+                      <button
+                        type="button"
+                        onClick={() => executarComPin("caixa_editar_lancamento", () => abrirEdicaoAbertura(caixa))}
+                        className="p-0.5 rounded hover:bg-muted hover:text-primary"
+                        title="Alterar valor de abertura"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                      </button>
+                    )}
+                  </p>
                   <p className={`text-xl font-bold ${item.cor}`}>{formatarMoeda(item.valor)}</p>
                 </CardContent>
               </Card>
@@ -1375,6 +1429,36 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Alterar valor de abertura */}
+      <Dialog open={!!editandoAbertura} onOpenChange={(aberto) => { if (!aberto && !salvandoAbertura) setEditandoAbertura(null) }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Alterar valor de abertura</DialogTitle></DialogHeader>
+          <div className="space-y-2">
+            <Label>Valor de abertura (R$)</Label>
+            <Input
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0"
+              autoFocus
+              value={novoValorAbertura}
+              onChange={(e) => setNovoValorAbertura(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") salvarValorAbertura() }}
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Atual: {formatarMoeda(editandoAbertura?.valorAtual ?? 0)}. O saldo do caixa é recalculado na hora; os lançamentos não mudam.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditandoAbertura(null)} disabled={salvandoAbertura}>Cancelar</Button>
+            <Button onClick={salvarValorAbertura} disabled={salvandoAbertura} className="gap-2">
+              {salvandoAbertura && <Loader2 className="w-4 h-4 animate-spin" />}
+              Salvar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
