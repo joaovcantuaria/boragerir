@@ -32,10 +32,21 @@ export async function POST(req: NextRequest) {
   const formData = await req.formData()
   const file = formData.get("file") as File | null
   const tarefaId = formData.get("tarefa_id") as string | null
-  const empresaId = formData.get("empresa_id") as string | null
 
-  if (!file || !tarefaId || !empresaId) {
-    return NextResponse.json({ erro: "file, tarefa_id e empresa_id são obrigatórios" }, { status: 400 })
+  if (!file || !tarefaId) {
+    return NextResponse.json({ erro: "file e tarefa_id são obrigatórios" }, { status: 400 })
+  }
+
+  // Não confia no empresa_id da tela: a tarefa precisa ser visível para o usuário (RLS)
+  const { data: tarefa } = await supabase.from("tarefas").select("id, empresa_id").eq("id", tarefaId).maybeSingle()
+  if (!tarefa) return NextResponse.json({ erro: "Tarefa não encontrada" }, { status: 404 })
+  const empresaId = tarefa.empresa_id as string
+
+  // Só tipos de arquivo comuns (bloqueia HTML/SVG/scripts que poderiam rodar no navegador)
+  const extensao = (file.name.split(".").pop() || "").toLowerCase()
+  const PERMITIDAS = ["jpg", "jpeg", "png", "gif", "webp", "heic", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "csv", "zip", "mp3", "mp4", "m4a", "ogg", "opus"]
+  if (!PERMITIDAS.includes(extensao)) {
+    return NextResponse.json({ erro: "Tipo de arquivo não permitido" }, { status: 400 })
   }
 
   if (file.size > MAX_SIZE) {
@@ -43,8 +54,8 @@ export async function POST(req: NextRequest) {
   }
 
   // Upload para Supabase Storage
-  const ext = file.name.split(".").pop() || "bin"
-  const path = `${empresaId}/${tarefaId}/${Date.now()}-${file.name}`
+  const nomeLimpo = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w.-]+/g, "_").slice(-100)
+  const path = `${empresaId}/${tarefaId}/${Date.now()}-${nomeLimpo}`
 
   const { error: uploadError } = await supabase.storage
     .from(BUCKET)

@@ -16,6 +16,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erro: "empresa_id e funcionario_id são obrigatórios" }, { status: 400 })
   }
 
+  // A empresa precisa ser acessível pelo usuário logado (RLS)
+  const { data: minhaEmpresa } = await supabase.from("empresas").select("id").eq("id", empresa_id).maybeSingle()
+  if (!minhaEmpresa) {
+    return NextResponse.json({ erro: "Empresa não encontrada" }, { status: 404 })
+  }
+
   const admin = createAdminClient()
 
   // Registrar logout

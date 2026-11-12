@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { enviarEmail, templateBase } from "@/lib/email/brevo"
 import crypto from "crypto"
 import { buscarUsuarioPorEmail } from "@/lib/supabase/buscar-usuario"
+import { consumirLimite, ipDaRequisicao } from "@/lib/security/limite-tentativas"
 
 /**
  * API Route de recuperação de senha.
@@ -16,6 +17,17 @@ export async function POST(req: NextRequest) {
 
     if (!email) {
       return NextResponse.json({ error: "Email é obrigatório" }, { status: 400 })
+    }
+
+    // Evita usar a tela para disparar e-mails em massa (resposta igual, sem revelar nada)
+    const emailNorm = String(email).trim().toLowerCase()
+    const [porEmail, porIp] = await Promise.all([
+      consumirLimite(`recuperar:${emailNorm}`, 3, 3600, 3600),
+      consumirLimite(`recuperar-ip:${ipDaRequisicao(req)}`, 10, 3600, 3600),
+    ])
+    if (!porEmail.permitido || !porIp.permitido) {
+      console.warn("[api/auth/recuperar-senha] limite atingido")
+      return NextResponse.json({ ok: true })
     }
 
     const admin = createAdminClient()

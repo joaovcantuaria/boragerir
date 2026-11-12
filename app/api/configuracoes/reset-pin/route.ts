@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { enviarEmail, templateBase } from "@/lib/email/brevo"
 import crypto from "crypto"
+import { createClient } from "@/lib/supabase/server"
+import { consumirLimite, limparLimite, mensagemBloqueio } from "@/lib/security/limite-tentativas"
 
 export async function POST(req: NextRequest) {
   const { empresa_id, acao, codigo } = await req.json()
@@ -9,6 +11,13 @@ export async function POST(req: NextRequest) {
   if (!empresa_id) {
     return NextResponse.json({ erro: "empresa_id é obrigatório" }, { status: 400 })
   }
+
+  // Só quem está logado e tem acesso à empresa (RLS)
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ erro: "Não autenticado" }, { status: 401 })
+  const { data: minhaEmpresa } = await supabase.from("empresas").select("id").eq("id", empresa_id).maybeSingle()
+  if (!minhaEmpresa) return NextResponse.json({ erro: "Empresa não encontrada" }, { status: 404 })
 
   const admin = createAdminClient()
 
@@ -25,6 +34,9 @@ export async function POST(req: NextRequest) {
 
   // AÇÃO: Enviar código por email
   if (acao === "enviar") {
+    // no máximo 3 códigos por hora
+    const lim = await consumirLimite(`reset-pin-envio:${empresa_id}`, 3, 3600, 3600)
+    if (!lim.permitido) return NextResponse.json({ erro: mensagemBloqueio(lim.bloqueadoAte) }, { status: 429 })
     const codigoReset = Math.floor(100000 + Math.random() * 900000).toString()
     const codigoHash = crypto.createHash("sha256").update(codigoReset).digest("hex")
     const expira = Date.now() + 10 * 60 * 1000 // 10 minutos
@@ -81,6 +93,9 @@ export async function POST(req: NextRequest) {
     if (!codigo || codigo.length !== 6) {
       return NextResponse.json({ valido: false, erro: "Código inválido" }, { status: 400 })
     }
+    // 5 códigos errados → bloqueia 15 min (impede testar os 900 mil códigos)
+    const lim = await consumirLimite(`reset-pin-codigo:${empresa_id}`, 5, 900, 900)
+    if (!lim.permitido) return NextResponse.json({ valido: false, erro: mensagemBloqueio(lim.bloqueadoAte) }, { status: 429 })
 
     const restricoes = empresa.restricoes_acesso as Record<string, unknown> || {}
     const resetData = restricoes._reset_pin as { hash: string; expira: number } | undefined
@@ -103,6 +118,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Código correto — resetar PIN e limpar código temporário
+    await limparLimite(`reset-pin-codigo:${empresa_id}`)
     const { _reset_pin, ...restoRestricoes } = restricoes
     await admin
       .from("empresas")

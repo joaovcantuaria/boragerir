@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import crypto from "crypto"
+import { consumirLimite, limparLimite, limiteBloqueadoAte, mensagemBloqueio } from "@/lib/security/limite-tentativas"
 
 function hashSenha(senha: string): string {
   return crypto.createHash("sha256").update(senha).digest("hex")
@@ -37,11 +38,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erro: "Senha de administrador não configurada" }, { status: 400 })
   }
 
+  // 5 senhas erradas em 15 min → bloqueia 15 min
+  const chaveLimite = `colab-admin:${empresa_id}`
+  const bloqueio = await limiteBloqueadoAte(chaveLimite)
+  if (bloqueio) return NextResponse.json({ sucesso: false, erro: mensagemBloqueio(bloqueio) }, { status: 429 })
+
   // Verificar senha
   const senhaHash = hashSenha(senha)
   if (senhaHash !== empresa.senha_admin) {
+    const r = await consumirLimite(chaveLimite, 5, 900, 900)
+    if (!r.permitido) return NextResponse.json({ sucesso: false, erro: mensagemBloqueio(r.bloqueadoAte) }, { status: 429 })
     return NextResponse.json({ sucesso: false, erro: "Senha incorreta" }, { status: 401 })
   }
+  await limparLimite(chaveLimite)
 
   return NextResponse.json({ sucesso: true })
 }

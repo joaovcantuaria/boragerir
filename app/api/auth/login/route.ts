@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { buscarUsuarioPorEmail } from "@/lib/supabase/buscar-usuario"
+import { algumBloqueado, consumirLimite, limparLimite, ipDaRequisicao, mensagemBloqueio } from "@/lib/security/limite-tentativas"
 import { createClient } from "@supabase/supabase-js"
 import { createServerClient } from "@supabase/ssr"
 
@@ -15,6 +16,23 @@ export async function POST(req: NextRequest) {
 
   if (!email || !password) {
     return NextResponse.json({ error: "Email e senha obrigatórios" }, { status: 400 })
+  }
+
+  // Limite de tentativas: 5 erros por e-mail (15 min) e 30 por IP (bloqueio de 30 min)
+  const emailNorm = String(email).trim().toLowerCase()
+  const chaves = [`login:${emailNorm}`, `login-ip:${ipDaRequisicao(req)}`]
+  const bloqueio = await algumBloqueado(chaves)
+  if (bloqueio) return NextResponse.json({ error: mensagemBloqueio(bloqueio) }, { status: 429 })
+
+  const falhaLogin = async () => {
+    const [porEmail, porIp] = await Promise.all([
+      consumirLimite(chaves[0], 5, 900, 900),
+      consumirLimite(chaves[1], 30, 900, 1800),
+    ])
+    if (!porEmail.permitido || !porIp.permitido) {
+      return NextResponse.json({ error: mensagemBloqueio(porEmail.bloqueadoAte ?? porIp.bloqueadoAte) }, { status: 429 })
+    }
+    return NextResponse.json({ error: "E-mail ou senha incorretos." }, { status: 401 })
   }
 
   const url        = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -40,6 +58,7 @@ export async function POST(req: NextRequest) {
 
   if (!error) {
     // Login funcionou normalmente — retorna com sessão
+    await limparLimite(chaves[0])
     return response
   }
 
@@ -64,15 +83,16 @@ export async function POST(req: NextRequest) {
       const { error: error2 } = await supabase.auth.signInWithPassword({ email, password })
 
       if (!error2) {
+        await limparLimite(chaves[0])
         return response
       }
 
-      return NextResponse.json({ error: "E-mail ou senha incorretos." }, { status: 401 })
+      return falhaLogin()
     } catch {
-      return NextResponse.json({ error: "E-mail ou senha incorretos." }, { status: 401 })
+      return falhaLogin()
     }
   }
 
   // Outros erros (senha errada, etc.)
-  return NextResponse.json({ error: "E-mail ou senha incorretos." }, { status: 401 })
+  return falhaLogin()
 }

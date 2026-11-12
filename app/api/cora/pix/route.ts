@@ -129,13 +129,11 @@ export async function POST(request: NextRequest) {
       },
     }
 
-    console.log("[Cora Pix] Sending invoice request:", JSON.stringify(invoiceRequest, null, 2))
 
     // Chamar API da Cora
     const coraClient = new CoraClient(empresaId)
     const coraResponse = await coraClient.createInvoice(invoiceRequest)
 
-    console.log("[Cora Pix] Cora response:", JSON.stringify(coraResponse, null, 2))
 
     // Salvar em cora_boletos com tipo "pix"
     const { data: boleto, error: insertError } = await supabase

@@ -73,7 +73,7 @@ export function PinModal({
         onSuccess()
         onClose()
       } else {
-        setErro("PIN incorreto")
+        setErro(res.status === 429 && data.erro ? data.erro : "PIN incorreto")
         setShake(true)
         setTimeout(() => setShake(false), 600)
         setPin(Array(6).fill(""))
