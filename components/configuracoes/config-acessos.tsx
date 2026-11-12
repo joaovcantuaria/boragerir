@@ -45,6 +45,7 @@ const AREAS_DISPONIVEIS = [
       { id: "caixa_suprimento", label: "Realizar suprimento" },
       { id: "caixa_despesa", label: "Registrar despesa" },
       { id: "caixa_editar_lancamento", label: "Editar/cancelar lançamentos" },
+      { id: "caixa_importar_extrato", label: "Importar extrato bancário" },
       { id: "caixa_ver_movimentacoes", label: "Ver movimentações" },
       { id: "caixa_ver_anteriores", label: "Ver caixas anteriores" },
       { id: "caixa_ver_totais", label: "Ver totais do caixa" },

@@ -28,6 +28,7 @@ import { createClient } from "@/lib/supabase/client"
 import type { TablesInsert } from "@/types/database"
 import { formatarMoeda, formatarDataHora } from "@/lib/utils"
 import { CodigoRastreio } from "@/components/ui/codigo-rastreio"
+import { ImportarExtrato } from "@/components/caixa/importar-extrato"
 import { useColaborador } from "@/contexts/colaborador-context"
 
 type CaixaAnterior = {
@@ -205,6 +206,8 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
           <option value="cartao_credito">Cartão Crédito</option>
           <option value="cartao_debito">Cartão Débito</option>
           <option value="transferencia">Transferência</option>
+          <option value="boleto">Boleto</option>
+          <option value="debito_conta">Débito em conta</option>
         </select>
       </div>
       <div className="space-y-1">
@@ -376,8 +379,8 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
       colaborador_id: colaborador?.id !== "owner" ? colaborador?.id : null,
     }
 
-    // Data retroativa (plano gestão) — salva em data_movimento E tenta created_at
-    if (data.data && plano === "gestao") {
+    // Data do lançamento (plano gestão ou caixa mensal/semanal) — salva em data_movimento E created_at
+    if (data.data && permiteData) {
       // Garantir que a data está no formato YYYY-MM-DD com ano de 4 dígitos
       const dataLimpa = data.data.trim()
       const anoMatch = dataLimpa.match(/^(\d{4})-(\d{2})-(\d{2})$/)
@@ -389,7 +392,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
         payload.data_movimento = new Date().toISOString().split("T")[0]
       }
     } else {
-      payload.data_movimento = new Date().toISOString().split("T")[0]
+      payload.data_movimento = format(new Date(), "yyyy-MM-dd")
     }
 
     const { data: mov, error } = await supabase
@@ -535,8 +538,8 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
       updateData.caixa_id = caixaIdMovimentacao
     }
     // Data retroativa (plano gestão) — salva em data_movimento E tenta created_at
-    if (plano !== "gestao") {
-      // outros planos não escolhem data: mantém a data original do lançamento
+    if (!permiteData) {
+      // caixa diário fora do plano gestão não escolhe data: mantém a data original do lançamento
     } else if (data.data) {
       const dataLimpa = data.data.trim()
       const anoMatch = dataLimpa.match(/^(\d{4})-(\d{2})-(\d{2})$/)
@@ -569,6 +572,26 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
   }
 
   const temCaixasAnteriores = ["basico", "profissional", "gestao"].includes(plano)
+  // Caixa mensal/semanal (ou plano gestão): cada lançamento pode ter a sua data
+  const permiteData = plano === "gestao" || ["mensal", "semanal"].includes(String((caixa as { tipo_caixa?: string | null } | null)?.tipo_caixa ?? ""))
+
+  // Importação de extrato (OFX/CSV)
+  const caixasParaImportar = (caixasAbertos.length > 0 ? caixasAbertos : caixa ? [caixa] : []).map((c) => ({
+    id: c.id,
+    rotulo: `${c.tipo_conta === "banco" ? "🏦 Banco" : "💵 Dinheiro"}${c.nome_caixa ? ` — ${c.nome_caixa}` : ""}`,
+  }))
+  const caixaPadraoImportacao = (caixasAbertos.find((c) => c.tipo_conta === "banco") ?? caixasAbertos[0] ?? caixa)?.id ?? ""
+  const botaoImportarExtrato = caixaPadraoImportacao ? (
+    <ImportarExtrato
+      empresaId={empresaId}
+      caixas={caixasParaImportar}
+      caixaPadraoId={caixaPadraoImportacao}
+      colaboradorId={colaborador?.id && colaborador.id !== "owner" ? colaborador.id : null}
+      movimentacoesExistentes={movimentacoes}
+      onImportado={(novas) => setMovimentacoes((prev) => [...prev, ...(novas as unknown as Movimentacao[])])}
+      protegerAcao={(acao) => executarComPin("caixa_importar_extrato", acao)}
+    />
+  ) : null
 
   return (
     <div className="space-y-6">
@@ -729,6 +752,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
                 <Minus className="w-4 h-4 text-red-500" />
                 Despesa
               </Button>
+              {botaoImportarExtrato}
             </div>
           )}
 
@@ -757,7 +781,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
                         <div>
                           <p className="text-sm font-medium">{mov.descricao.replace(/\s*\[.*?\]\s*$/, "")}</p>
                           <p className="text-xs text-muted-foreground">
-                            {format(new Date(mov.created_at), "HH:mm")} • {mov.categoria}
+                            {format(new Date(mov.created_at), permiteData ? "dd/MM" : "HH:mm")} • {mov.categoria}
                             {mov.descricao.match(/\[(.*?)\]/) && <span className="ml-1 text-primary">• {mov.descricao.match(/\[(.*?)\]/)?.[1]?.replace("_", " ")}</span>}
                           </p>
                           <CodigoRastreio codigo={mov.codigo_rastreio} />
@@ -910,6 +934,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
               <Minus className="w-4 h-4 text-red-500" />
               Despesa
             </Button>
+            {botaoImportarExtrato}
             {plano !== "gestao" && (
               <Button variant="destructive" onClick={() => executarComPin("caixa_fechar", () => setModalFecharCaixa(true))} className="ml-auto gap-2">
                 <X className="w-4 h-4" />
@@ -943,7 +968,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
                         <div>
                           <p className="text-sm font-medium">{mov.descricao.replace(/\s*\[.*?\]\s*$/, "")}</p>
                           <p className="text-xs text-muted-foreground">
-                            {format(new Date(mov.created_at), "HH:mm")} • {mov.categoria}
+                            {format(new Date(mov.created_at), permiteData ? "dd/MM" : "HH:mm")} • {mov.categoria}
                             {mov.descricao.match(/\[(.*?)\]/) && <span className="ml-1 text-primary">• {mov.descricao.match(/\[(.*?)\]/)?.[1]?.replace("_", " ")}</span>}
                           </p>
                           <CodigoRastreio codigo={mov.codigo_rastreio} />
@@ -1067,7 +1092,7 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
                           <div>
                             <p className="text-xs font-medium">{mov.descricao}</p>
                             <p className="text-[10px] text-muted-foreground">
-                              {format(new Date(mov.created_at), "HH:mm")} · {mov.categoria}
+                              {format(new Date(mov.created_at), "dd/MM HH:mm")} · {mov.categoria}
                             </p>
                             <CodigoRastreio codigo={mov.codigo_rastreio} />
                           </div>
@@ -1332,12 +1357,12 @@ export function CaixaClient({ empresaId, userId, plano = "gratuito", caixaAberto
               <Input placeholder="Ex: Pagamento fornecedor" required {...formMovimentacao.register("descricao")} />
             </div>
             {/* Data retroativa — apenas plano gestão */}
-            {plano === "gestao" && (
+            {permiteData && (
               <div className="space-y-2">
                 <Label>Data da movimentação</Label>
                 <Input
                   type="date"
-                  max={new Date().toISOString().slice(0, 10)}
+                  max={format(new Date(), "yyyy-MM-dd")}
                   {...formMovimentacao.register("data")}
                 />
                 <p className="text-[10px] text-muted-foreground">Deixe vazio para usar a data de hoje.</p>

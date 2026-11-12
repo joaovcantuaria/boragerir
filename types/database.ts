@@ -1881,6 +1881,7 @@ export type Database = {
           codigo_rastreio: string | null
           valor_receber_id: string | null
           conta_pagar_id: string | null
+          extrato_id: string | null
         }
         Insert: {
           id?: string
@@ -1897,6 +1898,7 @@ export type Database = {
           codigo_rastreio?: string | null
           valor_receber_id?: string | null
           conta_pagar_id?: string | null
+          extrato_id?: string | null
         }
         Update: {
           id?: string
@@ -1913,6 +1915,7 @@ export type Database = {
           codigo_rastreio?: string | null
           valor_receber_id?: string | null
           conta_pagar_id?: string | null
+          extrato_id?: string | null
         }
         Relationships: [
           {
