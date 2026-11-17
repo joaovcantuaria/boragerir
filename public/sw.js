@@ -1,60 +1,22 @@
-// Service Worker — BeautyFlow PWA
-const CACHE_NAME = "beautyflow-v1"
-const OFFLINE_URL = "/offline"
+// Service Worker antigo — DESATIVADO (17/11/2026)
+// O sistema não registra mais service worker. Este arquivo existe só para
+// desligar o que ficou instalado em navegadores antigos: ele guardava páginas
+// e respostas da API em cache (telas desatualizadas depois de cada publicação
+// e consultas como "o Pix já foi pago?" presas na primeira resposta).
+// Ao atualizar, ele apaga todos os caches, se desregistra e recarrega a página.
 
-const STATIC_ASSETS = [
-  "/",
-  "/dashboard",
-  "/manifest.json",
-]
-
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS)
-    })
-  )
+self.addEventListener("install", () => {
   self.skipWaiting()
 })
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
-      )
-    )
-  )
-  self.clients.claim()
-})
-
-self.addEventListener("fetch", (event) => {
-  // Apenas GET
-  if (event.request.method !== "GET") return
-
-  // Não cachear requisições para o Supabase
-  if (event.request.url.includes("supabase.co")) return
-
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached
-
-      return fetch(event.request)
-        .then((response) => {
-          if (response && response.status === 200 && response.type === "basic") {
-            const clone = response.clone()
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
-          }
-          return response
-        })
-        .catch(() => {
-          // Fallback para páginas HTML quando offline
-          if (event.request.mode === "navigate") {
-            return caches.match("/dashboard") || new Response("Você está offline.", {
-              headers: { "Content-Type": "text/html" },
-            })
-          }
-        })
-    })
+    (async () => {
+      const chaves = await caches.keys()
+      await Promise.all(chaves.map((chave) => caches.delete(chave)))
+      await self.registration.unregister()
+      const janelas = await self.clients.matchAll({ type: "window" })
+      janelas.forEach((janela) => janela.navigate(janela.url))
+    })()
   )
 })

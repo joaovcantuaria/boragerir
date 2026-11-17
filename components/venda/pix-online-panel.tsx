@@ -30,6 +30,8 @@ export function PixOnlinePanel({
   const [showTimeoutAlert, setShowTimeoutAlert] = useState(false)
   const [paid, setPaid] = useState(false)
   const [canceling, setCanceling] = useState(false)
+  // Plano B se a imagem não carregar: tenta o gerador direto; se falhar de novo, mostra aviso
+  const [tentativaQr, setTentativaQr] = useState(0)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -37,7 +39,7 @@ export function PixOnlinePanel({
   // O QR Code é sempre gerado a partir do "copia e cola" (é exatamente o que o banco lê).
   // A imagem enviada pela Cora só é usada se não houver o código.
   const qrSrc = copiaCola
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(copiaCola)}`
+    ? `/api/qrcode?d=${encodeURIComponent(copiaCola)}`
     : !qrCode
     ? ""
     : qrCode.startsWith("data:")
@@ -179,8 +181,20 @@ export function PixOnlinePanel({
 
       {/* QR Code */}
       <div className="flex justify-center rounded-lg bg-white p-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={qrSrc} alt="QR Code Pix" className="h-40 w-40 object-contain" />
+        {tentativaQr < 2 && qrSrc ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={tentativaQr}
+            src={tentativaQr === 0 || !copiaCola ? qrSrc : `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(copiaCola)}`}
+            alt="QR Code Pix"
+            className="h-40 w-40 object-contain"
+            onError={() => setTentativaQr((t) => t + 1)}
+          />
+        ) : (
+          <p className="h-40 w-40 flex items-center justify-center text-center text-xs text-gray-500">
+            Não foi possível mostrar o QR Code. Use o código copia e cola abaixo.
+          </p>
+        )}
       </div>
 
       {/* Status indicator */}
