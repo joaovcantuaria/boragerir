@@ -4,6 +4,7 @@ import { CoraClient, CoraApiError } from "@/lib/cora/client"
 import { logCoraAudit } from "@/lib/cora/audit"
 import { createAdminClient } from "@/lib/supabase/admin"
 import type { CoraInvoiceRequest } from "@/lib/cora/types"
+import { documentoValido } from "@/lib/cora/documento"
 
 interface PixRequestBody {
   pagador: {
@@ -56,6 +57,9 @@ export async function POST(request: NextRequest) {
     }
     if (!body.pagador.nome) camposFaltantes.push("pagador.nome")
     if (!body.pagador.documento) camposFaltantes.push("pagador.documento")
+    else if (!documentoValido(body.pagador.documento)) {
+      return NextResponse.json({ error: "CPF/CNPJ do cliente inválido ou não cadastrado. Cadastre o documento correto do cliente para gerar o Pix." }, { status: 400 })
+    }
     // email is optional — Cora accepts invoices without email
     if (!body.pagador.tipo) camposFaltantes.push("pagador.tipo")
     if (!body.pagador.endereco) {

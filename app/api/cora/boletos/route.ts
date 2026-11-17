@@ -4,6 +4,7 @@ import { CoraClient, CoraApiError } from "@/lib/cora/client"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { logCoraAudit } from "@/lib/cora/audit"
 import type { CoraInvoiceRequest } from "@/lib/cora/types"
+import { documentoValido } from "@/lib/cora/documento"
 
 // === POST: Emitir boleto ===
 
@@ -27,6 +28,9 @@ export async function POST(request: NextRequest) {
     } else {
       if (!pagador.nome || pagador.nome.trim() === "") erros.push("pagador.nome é obrigatório")
       if (!pagador.documento || pagador.documento.trim() === "") erros.push("pagador.documento é obrigatório")
+      else if (!documentoValido(pagador.documento)) {
+        return NextResponse.json({ error: "CPF/CNPJ do cliente inválido ou não cadastrado. Cadastre o documento correto do cliente para emitir boleto." }, { status: 400 })
+      }
       // email is optional — Cora accepts invoices without email
       if (!pagador.tipo || !["PERSON", "BUSINESS"].includes(pagador.tipo)) erros.push("pagador.tipo deve ser PERSON ou BUSINESS")
       if (!pagador.endereco) {

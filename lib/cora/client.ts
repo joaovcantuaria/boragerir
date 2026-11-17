@@ -61,7 +61,14 @@ export class CoraClient {
       let errorBody: any = {};
       try { errorBody = JSON.parse(errorText); } catch {}
       console.error("[CoraClient] API Error:", response.status, response.statusText, "Body:", errorText, "URL:", `${CORA_API_URL}${path}`);
-      throw new CoraApiError(response.status, errorBody.code || errorBody.error_code, errorBody.message || errorBody.error_description || errorText);
+      // Detalhe por campo (ex.: "customer.document: invalid") para saber o que a Cora recusou
+      const listaErros: any[] = Array.isArray(errorBody.errors) ? errorBody.errors : Array.isArray(errorBody.details) ? errorBody.details : [];
+      const detalhes = listaErros
+        .map((e: any) => (typeof e === "string" ? e : [e.field ?? e.path ?? e.parameter, e.message ?? e.description ?? e.code].filter(Boolean).join(": ")))
+        .filter(Boolean)
+        .join("; ");
+      const principal = errorBody.message || errorBody.error_description || (detalhes ? "" : errorText.slice(0, 300));
+      throw new CoraApiError(response.status, errorBody.code || errorBody.error_code, [principal, detalhes].filter(Boolean).join(" — "));
     }
 
     // Para respostas 204 (No Content), retorna undefined como T
@@ -86,8 +93,8 @@ export class CoraClient {
         name: data.customer.name,
         email: data.customer.email || undefined,
         document: {
-          identity: data.customer.document,
-          type: data.customer.document.length === 14 ? "CNPJ" : "CPF"
+          identity: data.customer.document.replace(/\D/g, ""),
+          type: data.customer.document.replace(/\D/g, "").length === 14 ? "CNPJ" : "CPF"
         },
         address: {
           street: data.customer.address.street,
@@ -96,7 +103,7 @@ export class CoraClient {
           district: data.customer.address.district,
           city: data.customer.address.city,
           state: data.customer.address.state,
-          zip_code: data.customer.address.zipCode
+          zip_code: data.customer.address.zipCode.replace(/\D/g, "")
         }
       },
       services: data.services.map(s => ({

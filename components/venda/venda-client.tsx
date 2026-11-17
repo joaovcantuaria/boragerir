@@ -626,7 +626,7 @@ export function VendaClient({
               nome: clienteSelecionado.nome_completo || "Cliente",
               documento: clienteSelecionado.cpf?.replace(/\D/g, "") || "00000000000",
               email: "noreply@boragerir.com",
-              tipo: "PERSON",
+              tipo: (clienteSelecionado.cpf?.replace(/\D/g, "")?.length === 14) ? "BUSINESS" : "PERSON",
               endereco: { rua: "Rua Exemplo", numero: "100", bairro: "Centro", cidade: "Sao Paulo", estado: "SP", cep: "01001000" }
             },
             valor: total,
