@@ -34,9 +34,12 @@ export function PixOnlinePanel({
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Build QR code src
-  // A Cora pode mandar só o "copia e cola": nesse caso a imagem é gerada a partir dele
-  const qrSrc = !qrCode
-    ? (copiaCola ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(copiaCola)}` : "")
+  // O QR Code é sempre gerado a partir do "copia e cola" (é exatamente o que o banco lê).
+  // A imagem enviada pela Cora só é usada se não houver o código.
+  const qrSrc = copiaCola
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(copiaCola)}`
+    : !qrCode
+    ? ""
     : qrCode.startsWith("data:")
       ? qrCode
       : qrCode.startsWith("http")
