@@ -34,11 +34,14 @@ export function PixOnlinePanel({
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Build QR code src
-  const qrSrc = qrCode.startsWith("data:") 
-    ? qrCode 
-    : qrCode.startsWith("http") 
-      ? qrCode 
-      : `data:image/png;base64,${qrCode}`
+  // A Cora pode mandar só o "copia e cola": nesse caso a imagem é gerada a partir dele
+  const qrSrc = !qrCode
+    ? (copiaCola ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(copiaCola)}` : "")
+    : qrCode.startsWith("data:")
+      ? qrCode
+      : qrCode.startsWith("http")
+        ? qrCode
+        : `data:image/png;base64,${qrCode}`
 
   // Polling function
   const checkStatus = useCallback(async () => {

@@ -128,6 +128,7 @@ export async function POST(request: NextRequest) {
           amount: valorCentavos,
         },
       ],
+      paymentForms: ["BANK_SLIP", "PIX"],
       paymentTerms: {
         dueDate: dueDate,
       },
@@ -136,7 +137,15 @@ export async function POST(request: NextRequest) {
 
     // Chamar API da Cora
     const coraClient = new CoraClient(empresaId)
-    const coraResponse = await coraClient.createInvoice(invoiceRequest)
+    let coraResponse = await coraClient.createInvoice(invoiceRequest)
+    // Em produção o código Pix pode ficar pronto alguns instantes depois: consulta de novo
+    for (let tentativa = 0; tentativa < 3 && !coraResponse.pix?.copyAndPaste; tentativa++) {
+      await new Promise((r) => setTimeout(r, 1200))
+      try { coraResponse = await coraClient.getInvoice(coraResponse.id) } catch { break }
+    }
+    if (!coraResponse.pix?.copyAndPaste) {
+      console.error("[Cora Pix] Cobrança criada sem código Pix:", coraResponse.id)
+    }
 
 
     // Salvar em cora_boletos com tipo "pix"

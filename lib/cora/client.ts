@@ -26,6 +26,18 @@ export class CoraApiError extends Error {
   }
 }
 
+/** Procura o código Pix "copia e cola" (EMV começa com 000201) em qualquer campo da resposta. */
+function acharEmv(valor: unknown, profundidade = 0): string | null {
+  if (profundidade > 6 || valor == null) return null;
+  if (typeof valor === "string") return /^000201\d/.test(valor) ? valor : null;
+  if (typeof valor !== "object") return null;
+  for (const v of Object.values(valor as Record<string, unknown>)) {
+    const achado = acharEmv(v, profundidade + 1);
+    if (achado) return achado;
+  }
+  return null;
+}
+
 /**
  * Cliente HTTP para a API da Cora.
  * Gerencia autenticação automática (token refresh) e idempotência.
@@ -113,7 +125,8 @@ export class CoraClient {
       payment_terms: {
         due_date: data.paymentTerms.dueDate
       },
-      ...(data.notification ? { notification: { emails: data.notification.emails } } : {})
+      ...(data.notification ? { notification: { emails: data.notification.emails } } : {}),
+      ...(data.paymentForms?.length ? { payment_forms: data.paymentForms } : {})
     };
 
     // Get raw response from Cora (snake_case format)
@@ -148,10 +161,13 @@ export class CoraClient {
         barcode: raw.payment_options.bank_slip.barcode || "",
         digitableLine: raw.payment_options.bank_slip.digitable || "",
       } : (raw.bankslip || { barcode: "", digitableLine: "" }),
-      pix: raw.pix ? {
-        qrCode: raw.pix.qr_code || raw.pix.qrCode || raw.pix.encoded_image || "",
-        copyAndPaste: raw.pix.copy_and_paste || raw.pix.emv || "",
-      } : undefined,
+      pix: (() => {
+        // A produção pode devolver o Pix em lugares diferentes do ambiente de teste
+        const p = raw.pix || raw.payment_options?.pix || {};
+        const copia = p.emv || p.copy_and_paste || p.copyAndPaste || p.qr_code_text || acharEmv(raw) || "";
+        const imagem = p.qr_code_image || p.encoded_image || p.image || (typeof p.qr_code === "string" && p.qr_code !== copia ? p.qr_code : "") || p.qrCode || "";
+        return copia || imagem ? { qrCode: imagem, copyAndPaste: copia } : undefined;
+      })(),
       services: raw.services || [],
       paymentTerms: raw.payment_terms
         ? { dueDate: raw.payment_terms.due_date }

@@ -8,6 +8,8 @@ export interface CoraInvoiceRequest {
   fine?: CoraFine;
   discount?: CoraDiscount;
   notification?: CoraNotification;
+  /** Formas de pagamento da cobrança (ex.: ["BANK_SLIP", "PIX"]) */
+  paymentForms?: Array<'BANK_SLIP' | 'PIX'>;
 }
 
 export interface CoraBuyer {
