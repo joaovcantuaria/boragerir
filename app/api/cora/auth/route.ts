@@ -24,6 +24,9 @@ export async function GET(req: NextRequest) {
   authorizeUrl.searchParams.set("redirect_uri", redirectUri)
   authorizeUrl.searchParams.set("response_type", "code")
   authorizeUrl.searchParams.set("scope", "openid")
+  // Permissões que a Cora concede ao parceiro (parâmetro "scopes", separado por espaço):
+  // invoice = boletos/Pix, account = extrato. Ajustável por CORA_SCOPES (ex.: "invoice account transfer").
+  authorizeUrl.searchParams.set("scopes", process.env.CORA_SCOPES?.trim() || "invoice account")
   authorizeUrl.searchParams.set("state", state)
 
   // 4. Armazena state em cookie para validação no callback

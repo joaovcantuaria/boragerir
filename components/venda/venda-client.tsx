@@ -582,8 +582,9 @@ export function VendaClient({
         })
 
         if (!boletoRes.ok) {
+          const falha = await boletoRes.json().catch(() => ({}))
           await supabase.from("vendas").delete().eq("id", venda.id)
-          toast.error("Erro ao gerar boleto. Venda cancelada. Tente novamente.")
+          toast.error(`Erro ao gerar boleto${falha?.error ? `: ${falha.error}` : ""}. Venda cancelada.`)
           setLoading(false)
           return
         }
@@ -636,8 +637,9 @@ export function VendaClient({
         })
 
         if (!pixRes.ok) {
+          const falha = await pixRes.json().catch(() => ({}))
           await supabase.from("vendas").delete().eq("id", venda.id)
-          toast.error("Erro ao gerar Pix. Tente novamente.")
+          toast.error(`Erro ao gerar Pix${falha?.error ? `: ${falha.error}` : ""}. Tente novamente.`)
           setLoading(false)
           return
         }
