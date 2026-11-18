@@ -123,7 +123,7 @@ export function VendaMobile(props: VendaMobileProps) {
     subtotal, descontoValor, descontoPontos, total, troco, pontosResgateBrinde,
     adicionarItem, alterarQuantidade, removerItem,
     finalizarVenda, novaVenda, loading,
-    modalSucesso, setModalSucesso, vendaFinalizada,
+    modalSucesso, vendaFinalizada,
     imprimirRecibo, imprimirReciboTermica, enviarWhatsApp, loadingRecibo,
   } = props
 
@@ -671,7 +671,7 @@ export function VendaMobile(props: VendaMobileProps) {
       </div>
 
       {/* Modal de sucesso */}
-      <Dialog open={modalSucesso} onOpenChange={setModalSucesso}>
+      <Dialog open={modalSucesso} onOpenChange={(aberto) => { if (!aberto) novaVenda() }}>
         <DialogContent className="max-w-[92vw] rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-emerald-500">

@@ -1,6 +1,21 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useSyncExternalStore } from "react"
+
+// A versão de celular do PDV fica escondida por CSS (md:hidden), mas as janelas (Dialog)
+// abrem fora dela. Este teste garante que só a janela da tela atual abra.
+const CONSULTA_CELULAR = "(max-width: 767.98px)"
+function useEhCelular() {
+  return useSyncExternalStore(
+    (avisar) => {
+      const m = window.matchMedia(CONSULTA_CELULAR)
+      m.addEventListener("change", avisar)
+      return () => m.removeEventListener("change", avisar)
+    },
+    () => window.matchMedia(CONSULTA_CELULAR).matches,
+    () => false
+  )
+}
 import { Search, Plus, Minus, Trash2, ShoppingCart, Check, Loader2, X, User, Gift, Keyboard } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -109,6 +124,7 @@ export function VendaClient({
   const [loading, setLoading] = useState(false)
   const [loadingRecibo, setLoadingRecibo] = useState(false)
   const [modalSucesso, setModalSucesso] = useState(false)
+  const ehCelular = useEhCelular()
   const [vendaFinalizada, setVendaFinalizada] = useState<{ id: string; numero: number; total: number; codigo?: string | null } | null>(null)
   const [valorRecebido, setValorRecebido] = useState("")
   const [formaPagEntrada, setFormaPagEntrada] = useState<string>("dinheiro")
@@ -1055,7 +1071,7 @@ export function VendaClient({
       finalizarVenda={finalizarVenda}
       novaVenda={novaVenda}
       loading={loading}
-      modalSucesso={modalSucesso}
+      modalSucesso={modalSucesso && ehCelular}
       setModalSucesso={setModalSucesso}
       vendaFinalizada={vendaFinalizada}
       imprimirRecibo={imprimirRecibo}
@@ -1798,7 +1814,8 @@ export function VendaClient({
       </div>
 
       {/* Modal de sucesso */}
-      <Dialog open={modalSucesso} onOpenChange={setModalSucesso}>
+      {/* Fechar (X, Esc ou clique fora) já começa uma nova venda */}
+      <Dialog open={modalSucesso && !ehCelular} onOpenChange={(aberto) => { if (!aberto) novaVenda() }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-emerald-500">
