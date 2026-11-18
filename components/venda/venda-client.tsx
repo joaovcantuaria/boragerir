@@ -27,6 +27,19 @@ interface ItemVendaLocal {
   preco_unitario: number
   comissao_percentual: number | null
   subtotal: number
+  /** Desconto do item: o que foi digitado, o tipo e o valor em R$ já calculado (subtotal = bruto - desconto) */
+  desconto_item_input?: string
+  desconto_item_tipo?: "reais" | "percentual"
+  desconto_item?: number
+}
+
+/** Recalcula o subtotal da linha aplicando o desconto do item (nunca passa do valor da linha) */
+function calcularLinha(i: ItemVendaLocal): ItemVendaLocal {
+  const bruto = i.quantidade * i.preco_unitario
+  const v = Math.max(0, parseFloat(i.desconto_item_input ?? "") || 0)
+  const desc = Math.min(bruto, i.desconto_item_tipo === "percentual" ? (bruto * v) / 100 : v)
+  const descArred = Math.round(desc * 100) / 100
+  return { ...i, desconto_item: descArred, subtotal: Math.round((bruto - descArred) * 100) / 100 }
 }
 
 interface ProdutoSimples {
@@ -104,6 +117,8 @@ export function VendaClient({
   const pinDescontoPendenteRef = useRef(0)
   const pinDescontoOrigemRef = useRef<"desconto" | "finalizar">("desconto")
   const pinDescontoAprovadoRef = useRef(false)
+  const pinDescontoItemRef = useRef<string | null>(null) // item cujo desconto pediu o PIN
+  const itemTrocouTipoRef = useRef<string | null>(null) // item que trocou R$/% (confere o limite depois de recalcular)
   // Cupom do cliente (gerado pelo BoraGerir Chat no aniversário/reativação)
   const [cupom, setCupom] = useState<{ codigo: string; tipo: "percentual" | "fixo"; valor: number } | null>(null)
   const [codigoCupom, setCodigoCupom] = useState("")
@@ -285,6 +300,9 @@ export function VendaClient({
 
   // Calcular totais
   const subtotal = itens.reduce((s, i) => s + i.subtotal, 0)
+  // Valor dos itens antes do desconto por item, e quanto foi dado de desconto nos itens
+  const subtotalBruto = itens.reduce((s, i) => s + i.quantidade * i.preco_unitario, 0)
+  const descontoItens = itens.reduce((s, i) => s + (i.desconto_item ?? 0), 0)
   const descontoValor = tipoDesconto === "reais"
     ? parseFloat(desconto) || 0
     : (subtotal * (parseFloat(desconto) || 0)) / 100
@@ -322,7 +340,7 @@ export function VendaClient({
       if (existente) {
         return prev.map((i) =>
           i.produto_servico_id === produto.id
-            ? { ...i, quantidade: i.quantidade + qtd, subtotal: (i.quantidade + qtd) * i.preco_unitario }
+            ? calcularLinha({ ...i, quantidade: i.quantidade + qtd })
             : i
         )
       }
@@ -343,7 +361,7 @@ export function VendaClient({
   function alterarQuantidade(id: string, delta: number) {
     setItens((prev) => prev.map((i) =>
       i.produto_servico_id === id
-        ? { ...i, quantidade: Math.max(1, i.quantidade + delta), subtotal: Math.max(1, i.quantidade + delta) * i.preco_unitario }
+        ? calcularLinha({ ...i, quantidade: Math.max(1, i.quantidade + delta) })
         : i
     ))
   }
@@ -352,7 +370,15 @@ export function VendaClient({
     const preco = parseFloat(novoPreco) || 0
     setItens((prev) => prev.map((i) =>
       i.produto_servico_id === id
-        ? { ...i, preco_unitario: preco, subtotal: i.quantidade * preco }
+        ? calcularLinha({ ...i, preco_unitario: preco })
+        : i
+    ))
+  }
+
+  function alterarDescontoItem(id: string, valor: string, tipo?: "reais" | "percentual") {
+    setItens((prev) => prev.map((i) =>
+      i.produto_servico_id === id
+        ? calcularLinha({ ...i, desconto_item_input: valor, desconto_item_tipo: tipo ?? i.desconto_item_tipo ?? "reais" })
         : i
     ))
   }
@@ -379,8 +405,10 @@ export function VendaClient({
   }
 
   function percentualDoDesconto(valor: string = desconto, tipo: "reais" | "percentual" = tipoDesconto) {
+    // % total de desconto (itens + venda) sobre o valor original dos itens
     const v = parseFloat(valor) || 0
-    return tipo === "percentual" ? v : subtotal > 0 ? (v / subtotal) * 100 : 0
+    const descVenda = tipo === "percentual" ? (subtotal * v) / 100 : v
+    return subtotalBruto > 0 ? ((descontoItens + descVenda) / subtotalBruto) * 100 : 0
   }
 
   /** true se este % de desconto precisa do PIN de gerente (acima do limite e ainda não autorizado) */
@@ -392,7 +420,8 @@ export function VendaClient({
     return pct > limite + 0.0001 && pct > descontoAutorizadoAteRef.current + 0.0001
   }
 
-  function pedirPinDesconto(pct: number, origem: "desconto" | "finalizar") {
+  function pedirPinDesconto(pct: number, origem: "desconto" | "finalizar", itemId: string | null = null) {
+    pinDescontoItemRef.current = itemId
     pinDescontoPendenteRef.current = pct
     pinDescontoOrigemRef.current = origem
     pinDescontoAprovadoRef.current = false
@@ -405,14 +434,31 @@ export function VendaClient({
     if (descontoPrecisaPin(pct)) pedirPinDesconto(pct, "desconto")
   }
 
+  /** Ao sair do campo de desconto de um item: mesmo limite/PIN do desconto da venda */
+  function verificarDescontoItem(itemId: string) {
+    const pct = percentualDoDesconto()
+    if (colaborador && colaborador.perfil !== "admin") {
+      const limiteMax = (colaborador.permissoes?.venda_limite_desconto as number) ?? 0
+      if (pct > limiteMax + 0.0001) toast.error(`Desconto inválido, máximo permitido é ${limiteMax}%.`)
+      return
+    }
+    if (descontoPrecisaPin(pct)) pedirPinDesconto(pct, "desconto", itemId)
+  }
+
+  // Trocou R$/% num item: confere o limite já com o valor recalculado
+  useEffect(() => {
+    const id = itemTrocouTipoRef.current
+    if (!id) return
+    itemTrocouTipoRef.current = null
+    verificarDescontoItem(id)
+  })
+
   async function finalizarVenda() {
     if (itens.length === 0) { toast.error("Adicione ao menos um item."); return }
     if (!formaPagamento) { toast.error("Selecione a forma de pagamento."); return }
 
     // Verificar se desconto excede o limite do colaborador logado
-    const descontoPercentual = tipoDesconto === "percentual"
-      ? parseFloat(desconto) || 0
-      : subtotal > 0 ? ((parseFloat(desconto) || 0) / subtotal) * 100 : 0
+    const descontoPercentual = percentualDoDesconto()
 
     const limiteColaborador = colaborador?.permissoes?.venda_limite_desconto as number | undefined
 
@@ -770,6 +816,7 @@ export function VendaClient({
     for (const item of itens) {
       recibo += `${item.nome_item}\n`
       recibo += linha(`  ${item.quantidade}x ${formatarMoeda(item.preco_unitario)}`, formatarMoeda(item.subtotal)) + "\n"
+      if ((item.desconto_item ?? 0) > 0) recibo += linha("  Desc. item:", `-${formatarMoeda(item.desconto_item ?? 0)}`) + "\n"
     }
 
     recibo += sep + "\n"
@@ -835,6 +882,7 @@ export function VendaClient({
     for (const item of itens) {
       recibo += `${item.nome_item}\n`
       recibo += linha(`  ${item.quantidade}x ${formatarMoeda(item.preco_unitario)}`, formatarMoeda(item.subtotal)) + "\n"
+      if ((item.desconto_item ?? 0) > 0) recibo += linha("  Desc. item:", `-${formatarMoeda(item.desconto_item ?? 0)}`) + "\n"
     }
 
     recibo += sep + "\n"
@@ -1149,16 +1197,17 @@ export function VendaClient({
             {itens.length > 0 ? (
               <div className="divide-y divide-border">
                 {/* Header da tabela */}
-                <div className="grid grid-cols-[1fr_100px_80px_80px_32px] gap-2 px-4 py-2 bg-zinc-50 dark:bg-zinc-900/80 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider sticky top-0">
+                <div className="grid grid-cols-[1fr_100px_80px_112px_88px_32px] gap-2 px-4 py-2 bg-zinc-50 dark:bg-zinc-900/80 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider sticky top-0">
                   <span>Produto</span>
                   <span className="text-center">Qtd</span>
                   <span className="text-right">Unit.</span>
+                  <span className="text-right">Desc.</span>
                   <span className="text-right">Subtotal</span>
                   <span></span>
                 </div>
 
                 {itens.map((item) => (
-                  <div key={item.produto_servico_id} className="grid grid-cols-[1fr_100px_80px_80px_32px] gap-2 px-4 py-2.5 items-center hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-colors">
+                  <div key={item.produto_servico_id} className="grid grid-cols-[1fr_100px_80px_112px_88px_32px] gap-2 px-4 py-2.5 items-center hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-colors">
                     <span className="text-sm font-medium truncate">{item.nome_item}</span>
                     <div className="flex items-center justify-center gap-0.5">
                       <button
@@ -1185,7 +1234,38 @@ export function VendaClient({
                         className="h-6 w-full text-xs text-right px-1 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
                       />
                     </div>
-                    <span className="text-sm font-semibold text-right text-orange-600">{formatarMoeda(item.subtotal)}</span>
+                    <div className="flex items-center gap-1">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0"
+                        value={item.desconto_item_input ?? ""}
+                        onChange={(e) => alterarDescontoItem(item.produto_servico_id, e.target.value)}
+                        onBlur={() => verificarDescontoItem(item.produto_servico_id)}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLElement).blur() } }}
+                        aria-label={`Desconto do item ${item.nome_item}`}
+                        className="h-6 w-full min-w-0 text-xs text-right px-1 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const novo = item.desconto_item_tipo === "percentual" ? "reais" : "percentual"
+                          itemTrocouTipoRef.current = item.produto_servico_id
+                          alterarDescontoItem(item.produto_servico_id, item.desconto_item_input ?? "", novo)
+                        }}
+                        title="Alternar entre R$ e %"
+                        className="h-6 w-8 shrink-0 rounded border border-border text-[10px] font-semibold text-muted-foreground hover:text-foreground"
+                      >
+                        {item.desconto_item_tipo === "percentual" ? "%" : "R$"}
+                      </button>
+                    </div>
+                    <div className="text-right leading-tight">
+                      {(item.desconto_item ?? 0) > 0 && (
+                        <span className="block text-[10px] text-muted-foreground line-through">{formatarMoeda(item.quantidade * item.preco_unitario)}</span>
+                      )}
+                      <span className="text-sm font-semibold text-orange-600">{formatarMoeda(item.subtotal)}</span>
+                    </div>
                     <button
                       onClick={() => removerItem(item.produto_servico_id)}
                       className="w-6 h-6 rounded flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
@@ -1209,8 +1289,8 @@ export function VendaClient({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4 text-sm">
                 <span className="text-muted-foreground">{itens.length} {itens.length === 1 ? "item" : "itens"}</span>
-                {descontoTotal > 0 && (
-                  <span className="text-red-500">Desc: -{formatarMoeda(descontoTotal)}</span>
+                {descontoTotal + descontoItens > 0 && (
+                  <span className="text-red-500">Desc: -{formatarMoeda(descontoTotal + descontoItens)}</span>
                 )}
                 {descontoPontos > 0 && (
                   <span className="text-amber-600">Pontos: -{formatarMoeda(descontoPontos)}</span>
@@ -1316,8 +1396,7 @@ export function VendaClient({
                     // Validação em tempo real do limite de desconto
                     if (colaborador && colaborador.perfil !== "admin") {
                       const limiteMax = (colaborador.permissoes?.venda_limite_desconto as number) ?? 0
-                      const val = parseFloat(e.target.value) || 0
-                      const pct = tipoDesconto === "percentual" ? val : (subtotal > 0 ? (val / subtotal) * 100 : 0)
+                      const pct = percentualDoDesconto(e.target.value)
                       if (pct > limiteMax) {
                         toast.error(`Desconto inválido, máximo permitido é ${limiteMax}%.`)
                       }
@@ -1343,6 +1422,39 @@ export function VendaClient({
                 </Select>
               </div>
             </div>
+
+            {/* Resumo do desconto: valor original, desconto (R$ e %) e valor com desconto */}
+            {descontoTotal + descontoItens + descontoPontos > 0 && subtotalBruto > 0 && (
+              <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs space-y-1">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Valor original</span>
+                  <span>{formatarMoeda(subtotalBruto)}</span>
+                </div>
+                {descontoTotal + descontoItens > 0 && (
+                  <div className="flex justify-between text-red-500">
+                    <span>
+                      Desconto ({(((descontoTotal + descontoItens) / subtotalBruto) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%)
+                      {descontoItens > 0 && descontoTotal > 0 && (
+                        <span className="block text-[10px] text-muted-foreground">
+                          itens {formatarMoeda(descontoItens)} · venda {formatarMoeda(descontoTotal)}
+                        </span>
+                      )}
+                    </span>
+                    <span>-{formatarMoeda(descontoTotal + descontoItens)}</span>
+                  </div>
+                )}
+                {descontoPontos > 0 && (
+                  <div className="flex justify-between text-amber-600">
+                    <span>Pontos</span>
+                    <span>-{formatarMoeda(descontoPontos)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between border-t border-border pt-1 font-semibold">
+                  <span>Valor com desconto</span>
+                  <span className="text-orange-600">{formatarMoeda(total)}</span>
+                </div>
+              </div>
+            )}
 
             {/* Cupom do cliente */}
             <div className="space-y-1">
@@ -1750,7 +1862,8 @@ export function VendaClient({
           setPinModalAberto(false)
           // Fechou sem o PIN: o desconto acima do limite não vale
           if (!pinDescontoAprovadoRef.current && pinDescontoOrigemRef.current === "desconto") {
-            setDesconto("0")
+            if (pinDescontoItemRef.current) alterarDescontoItem(pinDescontoItemRef.current, "")
+            else setDesconto("0")
             toast.info("Desconto removido: acima do limite precisa do PIN de gerente.")
           }
         }}
