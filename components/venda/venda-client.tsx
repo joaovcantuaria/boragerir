@@ -37,7 +37,7 @@ interface ItemVendaLocal {
 function calcularLinha(i: ItemVendaLocal): ItemVendaLocal {
   const bruto = i.quantidade * i.preco_unitario
   const v = Math.max(0, parseFloat(i.desconto_item_input ?? "") || 0)
-  const desc = Math.min(bruto, i.desconto_item_tipo === "percentual" ? (bruto * v) / 100 : v)
+  const desc = Math.min(bruto, (i.desconto_item_tipo ?? "percentual") === "percentual" ? (bruto * v) / 100 : v)
   const descArred = Math.round(desc * 100) / 100
   return { ...i, desconto_item: descArred, subtotal: Math.round((bruto - descArred) * 100) / 100 }
 }
@@ -90,7 +90,10 @@ export function VendaClient({
   const [clienteSelecionado, setClienteSelecionado] = useState<ClienteSimples | null>(null)
   const [funcionarioId, setFuncionarioId] = useState<string>("")
   const [desconto, setDesconto] = useState<string>("0")
-  const [tipoDesconto, setTipoDesconto] = useState<"reais" | "percentual">("reais")
+  const [tipoDesconto, setTipoDesconto] = useState<"reais" | "percentual">("percentual") // padrão: %
+  // Preço do item: com PIN cadastrado, só muda depois do PIN (vale para aquele item nesta venda)
+  const [precoLiberado, setPrecoLiberado] = useState<string[]>([])
+  const [pinPrecoItem, setPinPrecoItem] = useState<string | null>(null)
   const [pontosUsar, setPontosUsar] = useState<number>(0)
   const [formaPagamento, setFormaPagamento] = useState<string>("")
   const [parcelas, setParcelas] = useState<string>("1")
@@ -378,7 +381,7 @@ export function VendaClient({
   function alterarDescontoItem(id: string, valor: string, tipo?: "reais" | "percentual") {
     setItens((prev) => prev.map((i) =>
       i.produto_servico_id === id
-        ? calcularLinha({ ...i, desconto_item_input: valor, desconto_item_tipo: tipo ?? i.desconto_item_tipo ?? "reais" })
+        ? calcularLinha({ ...i, desconto_item_input: valor, desconto_item_tipo: tipo ?? i.desconto_item_tipo ?? "percentual" })
         : i
     ))
   }
@@ -755,6 +758,8 @@ export function VendaClient({
     const match = funcionarios.find((f) => f.id === colabId)
     setFuncionarioId(match ? match.id : "")
     setDesconto("0")
+    setTipoDesconto("percentual")
+    setPrecoLiberado([])
     descontoAutorizadoAteRef.current = 0
     setCupom(null)
     setCodigoCupom("")
@@ -1230,6 +1235,15 @@ export function VendaClient({
                         step="0.01"
                         min="0"
                         value={item.preco_unitario}
+                        data-preco-item={item.produto_servico_id}
+                        readOnly={!!empresa.pin_gerente && !precoLiberado.includes(item.produto_servico_id)}
+                        title={!!empresa.pin_gerente && !precoLiberado.includes(item.produto_servico_id) ? "Alterar o preço pede o PIN de gerente" : undefined}
+                        onFocus={(e) => {
+                          if (empresa.pin_gerente && !precoLiberado.includes(item.produto_servico_id)) {
+                            e.currentTarget.blur()
+                            setPinPrecoItem(item.produto_servico_id)
+                          }
+                        }}
                         onChange={(e) => alterarPreco(item.produto_servico_id, e.target.value)}
                         className="h-6 w-full text-xs text-right px-1 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
                       />
@@ -1250,14 +1264,14 @@ export function VendaClient({
                       <button
                         type="button"
                         onClick={() => {
-                          const novo = item.desconto_item_tipo === "percentual" ? "reais" : "percentual"
+                          const novo = (item.desconto_item_tipo ?? "percentual") === "percentual" ? "reais" : "percentual"
                           itemTrocouTipoRef.current = item.produto_servico_id
                           alterarDescontoItem(item.produto_servico_id, item.desconto_item_input ?? "", novo)
                         }}
                         title="Alternar entre R$ e %"
                         className="h-6 w-8 shrink-0 rounded border border-border text-[10px] font-semibold text-muted-foreground hover:text-foreground"
                       >
-                        {item.desconto_item_tipo === "percentual" ? "%" : "R$"}
+                        {item.desconto_item_tipo === "reais" ? "R$" : "%"}
                       </button>
                     </div>
                     <div className="text-right leading-tight">
@@ -1878,6 +1892,26 @@ export function VendaClient({
         empresaId={empresa.id}
         titulo="Desconto acima do limite"
         descricao="Este desconto excede o limite permitido. Digite o PIN de gerente para autorizar."
+      />
+
+      {/* PIN para alterar o preço de um item */}
+      <PinModal
+        aberto={!!pinPrecoItem}
+        onClose={() => setPinPrecoItem(null)}
+        onSuccess={() => {
+          const id = pinPrecoItem
+          setPinPrecoItem(null)
+          if (!id) return
+          setPrecoLiberado((prev) => (prev.includes(id) ? prev : [...prev, id]))
+          setTimeout(() => {
+            const campo = document.querySelector<HTMLInputElement>(`[data-preco-item="${id}"]`)
+            campo?.focus()
+            campo?.select()
+          }, 150)
+        }}
+        empresaId={empresa.id}
+        titulo="Alterar preço do item"
+        descricao="Digite o PIN de gerente para alterar o preço deste item."
       />
 
       {/* Boleto Result Modal */}
