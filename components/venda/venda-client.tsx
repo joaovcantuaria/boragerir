@@ -98,7 +98,12 @@ export function VendaClient({
   const [formaPagEntrada, setFormaPagEntrada] = useState<string>("dinheiro")
   const [autoprint, setAutoprint] = useState(false)
   const [pinModalAberto, setPinModalAberto] = useState(false)
-  const [descontoAutorizado, setDescontoAutorizado] = useState(false)
+  // Desconto acima do limite: o PIN de gerente é pedido ao aplicar o desconto.
+  // Guarda até quantos % o gerente autorizou (refs: valor sempre atual, sem pedir o PIN de novo).
+  const descontoAutorizadoAteRef = useRef(0)
+  const pinDescontoPendenteRef = useRef(0)
+  const pinDescontoOrigemRef = useRef<"desconto" | "finalizar">("desconto")
+  const pinDescontoAprovadoRef = useRef(false)
   // Cupom do cliente (gerado pelo BoraGerir Chat no aniversário/reativação)
   const [cupom, setCupom] = useState<{ codigo: string; tipo: "percentual" | "fixo"; valor: number } | null>(null)
   const [codigoCupom, setCodigoCupom] = useState("")
@@ -373,6 +378,33 @@ export function VendaClient({
     }
   }
 
+  function percentualDoDesconto(valor: string = desconto, tipo: "reais" | "percentual" = tipoDesconto) {
+    const v = parseFloat(valor) || 0
+    return tipo === "percentual" ? v : subtotal > 0 ? (v / subtotal) * 100 : 0
+  }
+
+  /** true se este % de desconto precisa do PIN de gerente (acima do limite e ainda não autorizado) */
+  function descontoPrecisaPin(pct: number) {
+    if (colaborador && colaborador.perfil !== "admin") return false // colaborador usa o próprio limite
+    if (!empresa.pin_gerente) return false
+    const restricoes = empresa.restricoes_acesso as { limite_desconto_sem_pin?: number } | null
+    const limite = restricoes?.limite_desconto_sem_pin ?? 100
+    return pct > limite + 0.0001 && pct > descontoAutorizadoAteRef.current + 0.0001
+  }
+
+  function pedirPinDesconto(pct: number, origem: "desconto" | "finalizar") {
+    pinDescontoPendenteRef.current = pct
+    pinDescontoOrigemRef.current = origem
+    pinDescontoAprovadoRef.current = false
+    setPinModalAberto(true)
+  }
+
+  /** Ao sair do campo de desconto (ou trocar R$/%): acima do limite pede o PIN na hora */
+  function verificarDescontoAplicado(valor: string = desconto, tipo: "reais" | "percentual" = tipoDesconto) {
+    const pct = percentualDoDesconto(valor, tipo)
+    if (descontoPrecisaPin(pct)) pedirPinDesconto(pct, "desconto")
+  }
+
   async function finalizarVenda() {
     if (itens.length === 0) { toast.error("Adicione ao menos um item."); return }
     if (!formaPagamento) { toast.error("Selecione a forma de pagamento."); return }
@@ -382,11 +414,7 @@ export function VendaClient({
       ? parseFloat(desconto) || 0
       : subtotal > 0 ? ((parseFloat(desconto) || 0) / subtotal) * 100 : 0
 
-    // Limite vem do colaborador logado OU do sistema antigo de PIN
     const limiteColaborador = colaborador?.permissoes?.venda_limite_desconto as number | undefined
-    const restricoes = empresa.restricoes_acesso as { areas_protegidas?: string[], limite_desconto_sem_pin?: number } | null
-    const limiteDescontoSemPin = restricoes?.limite_desconto_sem_pin ?? 100
-    const pinConfigurado = !!empresa.pin_gerente
 
     // Se tem colaborador logado, usa o limite do colaborador
     if (colaborador && colaborador.perfil !== "admin") {
@@ -395,9 +423,9 @@ export function VendaClient({
         toast.error(`Desconto inválido, máximo permitido é ${limiteMax}%.`)
         return
       }
-    } else if (pinConfigurado && descontoPercentual > limiteDescontoSemPin && !descontoAutorizado) {
-      // Fallback: sistema antigo de PIN para quando não tem login local
-      setPinModalAberto(true)
+    } else if (descontoPrecisaPin(descontoPercentual)) {
+      // Só por segurança (ex.: itens removidos depois de autorizar): normalmente o PIN já foi pedido ao aplicar o desconto
+      pedirPinDesconto(descontoPercentual, "finalizar")
       return
     }
 
@@ -681,7 +709,7 @@ export function VendaClient({
     const match = funcionarios.find((f) => f.id === colabId)
     setFuncionarioId(match ? match.id : "")
     setDesconto("0")
-    setDescontoAutorizado(false)
+    descontoAutorizadoAteRef.current = 0
     setCupom(null)
     setCodigoCupom("")
     setPontosUsar(0)
@@ -1285,7 +1313,6 @@ export function VendaClient({
                   value={desconto}
                   onChange={(e) => {
                     setDesconto(e.target.value)
-                    setDescontoAutorizado(false)
                     // Validação em tempo real do limite de desconto
                     if (colaborador && colaborador.perfil !== "admin") {
                       const limiteMax = (colaborador.permissoes?.venda_limite_desconto as number) ?? 0
@@ -1296,6 +1323,7 @@ export function VendaClient({
                       }
                     }
                   }}
+                  onBlur={() => verificarDescontoAplicado()}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault()
@@ -1306,7 +1334,7 @@ export function VendaClient({
                   }}
                   className="h-8 text-sm flex-1"
                 />
-                <Select value={tipoDesconto} onValueChange={(v: "reais" | "percentual") => { setTipoDesconto(v); setDescontoAutorizado(false) }}>
+                <Select value={tipoDesconto} onValueChange={(v: "reais" | "percentual") => { setTipoDesconto(v); verificarDescontoAplicado(desconto, v) }}>
                   <SelectTrigger className="w-16 h-8 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="reais">R$</SelectItem>
@@ -1718,12 +1746,21 @@ export function VendaClient({
       {/* PIN Modal para desconto acima do limite */}
       <PinModal
         aberto={pinModalAberto}
-        onClose={() => setPinModalAberto(false)}
-        onSuccess={() => {
-          setDescontoAutorizado(true)
+        onClose={() => {
           setPinModalAberto(false)
-          // Após autorização, finalizar a venda automaticamente
-          setTimeout(() => finalizarVenda(), 100)
+          // Fechou sem o PIN: o desconto acima do limite não vale
+          if (!pinDescontoAprovadoRef.current && pinDescontoOrigemRef.current === "desconto") {
+            setDesconto("0")
+            toast.info("Desconto removido: acima do limite precisa do PIN de gerente.")
+          }
+        }}
+        onSuccess={() => {
+          pinDescontoAprovadoRef.current = true
+          descontoAutorizadoAteRef.current = pinDescontoPendenteRef.current
+          setPinModalAberto(false)
+          toast.success("Desconto autorizado")
+          // Se o PIN foi pedido ao finalizar, continua a finalização
+          if (pinDescontoOrigemRef.current === "finalizar") setTimeout(() => finalizarVenda(), 100)
         }}
         empresaId={empresa.id}
         titulo="Desconto acima do limite"
