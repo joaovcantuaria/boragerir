@@ -1574,7 +1574,7 @@ export function VendaClient({
               </div>
             )}
 
-            {/* Pix Online Panel — mostrado inline quando pix_cora está aguardando pagamento */}
+            {/* Pix Online — pop-up por cima da tela enquanto aguarda o pagamento */}
             {pixOnlineData && (
               <PixOnlinePanel
                 boletoId={pixOnlineData.boletoId}

@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useRef, useCallback, type ReactNode } from "react"
+import { createPortal } from "react-dom"
 import { Copy, Loader2, X, Clock, Check, QrCode } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -17,6 +18,22 @@ interface PixOnlinePanelProps {
 
 const POLL_INTERVAL = 5000 // 5 seconds
 const TIMEOUT_SECONDS = 300 // 5 minutes
+
+/** Pop-up por cima de toda a tela de venda: fundo translúcido, cartão 100% opaco no centro. */
+function Sobreposicao({ children }: { children: ReactNode }) {
+  if (typeof document === "undefined") return null
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Pagamento Pix"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-[2px] p-4"
+    >
+      <div className="w-full max-w-sm">{children}</div>
+    </div>,
+    document.body
+  )
+}
 
 export function PixOnlinePanel({
   boletoId,
@@ -116,20 +133,23 @@ export function PixOnlinePanel({
   // Paid state
   if (paid) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-xl border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30 p-6 text-center">
+      <Sobreposicao>
+      <div className="flex flex-col items-center gap-3 rounded-xl border border-emerald-300 bg-emerald-50 dark:bg-emerald-950 p-6 text-center shadow-2xl">
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500">
           <Check className="h-6 w-6 text-white" />
         </div>
         <p className="font-bold text-emerald-700 dark:text-emerald-400">Pagamento confirmado!</p>
         <p className="text-sm text-emerald-600 dark:text-emerald-500">Finalizando venda...</p>
       </div>
+      </Sobreposicao>
     )
   }
 
   // Timeout alert
   if (showTimeoutAlert) {
     return (
-      <div className="flex flex-col gap-3 rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-4">
+      <Sobreposicao>
+      <div className="flex flex-col gap-3 rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950 p-4 shadow-2xl">
         <div className="flex items-center gap-2">
           <Clock className="h-5 w-5 text-amber-600" />
           <p className="font-semibold text-amber-700 dark:text-amber-400 text-sm">
@@ -162,11 +182,13 @@ export function PixOnlinePanel({
           </Button>
         </div>
       </div>
+      </Sobreposicao>
     )
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
+    <Sobreposicao>
+    <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5 shadow-2xl">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -177,7 +199,7 @@ export function PixOnlinePanel({
       </div>
 
       {/* Valor */}
-      <p className="text-center text-lg font-bold text-[#F26E1D]">{formatarMoeda(valor)}</p>
+      <p className="text-center text-2xl font-bold text-[#F26E1D]">{formatarMoeda(valor)}</p>
 
       {/* QR Code */}
       <div className="flex justify-center rounded-lg bg-white p-3">
@@ -187,17 +209,19 @@ export function PixOnlinePanel({
             key={tentativaQr}
             src={tentativaQr === 0 || !copiaCola ? qrSrc : `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(copiaCola)}`}
             alt="QR Code Pix"
-            className="h-40 w-40 object-contain"
+            className="h-64 w-64 object-contain"
             onError={() => setTentativaQr((t) => t + 1)}
           />
         ) : (
-          <p className="h-40 w-40 flex items-center justify-center text-center text-xs text-gray-500">
+          <p className="h-64 w-64 flex items-center justify-center text-center text-xs text-gray-500">
             Não foi possível mostrar o QR Code. Use o código copia e cola abaixo.
           </p>
         )}
       </div>
 
       {/* Status indicator */}
+      <p className="text-center text-xs text-muted-foreground">Aponte a câmera do app do banco para o QR Code</p>
+
       <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin text-[#F26E1D]" />
         Aguardando pagamento...
@@ -227,5 +251,6 @@ export function PixOnlinePanel({
         Cancelar Pix
       </Button>
     </div>
+    </Sobreposicao>
   )
 }
